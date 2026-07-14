@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { DEFAULT_PERSONAS } from "./default-personas";
+import { personasForIndustry } from "./industry-templates";
 import { type PersonaSegmentKey, type PersonaStage } from "./demo-personas";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
@@ -103,12 +103,13 @@ export async function setPersonaActive(slug: string, active: boolean): Promise<v
 }
 
 /**
- * Seed the neutral, industry-agnostic starter personas into a NEW workspace.
- * Idempotent: a no-op once the org has any persona. Runs with an explicit admin
- * client during onboarding (no request context), mirroring seedDefaultMediaFolders.
+ * Seed a NEW workspace's starter personas. Picks the persona pack for the chosen
+ * `industry` (falls back to the neutral, industry-agnostic set for an unknown or
+ * unset industry). Idempotent: a no-op once the org has any persona. Runs with an
+ * explicit admin client during onboarding, mirroring seedDefaultMediaFolders.
  */
 export async function seedDefaultPersonas(
-  { orgId, client }: { orgId: string; client?: SupabaseClient },
+  { orgId, client, industry }: { orgId: string; client?: SupabaseClient; industry?: string },
 ): Promise<number> {
   const supabase = (client ?? getSupabaseAdminClient()) as unknown as SupabaseClient;
 
@@ -119,7 +120,7 @@ export async function seedDefaultPersonas(
   if (countError) throw new Error(`personas count failed: ${countError.message}`);
   if ((count ?? 0) > 0) return 0;
 
-  const rows = DEFAULT_PERSONAS.map((persona) => ({
+  const rows = personasForIndustry(industry).map((persona) => ({
     org_id: orgId,
     slug: persona.slug,
     name: persona.name,
@@ -131,6 +132,7 @@ export async function seedDefaultPersonas(
     score_trend: [60, 60],
     angle: persona.angle,
     audience: persona.audience,
+    cta: persona.cta ?? "",
     is_active: true,
   }));
 

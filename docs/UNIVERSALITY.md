@@ -128,13 +128,21 @@ Most of "make it feel built for me" is not a schema engine — it's seed data. A
 onboarding, let a tenant pick an industry (restoration, law firm, agency, med
 spa, SaaS, home services…). The choice seeds:
 
-- a starter persona set (`persona_definitions` + `personas`),
-- object **labels** (rename "properties" → "matters"/"projects"/"accounts"),
-- default pipeline stages,
-- starter campaign/message angles.
+- a starter persona set (`personas`) — **shipped**,
+- starter message angles + CTAs (baked into the persona pack) — **shipped**,
+- object **labels** (rename "properties" → "matters"/"projects"/"accounts") — deferred,
+- default pipeline stages — deferred (needs Track 3).
 
-Pure config on top of Tracks 1–3. This is the biggest day-one perception win for
-the least schema risk.
+**v1 shipped.** An Industry picker on the onboarding form
+(`src/app/onboarding/page.tsx`) drives a code-side catalog
+(`src/lib/personas/industry-templates.ts`, 8 verticals + a neutral `general`
+fallback). `seedDefaultPersonas({ industry })` seeds the matching persona pack
+(with angles + CTAs) instead of the neutral set, and `createWorkspaceDefaults`
+persists the choice on `business_profiles.industry` (existing column — no
+migration). Because Track 1 made every picker/gate org-aware, the seeded
+industry personas flow through the whole app with no extra wiring. Object labels
++ per-industry stages are the remaining, deeper pieces (see Track 3 / the CRM
+fork).
 
 ---
 

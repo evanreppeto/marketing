@@ -14,6 +14,8 @@ export type DefaultPersonaSeed = {
   stage: string;
   angle: string;
   audience: string;
+  /** Recommended call-to-action; optional (blank for the neutral set is fine). */
+  cta?: string;
 };
 
 export const DEFAULT_PERSONAS: DefaultPersonaSeed[] = [
@@ -24,6 +26,7 @@ export const DEFAULT_PERSONAS: DefaultPersonaSeed[] = [
     stage: "New",
     angle: "Answer the question that brought them in and make the next step effortless.",
     audience: "People who just discovered you and are sizing up whether you're the right fit.",
+    cta: "Take the next step",
   },
   {
     slug: "active-customer",
@@ -32,6 +35,7 @@ export const DEFAULT_PERSONAS: DefaultPersonaSeed[] = [
     stage: "Active",
     angle: "Reinforce the value they're already getting and surface the next best thing to do.",
     audience: "Current customers actively using what you offer.",
+    cta: "See what's next",
   },
   {
     slug: "champion",
@@ -40,6 +44,7 @@ export const DEFAULT_PERSONAS: DefaultPersonaSeed[] = [
     stage: "Champion",
     angle: "Give them easy ways to refer, review, and advocate — they already love you.",
     audience: "Your happiest customers and repeat buyers who spread the word.",
+    cta: "Refer a friend",
   },
   {
     slug: "at-risk",
@@ -48,5 +53,6 @@ export const DEFAULT_PERSONAS: DefaultPersonaSeed[] = [
     stage: "At risk",
     angle: "Re-earn attention with a concrete reason to come back before they churn.",
     audience: "Customers who've gone quiet or shown signs of drifting away.",
+    cta: "Come back",
   },
 ];

@@ -6,6 +6,7 @@ import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured, type TypedSupabaseClient } from "@/lib/supabase/server";
 import { seedDefaultMediaFolders } from "@/lib/media-library/persistence";
 import { seedDefaultPersonas } from "@/lib/personas/persistence";
+import { isKnownIndustry } from "@/lib/personas/industry-templates";
 
 type WorkspaceType = "individual" | "company" | "agency";
 
@@ -27,6 +28,8 @@ export type CreateWorkspaceInput = {
   organizationName: string;
   workspaceName?: string;
   workspaceType?: string;
+  /** Industry template key (see industry-templates.ts) — drives the seeded persona pack. */
+  industry?: string;
 };
 
 export type CreateWorkspaceResult =
@@ -49,6 +52,10 @@ function slugify(value: string) {
 
 function normalizeWorkspaceType(value: string | undefined): WorkspaceType {
   return value === "individual" || value === "agency" || value === "company" ? value : "company";
+}
+
+function normalizeIndustry(value: string | undefined): string {
+  return isKnownIndustry(value) ? (value as string) : "general";
 }
 
 function shortMarkFor(name: string) {
@@ -277,7 +284,13 @@ async function createOwnerMemberships(client: TypedSupabaseClient, orgId: string
   if (workspaceError) throw workspaceError;
 }
 
-async function createWorkspaceDefaults(client: TypedSupabaseClient, org: OrganizationRow, workspace: WorkspaceRow, userId: string) {
+async function createWorkspaceDefaults(
+  client: TypedSupabaseClient,
+  org: OrganizationRow,
+  workspace: WorkspaceRow,
+  userId: string,
+  industry = "general",
+) {
   await client.from("arc_instances").upsert(
     {
       org_id: org.id,
@@ -296,13 +309,14 @@ async function createWorkspaceDefaults(client: TypedSupabaseClient, org: Organiz
       display_name: org.name,
       legal_name: org.name,
       short_mark: shortMarkFor(org.name),
+      industry,
       status: "draft",
     },
     { onConflict: "org_id" },
   );
 
   await seedDefaultMediaFolders({ orgId: org.id, client });
-  await seedDefaultPersonas({ orgId: org.id, client });
+  await seedDefaultPersonas({ orgId: org.id, client, industry });
 
   await client.from("audit_events").insert({
     org_id: org.id,
@@ -348,6 +362,7 @@ export async function createWorkspaceForUser(
   const organizationName = normalizeName(input.organizationName);
   const workspaceName = normalizeName(input.workspaceName, organizationName);
   const workspaceType = normalizeWorkspaceType(input.workspaceType);
+  const industry = normalizeIndustry(input.industry);
 
   if (!email || organizationName.length < 2 || workspaceName.length < 2) {
     return { ok: false, status: "invalid_input", message: "Enter an organization and workspace name." };
@@ -372,7 +387,7 @@ export async function createWorkspaceForUser(
     const workspace = await upsertDefaultWorkspace(client, org, workspaceName, workspaceType, user.id);
 
     await createOwnerMemberships(client, org.id, workspace.id, user.id, email);
-    await createWorkspaceDefaults(client, org, workspace, user.id);
+    await createWorkspaceDefaults(client, org, workspace, user.id, industry);
 
     return { ok: true, orgId: org.id, workspaceId: workspace.id, claimedExistingOrg: false };
   } catch (error) {

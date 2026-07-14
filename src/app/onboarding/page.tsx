@@ -1,5 +1,6 @@
 import { AuthBrandPanel } from "@/components/ui/auth-brand-panel";
 import { FormValidityMessages } from "@/components/ui/form-validity";
+import { INDUSTRY_OPTIONS } from "@/lib/personas/industry-templates";
 
 import { createWorkspaceAction, joinWorkspaceAction } from "./actions";
 
@@ -100,6 +101,22 @@ export default async function OnboardingPage({
                   </label>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="industry" className={labelClass}>
+                Your industry
+              </label>
+              <select id="industry" name="industry" defaultValue="general" className={inputClass}>
+                {INDUSTRY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-[0.75rem] text-[var(--text-muted)]">
+                Sets up a starter set of audience personas tailored to your business. You can edit them anytime.
+              </p>
             </div>
 
             <button

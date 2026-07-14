@@ -18,6 +18,7 @@ export async function createWorkspaceAction(formData: FormData) {
     organizationName: String(formData.get("organizationName") ?? ""),
     workspaceName: String(formData.get("workspaceName") ?? ""),
     workspaceType: String(formData.get("workspaceType") ?? "company"),
+    industry: String(formData.get("industry") ?? "general"),
   });
 
   if (result.ok) {
