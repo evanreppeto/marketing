@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/supabase/server", () => ({ isSupabaseAdminConfigured: vi.fn(() => true) }));
+vi.mock("@/lib/supabase/server", () => ({
+  isSupabaseAdminConfigured: vi.fn(() => true),
+  getSupabaseAdminClient: vi.fn(() => ({
+    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { subscription_status: null }, error: null }) }) }) }),
+  })),
+}));
 vi.mock("@/lib/auth/workspace", () => ({ getCurrentWorkspaceContext: vi.fn() }));
 vi.mock("@/lib/demo/demo-mode", () => ({ isDemoDataEnabled: vi.fn(() => false) }));
 vi.mock("./entitlements", () => ({ resolveOrgPlan: vi.fn() }));
