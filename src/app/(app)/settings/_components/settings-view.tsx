@@ -634,7 +634,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
               <div className="panel-b" style={{ padding: 16 }}>
                 <div className="ukpis">{[[usageView.tokensLabel, "Tokens"], [usageView.runsLabel, "Agent runs"], [usageView.costLabel, "Est. cost"]].map(([v, l]) => <div className="ukpi" key={l}><div className="uv">{v}</div><div className="ul">{l}</div></div>)}</div>
                 <div className="ubar"><i style={{ width: `${Math.min(usageView.pctOfCap, 100)}%`, ...(usageView.isNearCap ? { background: "var(--warn)" } : {}) }} /></div>
-                <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 7 }}>{usageView.pctOfCap}% of your {usageView.capLabel} soft cap · {usageView.rangeLabel}</div>
+                <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 7 }}>{usageView.pctOfCap}% of your {usageView.capLabel}{usageView.planLabel ? ` ${usageView.planLabel}` : ""} plan cap · {usageView.rangeLabel}</div>
               </div>
               <div className="panel-f"><Ic d={CHECK} />loadWorkspaceUsage → summarizeUsageForSettings · scoped to this workspace</div>
             </div>

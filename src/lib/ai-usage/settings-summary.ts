@@ -6,13 +6,16 @@
 // Read-only display — the full breakdown lives on the Usage report.
 // ---------------------------------------------------------------------------
 
-import { summarizeUsageForSettings, type UsageSummaryCard } from "@/domain";
+import { DEFAULT_PLAN_TIER, planCapCents, planForTier, summarizeUsageForSettings, type UsageSummaryCard } from "@/domain";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { resolveOrgPlan } from "@/lib/billing/entitlements";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 
 import { loadWorkspaceUsage, type RecentUsageRow } from "./read-model";
 
-// Default monthly soft cap ($80) until a per-workspace cap field is wired.
-const SOFT_CAP_CENTS = 8000;
+// Illustrative cap for the offline demo card only; the live path uses the org's
+// real plan cap resolved from org_plans (see @/lib/billing/entitlements).
+const DEMO_CAP_CENTS = 8000;
 
 export type UsageDailyPoint = { date: string; costCents: number };
 export type UsageRecentRow = { occurredAt: string; actor: string; model: string; service: string; tokens: number; costCents: number };
@@ -25,6 +28,8 @@ export type SettingsUsageView = {
   runsLabel: string;
   costLabel: string;
   capLabel: string;
+  /** Plan tier label (e.g. "Pro") backing the cap, when resolved. */
+  planLabel?: string;
   pctOfCap: number;
   isNearCap: boolean;
   rangeLabel: string;
@@ -51,6 +56,8 @@ export function toUsageView(
   daily: UsageDailyPoint[] = [],
   recent: UsageRecentRow[] = [],
   byModel: UsageModelRow[] = [],
+  capCents: number = planCapCents(DEFAULT_PLAN_TIER),
+  planLabel: string = planForTier(DEFAULT_PLAN_TIER).label,
 ): SettingsUsageView {
   return {
     isDemo,
@@ -58,7 +65,8 @@ export function toUsageView(
     tokensLabel: formatTokens(card.totalTokens),
     runsLabel: NUM.format(card.totalRuns),
     costLabel: USD2.format(card.totalCostCents / 100),
-    capLabel: USD0.format(SOFT_CAP_CENTS / 100),
+    capLabel: USD0.format(capCents / 100),
+    planLabel,
     pctOfCap: card.pctOfCap,
     isNearCap: card.isNearCap,
     rangeLabel: "Last 30 days",
@@ -119,19 +127,25 @@ function demoByModel(): UsageModelRow[] {
 function demoUsageView(now: Date): SettingsUsageView {
   // Believable BSR month: ~1.84M tokens, 312 agent runs, $48.80 → 61% of the $80 cap.
   const card: UsageSummaryCard = { totalCostCents: 4880, totalTokens: 1_842_000, totalRuns: 312, pctOfCap: 61, isNearCap: false };
-  return toUsageView(card, true, true, demoDaily(now), demoRecent(now), demoByModel());
+  return toUsageView(card, true, true, demoDaily(now), demoRecent(now), demoByModel(), DEMO_CAP_CENTS, "Pro");
 }
 
 export async function getSettingsUsageView(): Promise<SettingsUsageView> {
   const usage = await loadWorkspaceUsage("30d").catch(() => null);
   if (usage?.configured) {
+    // Resolve the org's real plan cap so both the % and the label reflect billing.
+    const plan = await resolveOrgPlan(await getCurrentOrgId().catch(() => "")).catch(() => null);
+    const capCents = plan?.capCents ?? planCapCents(DEFAULT_PLAN_TIER);
+    const planLabel = planForTier(plan?.tier ?? DEFAULT_PLAN_TIER).label;
     return toUsageView(
-      summarizeUsageForSettings(usage.summary, SOFT_CAP_CENTS),
+      summarizeUsageForSettings(usage.summary, capCents),
       false,
       true,
       usage.daily,
       toRecentRows(usage.recent),
       usage.summary.byModel,
+      capCents,
+      planLabel,
     );
   }
 

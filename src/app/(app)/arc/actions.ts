@@ -11,6 +11,8 @@ import {
 } from "@/lib/arc-chat/persistence";
 import { getCreationTenancy } from "@/lib/arc-chat/sharing";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { checkUsageAllowed, formatCentsUsd } from "@/lib/billing/entitlements";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 const MAX_MESSAGE_LENGTH = 8000;
@@ -39,6 +41,16 @@ export async function sendArcMessageAction(input: {
   if (!body) return { ok: false, error: "Type a message first." };
   if (body.length > MAX_MESSAGE_LENGTH) {
     return { ok: false, error: "That message is too long — trim it down a bit." };
+  }
+
+  // Pre-flight plan/quota gate: don't spend Arc (Claude) budget when the org is
+  // over its monthly cap. Non-blocking until ARC_BILLING_ENFORCEMENT is armed.
+  const gate = await checkUsageAllowed(await getCurrentOrgId());
+  if (!gate.allowed) {
+    return {
+      ok: false,
+      error: `You've reached this month's plan limit (${formatCentsUsd(gate.capCents)} on the ${gate.tier} plan). It resets next cycle — or upgrade to keep going.`,
+    };
   }
 
   try {
