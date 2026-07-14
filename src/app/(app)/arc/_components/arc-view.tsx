@@ -603,7 +603,7 @@ export function ArcView({
                 </div>
               </div>
             </div>
-            <div className="khint" style={{ display: "flex", alignItems: "center" }}><span><b>↵</b> send</span><span><b>⇧↵</b> new line</span><span><b>@</b> mention · <b>/</b> commands</span><ContextMeter messages={messages} /></div>
+            <div className="khint"><span><b>↵</b> send</span><span><b>⇧↵</b> new line</span><span><b>@</b> mention · <b>/</b> commands</span><ContextMeter messages={messages} /></div>
           </div>
         </div>
       </section>

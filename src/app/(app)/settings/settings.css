@@ -145,7 +145,29 @@
 .arc-settings .ccard-btn:focus-visible { border-color: var(--accent-border); box-shadow: 0 0 0 2px var(--accent-soft); }
 .arc-settings .cb-open { font-size: 11.5px; font-weight: 600; color: var(--accent-contrast); }
 .arc-settings .ccard-btn:hover .cb-open { color: var(--accent-hover); }
-.arc-settings .condetail-hd { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
+/* Connector / Resend popup (.cxm-*) — rendered inside the shared Modal. Compact,
+   plain-language setup for a single connector: status + test, credential, config. */
+.arc-settings .cxm { display: flex; flex-direction: column; }
+.arc-settings .cxm .inp { min-width: 0; width: 100%; }
+.arc-settings .cxm-status { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 13px; border: 1px solid var(--line-2); border-radius: 11px; background: var(--inset); }
+.arc-settings .cxm-status .pillrow { gap: 8px; flex-wrap: wrap; }
+.arc-settings .cxm-sub { font-size: 11px; color: var(--muted); margin: 8px 2px 0; }
+.arc-settings .cxm-err { font-size: 11.5px; color: var(--red-text); background: var(--red-soft); border: 1px solid var(--red-border); border-radius: 9px; padding: 8px 11px; margin-top: 9px; line-height: 1.45; }
+.arc-settings .cxm-note { font-size: 11.5px; color: var(--muted); line-height: 1.55; border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; margin-bottom: 13px; background: color-mix(in srgb, var(--warn-soft) 40%, transparent); }
+.arc-settings .cxm-note code { font-family: var(--mono); font-size: 10.5px; color: var(--text-2); background: var(--inset); border-radius: 4px; padding: 1px 5px; }
+.arc-settings .cxm-sec { margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--line); }
+.arc-settings .cxm-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+.arc-settings .cxm-hint { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin: 0 0 11px; }
+.arc-settings .cxm-field { display: flex; gap: 8px; align-items: center; }
+.arc-settings .cxm-field .inp { flex: 1; }
+.arc-settings .cxm-field .btn { flex-shrink: 0; }
+.arc-settings .cxm-actions { display: flex; gap: 8px; margin-top: 11px; }
+.arc-settings .cxm-about { display: grid; gap: 0; margin: 0; }
+.arc-settings .cxm-about > div { display: flex; align-items: baseline; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.arc-settings .cxm-about > div:last-child { border-bottom: 0; }
+.arc-settings .cxm-about dt { font-size: 11.5px; color: var(--muted); min-width: 74px; margin: 0; }
+.arc-settings .cxm-about dd { font-size: 12px; color: var(--text-2); margin: 0; flex: 1; }
+.arc-settings .cxm-statusline { margin-top: 13px; }
 
 .arc-settings .ovgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(166px, 1fr)); gap: 11px; margin-bottom: 16px; }
 .arc-settings .ovcard { border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); padding: 13px 14px; cursor: pointer; transition: 0.15s var(--ease); }

@@ -38,6 +38,7 @@ import { connectConnector, disconnectConnector, runConnectorImport, saveConnecto
 import { setEmailConnectionEnabled, testEmailConnection } from "../connections-actions";
 import type { ConnectionView } from "@/lib/connections/read-model";
 import { setConnectorSpendCap } from "../spend-actions";
+import { Modal } from "../../_components/modal";
 import { ImageUploadField } from "./image-upload-field";
 import { NewWorkspaceModal, type NewWorkspaceValue } from "./new-workspace-modal";
 
@@ -392,6 +393,9 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
   for (const v of connectors.connectors) {
     destinations.push({ label: "Connections", sub: v.label, keywords: `connections ${v.label} ${v.key} connector integration`, go: () => openConnector(v.key) });
   }
+  if (emailConnection) {
+    destinations.push({ label: "Connections", sub: "Resend", keywords: "connections resend email send delivery from address", go: () => openConnector("resend") });
+  }
   const q = navQ.trim().toLowerCase();
   const results = q
     ? destinations
@@ -422,7 +426,8 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
       ))}
     </div>
   ) : null;
-  const selectedConnector = connSel ? connectors.connectors.find((v) => v.key === connSel) ?? null : null;
+  const selectedConnector = connSel && connSel !== "resend" ? connectors.connectors.find((v) => v.key === connSel) ?? null : null;
+  const resendModalOpen = connSel === "resend";
   // "Recommended for your business" — real connectors whose verticals match the
   // workspace industry (BSR-371). Tailored, non-universal; empty when no industry set.
   const workspaceIndustry = (settings.industry ?? "").trim();
@@ -485,11 +490,9 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
         <WorkspacesSection view={workspaces} />
       </>
     ),
-    connections: selectedConnector ? (
-      <ConnectorDetail view={selectedConnector} configured={connectors.configured} onBack={closeConnector} />
-    ) : (
+    connections: (
       <>
-        <Head t="Connections" d="What Arc can reach. Live connectors are per-workspace and credential-based — the key is stored encrypted in your Vault and handed only to the runner, never the browser. Posting & sending always stay human-approved." />
+        <Head t="Connections" d="What Arc can reach. Each connector is set up per workspace — click one to add its key or switch it on. Keys are stored encrypted, and posting or sending always waits for your approval." />
         {subBar}
         {activeSub === "Roadmap" ? (
           <>
@@ -534,8 +537,8 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
             {recommendedConnectors.length > 0 && (
               <div style={{ fontFamily: "var(--mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)", margin: "2px 2px 10px" }}>All connectors</div>
             )}
-            {emailConnection && <EmailConnectionCard view={emailConnection} />}
             <div className="conngrid">
+              {emailConnection && <ResendCard view={emailConnection} onOpen={() => openConnector("resend")} />}
               {connectors.connectors.map((v) => <ConnectorCard key={v.key} view={v} onOpen={() => openConnector(v.key)} />)}
             </div>
           </>
@@ -673,9 +676,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
   };
 
   const crumbTrail: Crumb[] = [{ label: "Settings", onClick: () => navTo("overview") }];
-  if (cur === "connections" && selectedConnector) {
-    crumbTrail.push({ label: "Connections", onClick: closeConnector }, { label: selectedConnector.label });
-  } else if (SUBTABS[cur] && activeSub) {
+  if (SUBTABS[cur] && activeSub) {
     crumbTrail.push({ label: SECTION_LABEL[cur], onClick: () => navTo(cur, SUBTABS[cur][0]) }, { label: activeSub });
   } else {
     crumbTrail.push({ label: SECTION_LABEL[cur] ?? "Overview" });
@@ -724,6 +725,10 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
           {sections[cur]}
         </div>
       </div>
+      {selectedConnector && (
+        <ConnectorModal view={selectedConnector} configured={connectors.configured} onClose={closeConnector} />
+      )}
+      {resendModalOpen && emailConnection && <ResendModal view={emailConnection} onClose={closeConnector} />}
     </div>
   );
 }
@@ -1261,10 +1266,12 @@ function ConnectorCard({ view, onOpen }: { view: ConnectorView; onOpen: () => vo
   );
 }
 
-// ---- Connector detail (drill-down) ----
-// Full page for one connector: live status + health, the credential connect/test/
-// disconnect controls, and the registry metadata. Test runs a real provider probe.
-function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; configured: boolean; onBack: () => void }) {
+// ---- Connector popup (per-workspace setup) ----
+// One modal for a single connector: status + a real Test probe, the credential
+// connect / rotate / disconnect (or an enable switch for no-credential ones), any
+// per-workspace config, and a plain-language "About". Opened from a card click and
+// deep-linkable (?s=connections&c=<key>). Nothing here is developer-facing.
+function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; configured: boolean; onClose: () => void }) {
   const meta = CONNECTOR_META[view.key] ?? { c: "#9aa0ac", l: view.label.slice(0, 2), credLabel: "API key", credHint: "" };
   const reg = findConnector(view.key);
   const pill = CONNECTOR_STATUS_PILL[view.status];
@@ -1272,16 +1279,16 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
   // Up-front cost disclosure for metered connectors — shown before you connect /
   // enable (no surprise charges). Rate lives in src/domain/connector-metering.ts.
   const costDisclosure = view.costTier === "metered" ? describeConnectorCost(view.key) : null;
-  const costDesc = costDisclosure
-    ? `${cost.title} ${costDisclosure} — billed against your workspace spend cap (Settings → Usage).`
-    : cost.title;
+  const costLine = costDisclosure ? `${cost.label} · ${costDisclosure}` : cost.label;
   const kindLabel = CONNECTOR_KIND_LABEL[view.kind] ?? view.kind;
   // No-credential connectors (public signal source, config-only channel) have no
-  // Vault secret to store — they are set up by flipping the enable switch.
+  // secret to store — they are set up by flipping the enable switch.
   const noCredential = view.credentialOptional && view.authKind === "none";
   // No-credential connectors that still expose a live connectivity probe (the NWS
   // weather source reports its active-alert count) get a Test connection button.
   const hasConnectivityTest = view.key === "weather-signals";
+  const configField = CONFIG_FIELDS[view.key];
+
   const [credential, setCredential] = useState("");
   // Seed status from the OAuth round-trip marker (?hf=connected | <error-code>)
   // Higgsfield redirects back with — computed at init so no setState-in-effect.
@@ -1316,129 +1323,121 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
     setPending(false);
   }
 
-  return (
-    <>
-      <button className="btn sm" style={{ marginBottom: 14 }} onClick={onBack}>← All connections</button>
-      <div className="condetail-hd">
-        <span className="clogo" style={{ background: `${meta.c}22`, border: `1px solid ${meta.c}55`, color: meta.c, width: 46, height: 46 }}>{meta.l}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}><h2 style={{ fontFamily: "var(--serif)", fontWeight: 500, fontSize: 21, margin: 0 }}>{view.label}</h2><Pill kind={pill.kind}>{pill.label}</Pill><span className="badge" title={costDesc}>{cost.label}</span><span className="badge">{kindLabel}</span></div>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, lineHeight: 1.5 }}>{view.description}</div>
-        </div>
-      </div>
+  const canTest = !noCredential || hasConnectivityTest;
 
-      <Panel title="Health" tag={TGOK} foot="workspace_connectors · a real provider probe records last_test_ok / last_test_error">
-        <Row label="Status" desc={view.lastTestedAt ? `Last tested ${relTime(view.lastTestedAt)}` : hasConnectivityTest ? "Test to fetch the current NWS/NOAA alert count for your service area." : noCredential ? "No credential to test — enable to use." : "Not tested yet."}>
+  return (
+    <Modal open onClose={onClose} width={480} title={view.label} description={view.description}>
+      <div className="cxm">
+        {!configured && (
+          <div className="cxm-note">You’re previewing without a connected workspace — changes here won’t be saved.</div>
+        )}
+
+        <div className="cxm-status">
           <span className="pillrow">
             <Pill kind={pill.kind}>{pill.label}</Pill>
-            {(!noCredential || hasConnectivityTest) && <button className="btn sm" disabled={pending || (!hasConnectivityTest && !view.credentialPresent)} onClick={() => run(() => testConnector({ connectorKey: view.key }), `${view.label} connection is healthy.`)}>{pending ? "Testing…" : "Test connection"}</button>}
+            <span className="badge" title={costLine}>{cost.label}</span>
           </span>
-        </Row>
+          {canTest && (
+            <button className="btn sm" disabled={pending || (!hasConnectivityTest && !view.credentialPresent)} onClick={() => run(() => testConnector({ connectorKey: view.key }), `${view.label} connection is healthy.`)}>
+              {pending ? "Testing…" : "Test connection"}
+            </button>
+          )}
+        </div>
         {view.lastTestOk === false && view.lastTestError ? (
-          <Row label="Last error"><span style={{ fontSize: 12, color: "var(--red-text)" }}>{view.lastTestError}</span></Row>
+          <div className="cxm-err">{view.lastTestError}</div>
+        ) : view.lastTestedAt ? (
+          <div className="cxm-sub">Last tested {relTime(view.lastTestedAt)}.</div>
         ) : null}
-      </Panel>
 
-      {noCredential ? (
-        <Panel title="Availability" tag={TGOK} foot="workspace_connectors · enable to include this connector in Arc runs">
-          {!configured && <div style={{ fontSize: 11.5, color: "var(--muted)", padding: "10px 0 4px", lineHeight: 1.5 }}>You’re previewing without a connected workspace — changes won’t persist here.</div>}
-          <Row label={view.enabled ? "Enabled" : "Off"} desc="This connector needs no credential — switch it on to use it. Signal sources only propose; channels send only from the approved path.">
-            <button className="btn sm gold" disabled={pending} onClick={() => run(() => toggleConnectorEnabled({ connectorKey: view.key, enabled: !view.enabled }), view.enabled ? "Paused." : "Enabled.")}>{view.enabled ? "Pause" : "Enable"}</button>
-          </Row>
-          {status && <div style={{ padding: "10px 0 2px" }}><Status status={status} /></div>}
-        </Panel>
-      ) : (
-      <Panel title="Credential" tag={TGOK} foot="stored in your Vault (create_secret) · never rendered back, handed only to the runner">
-        {view.credentialPresent ? (
-          <>
-            <Row label="Connected" desc="Rotate by pasting a new credential, or disconnect to remove it.">
-              <span className="pillrow">
-                <button className="btn sm" disabled={pending} onClick={() => run(() => toggleConnectorEnabled({ connectorKey: view.key, enabled: !view.enabled }), view.enabled ? "Paused." : "Enabled.")}>{view.enabled ? "Pause" : "Enable"}</button>
-                <button className="btn sm danger" disabled={pending} onClick={() => run(() => disconnectConnector({ connectorKey: view.key }), `${view.label} disconnected.`)}>Disconnect</button>
-              </span>
-            </Row>
-            <Row label="Rotate credential" desc={`Replace the stored ${meta.credLabel}.`}>
-              <span className="pillrow">
-                <input className="inp" type="password" placeholder={`New ${meta.credLabel}`} value={credential} onChange={(e) => setCredential(e.target.value)} />
-                <button className="btn sm gold" disabled={pending || !credential.trim()} onClick={connect}>Save</button>
-              </span>
-            </Row>
-          </>
+        {/* Credential / enable */}
+        {noCredential ? (
+          <div className="cxm-sec">
+            <div className="cxm-label">{view.enabled ? "Turned on" : "Turn on"}</div>
+            <p className="cxm-hint">{meta.credHint || "No key needed — just switch it on to let Arc use it. Signal sources only propose; channels send only from the approved path."}</p>
+            <button className="btn gold" disabled={pending} onClick={() => run(() => toggleConnectorEnabled({ connectorKey: view.key, enabled: !view.enabled }), view.enabled ? "Paused." : "Enabled.")}>
+              {view.enabled ? "Pause" : "Enable"}
+            </button>
+          </div>
+        ) : view.credentialPresent ? (
+          <div className="cxm-sec">
+            <div className="cxm-label">Connected</div>
+            <p className="cxm-hint">Paste a new {meta.credLabel} to rotate it, or disconnect to remove it. Your key is stored encrypted and never shown again.</p>
+            <div className="cxm-field">
+              <input className="inp" type="password" placeholder={`New ${meta.credLabel}`} value={credential} onChange={(e) => setCredential(e.target.value)} />
+              <button className="btn gold" disabled={pending || !credential.trim()} onClick={connect}>Save</button>
+            </div>
+            <div className="cxm-actions">
+              <button className="btn sm" disabled={pending} onClick={() => run(() => toggleConnectorEnabled({ connectorKey: view.key, enabled: !view.enabled }), view.enabled ? "Paused." : "Enabled.")}>{view.enabled ? "Pause" : "Enable"}</button>
+              <button className="btn sm danger" disabled={pending} onClick={() => run(() => disconnectConnector({ connectorKey: view.key }), `${view.label} disconnected.`)}>Disconnect</button>
+            </div>
+          </div>
         ) : view.key === "higgsfield" ? (
-          <>
-            {!configured && <div style={{ fontSize: 11.5, color: "var(--muted)", padding: "10px 0 4px", lineHeight: 1.5 }}>You’re previewing without a connected workspace — connecting won’t persist here.</div>}
-            <Row label="Connect" desc="Sign in to your Higgsfield Ultra account. Arc gets its own credential scoped to this workspace and refreshes it automatically — no CLI, no token to copy.">
-              <button className="btn gold" disabled={pending || !configured} onClick={() => { window.location.href = "/api/connectors/higgsfield/authorize"; }}>Connect with Higgsfield</button>
-            </Row>
-            <Row label="Paste a token" desc="Advanced — paste an OAuth bundle captured elsewhere instead of signing in here.">
-              <span className="pillrow">
-                <input className="inp" type="password" placeholder="Paste token bundle" value={credential} onChange={(e) => setCredential(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") connect(); }} />
-                <button className="btn sm" disabled={pending || !credential.trim()} onClick={connect}>Save</button>
-              </span>
-            </Row>
-          </>
+          <div className="cxm-sec">
+            <div className="cxm-label">Connect</div>
+            <p className="cxm-hint">Sign in to your Higgsfield Ultra account. Arc gets its own key for this workspace and refreshes it automatically — no token to copy.</p>
+            <button className="btn gold" disabled={pending || !configured} onClick={() => { window.location.href = "/api/connectors/higgsfield/authorize"; }}>Connect with Higgsfield</button>
+            <div className="cxm-field" style={{ marginTop: 12 }}>
+              <input className="inp" type="password" placeholder="Or paste a token bundle" value={credential} onChange={(e) => setCredential(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") connect(); }} />
+              <button className="btn sm" disabled={pending || !credential.trim()} onClick={connect}>Save</button>
+            </div>
+          </div>
         ) : (
-          <>
-            {!configured && <div style={{ fontSize: 11.5, color: "var(--muted)", padding: "10px 0 4px", lineHeight: 1.5 }}>You’re previewing without a connected workspace — connecting won’t persist here.</div>}
-            <Row label={meta.credLabel} desc={meta.credHint}>
+          <div className="cxm-sec">
+            <div className="cxm-label">{meta.credLabel}</div>
+            <p className="cxm-hint">{meta.credHint}</p>
+            <div className="cxm-field">
               <input className="inp" type="password" placeholder={`Paste your ${meta.credLabel}`} value={credential} onChange={(e) => setCredential(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") connect(); }} />
-            </Row>
-            <div style={{ padding: "13px 0 4px" }}><button className="btn gold" disabled={pending} onClick={connect}>{pending ? "Connecting…" : "Connect"}</button></div>
-          </>
+              <button className="btn gold" disabled={pending} onClick={connect}>{pending ? "Connecting…" : "Connect"}</button>
+            </div>
+          </div>
         )}
-        {status && <div style={{ padding: "10px 0 2px" }}><Status status={status} /></div>}
-      </Panel>
-      )}
 
-      <ConnectorConfigPanel view={view} configured={configured} />
+        {/* Per-workspace config (watched locations, endpoint, default persona…) */}
+        {configField ? <ConnectorConfigSection view={view} field={configField} /> : null}
 
-      {view.kind === "import_source" ? (
-        <Panel title="Run import" tag={TGOK} foot="explicit operator action · reads external records → writes CRM leads through the gated ingest path, idempotent on the external id">
-          <Row
-            label={view.status === "connected" ? "Ready" : "Not connected"}
-            desc="Imports run only on this deliberate click — never automatically. A re-run updates existing leads (deduped on the source id), never duplicates. Nothing goes outbound."
-          >
-            <button className="btn sm gold" disabled={pending || view.status !== "connected"} onClick={() => run(() => runConnectorImport({ connectorKey: view.key }), "Import complete.")}>
+        {/* Import sources — an explicit, deliberate pull */}
+        {view.kind === "import_source" ? (
+          <div className="cxm-sec">
+            <div className="cxm-label">Import contacts</div>
+            <p className="cxm-hint">Runs only when you click — never automatically. A re-run updates existing leads (deduped on the source id), never duplicates. Nothing goes outbound.</p>
+            <button className="btn gold" disabled={pending || view.status !== "connected"} onClick={() => run(() => runConnectorImport({ connectorKey: view.key }), "Import complete.")}>
               {pending ? "Importing…" : "Import now"}
             </button>
-          </Row>
-        </Panel>
-      ) : null}
+          </div>
+        ) : null}
 
-      <Panel title="Details" tag={TGOK}>
-        <Row label="Kind" desc="What this connector plugs in — a tool, a read-only signal source, or an outbound channel."><span className="ptxt">{kindLabel}</span></Row>
-        <Row label="Cost" desc={costDesc}><span className="ptxt">{costDisclosure ? `${cost.label} · ${costDisclosure}` : cost.label}</span></Row>
-        {reg?.verticals.length ? <Row label="Best for"><span className="ptxt">{reg.verticals.join(", ")}</span></Row> : null}
-        <Row label="Authentication"><span className="ptxt">{view.authKind === "oauth" ? "Bearer token" : view.authKind === "api_key" ? "API key" : "None"}</span></Row>
-        <Row label="Access" desc="Read-only connectors can’t write; gated-write output stays approval-locked."><span className="ptxt">{view.access === "read_only" ? "Read-only" : "Gated write"}</span></Row>
-        {reg?.mcpUrl ? <Row label="MCP endpoint"><span className="ptxt" style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>{reg.mcpUrl}</span></Row> : <Row label="Integration"><span className="ptxt">{view.kind === "mcp_tool" ? "Native (in-app)" : "In-app"}</span></Row>}
-        {reg && view.kind === "mcp_tool" ? <Row label="Tool namespace"><span className="ptxt" style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>{reg.toolNamespace}</span></Row> : null}
-        {reg?.capability.opportunityKinds?.length ? <Row label="Emits"><span className="ptxt" style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>{reg.capability.opportunityKinds.join(", ")}</span></Row> : null}
-        {reg?.capability.channelMedium ? <Row label="Medium"><span className="ptxt">{reg.capability.channelMedium}</span></Row> : null}
-      </Panel>
-    </>
+        {/* About */}
+        <div className="cxm-sec">
+          <div className="cxm-label">About</div>
+          <dl className="cxm-about">
+            <div><dt>Type</dt><dd>{kindLabel}</dd></div>
+            <div><dt>Access</dt><dd>{view.access === "read_only" ? "Read-only" : "Approval-gated"}</dd></div>
+            <div><dt>Cost</dt><dd>{costLine}</dd></div>
+            <div><dt>Sign-in</dt><dd>{view.authKind === "oauth" ? "Account token" : view.authKind === "api_key" ? "API key" : "None needed"}</dd></div>
+            {reg?.verticals.length ? <div><dt>Best for</dt><dd>{reg.verticals.join(", ")}</dd></div> : null}
+          </dl>
+        </div>
+
+        {status ? <div className="cxm-statusline"><Status status={status} /></div> : null}
+      </div>
+    </Modal>
   );
 }
 
-// ---- Connector config (no-secret, per-workspace) ----
-// Renders a small config editor for connectors declared in CONFIG_FIELDS (a
-// signal source's watched locations, a channel's endpoint). Saves to
-// workspace_connectors.config. Nothing here is a secret.
+// Per-workspace, non-secret config editor inside the connector popup (a signal
+// source's watched locations, a channel's endpoint, an import's default persona).
 function configToInput(config: Record<string, unknown>, field: { key: string; list?: boolean }): string {
   const v = config[field.key];
   if (field.list) return Array.isArray(v) ? v.filter((x) => typeof x === "string").join(", ") : "";
   return typeof v === "string" ? v : "";
 }
 
-function ConnectorConfigPanel({ view, configured }: { view: ConnectorView; configured: boolean }) {
-  const field = CONFIG_FIELDS[view.key];
-  const [value, setValue] = useState(() => (field ? configToInput(view.config, field) : ""));
+function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: { key: string; label: string; placeholder: string; hint: string; list?: boolean } }) {
+  const [value, setValue] = useState(() => configToInput(view.config, field));
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<SaveStatus>(null);
-  if (!field) return null;
 
   async function save() {
-    if (!field) return;
     setPending(true); setStatus(null);
     const config: Record<string, unknown> = field.list
       ? { [field.key]: value.split(",").map((s) => s.trim()).filter(Boolean) }
@@ -1449,32 +1448,52 @@ function ConnectorConfigPanel({ view, configured }: { view: ConnectorView; confi
   }
 
   return (
-    <Panel title="Configuration" tag={TGOK} foot="workspace_connectors.config · non-secret settings">
-      {!configured && <div style={{ fontSize: 11.5, color: "var(--muted)", padding: "10px 0 4px", lineHeight: 1.5 }}>You’re previewing without a connected workspace — changes won’t persist here.</div>}
-      <Row label={field.label} desc={field.hint}>
-        <span className="pillrow">
-          <input className="inp" placeholder={field.placeholder} value={value} onChange={(e) => setValue(e.target.value)} />
-          <button className="btn sm gold" disabled={pending} onClick={save}>{pending ? "Saving…" : "Save"}</button>
-        </span>
-      </Row>
-      {status && <div style={{ padding: "10px 0 2px" }}><Status status={status} /></div>}
-    </Panel>
+    <div className="cxm-sec">
+      <div className="cxm-label">{field.label}</div>
+      <p className="cxm-hint">{field.hint}</p>
+      <div className="cxm-field">
+        <input className="inp" placeholder={field.placeholder} value={value} onChange={(e) => setValue(e.target.value)} />
+        <button className="btn sm gold" disabled={pending} onClick={save}>{pending ? "Saving…" : "Save"}</button>
+      </div>
+      {status ? <div className="cxm-statusline"><Status status={status} /></div> : null}
+    </div>
   );
 }
 
-// ---- Email delivery (Resend) — the outbound send gate ----
-// The one connection the send path actually reads. `executeResendDispatch` refuses
-// unless this row is enabled (gate 5) and has a from-address / RESEND_FROM (gate 6),
-// on top of the always-enforced approval gate. Enabling here upserts the row that
-// nothing else seeds, which is what makes a real send possible.
+// ---- Email delivery (Resend) — a connector card + popup, like the rest ----
+// The one connection the send path actually reads: `executeResendDispatch` refuses
+// unless this is enabled with a from-address, on top of the always-enforced approval
+// gate. The Resend API key is a deployment secret (RESEND_API_KEY), so the popup
+// exposes the per-workspace controls (enable + from + test) and states the key
+// plainly instead of pretending to collect it here.
 const EMAIL_PILL: Record<ConnectionView["status"], { kind: string; label: string }> = {
   connected: { kind: "ok", label: "Connected" },
-  disabled: { kind: "warn", label: "Disabled" },
-  not_configured: { kind: "warn", label: "Key missing" },
+  disabled: { kind: "warn", label: "Off" },
+  not_configured: { kind: "warn", label: "Key needed" },
   error: { kind: "err", label: "Error" },
 };
 
-function EmailConnectionCard({ view }: { view: ConnectionView }) {
+function ResendCard({ view, onOpen }: { view: ConnectionView; onOpen: () => void }) {
+  const pill = EMAIL_PILL[view.status];
+  const cta = view.status === "not_configured" ? "Set up" : "Manage";
+  return (
+    <div className="ccard ccard-btn" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}>
+      <div className="ct">
+        <span className="clogo" style={{ background: "#9aa0ac22", border: "1px solid #9aa0ac55", color: "#9aa0ac" }}>Re</span>
+        <div><div className="cnm">Resend</div><div className="ccat">Channel · email delivery</div></div>
+      </div>
+      <div className="cdsc">Send approved campaign &amp; transactional email. Sending stays off until you turn it on.</div>
+      <div className="cfoot">
+        <Pill kind={pill.kind}>{pill.label}</Pill>
+        <span className="badge" title="Uses your Resend account.">Your key</span>
+        <span className="grow" />
+        <span className="cb-open">{cta} →</span>
+      </div>
+    </div>
+  );
+}
+
+function ResendModal({ view, onClose }: { view: ConnectionView; onClose: () => void }) {
   const [from, setFrom] = useState(view.fromEmail ?? "");
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<SaveStatus>(null);
@@ -1488,27 +1507,42 @@ function EmailConnectionCard({ view }: { view: ConnectionView }) {
   }
 
   return (
-    <Panel title="Email delivery (Resend)" tag={TGOK} foot="connections.resend · executeResendDispatch reads enabled + from as gate 5/6 of a real send — the linked approval must still be approved">
-      <Row label="Status" desc={keyPresent ? (view.lastTestedAt ? `Last tested ${relTime(view.lastTestedAt)}` : "Not tested yet.") : "Set RESEND_API_KEY on the deploy, then test."}>
-        <span className="pillrow">
-          <Pill kind={pill.kind}>{pill.label}</Pill>
+    <Modal open onClose={onClose} width={480} title="Resend" description="Email delivery for approved campaigns. Nothing sends without your approval.">
+      <div className="cxm">
+        <div className="cxm-status">
+          <span className="pillrow"><Pill kind={pill.kind}>{pill.label}</Pill></span>
           <button className="btn sm" disabled={pending} onClick={() => run(() => testEmailConnection(), "Resend connection is healthy.")}>{pending ? "Testing…" : "Test connection"}</button>
-        </span>
-      </Row>
-      {view.lastTestOk === false && view.lastTestError ? (
-        <Row label="Last error"><span style={{ fontSize: 12, color: "var(--red-text)" }}>{view.lastTestError}</span></Row>
-      ) : null}
-      <Row label="Sending" desc="Turn on to let approved campaigns send via Resend. Off is a hard kill-switch — the send path refuses immediately.">
-        <button className="btn sm" disabled={pending} onClick={() => run(() => setEmailConnectionEnabled({ enabled: !view.enabled, fromEmail: from.trim() || undefined }), view.enabled ? "Resend disabled." : "Resend enabled.")}>{view.enabled ? "Disable" : "Enable"}</button>
-      </Row>
-      <Row label="From address" desc="Must be on a domain you’ve verified in Resend. Left blank, the send falls back to RESEND_FROM.">
-        <span className="pillrow">
-          <input className="inp" type="text" placeholder="Arc <hello@yourdomain.com>" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <button className="btn sm gold" disabled={pending || from.trim() === (view.fromEmail ?? "")} onClick={() => run(() => setEmailConnectionEnabled({ enabled: view.enabled, fromEmail: from.trim() || undefined }), "From address saved.")}>Save</button>
-        </span>
-      </Row>
-      {status && <div style={{ padding: "10px 0 2px" }}><Status status={status} /></div>}
-    </Panel>
+        </div>
+        {view.lastTestOk === false && view.lastTestError ? (
+          <div className="cxm-err">{view.lastTestError}</div>
+        ) : view.lastTestedAt ? (
+          <div className="cxm-sub">Last tested {relTime(view.lastTestedAt)}.</div>
+        ) : null}
+
+        {!keyPresent && (
+          <div className="cxm-note">Your Resend API key is set on the deployment (<code>RESEND_API_KEY</code>). Add it there, then test the connection here.</div>
+        )}
+
+        <div className="cxm-sec">
+          <div className="cxm-label">Sending</div>
+          <p className="cxm-hint">Turn on to let approved campaigns send through Resend. Off is a hard stop — the send path refuses immediately.</p>
+          <button className="btn gold" disabled={pending} onClick={() => run(() => setEmailConnectionEnabled({ enabled: !view.enabled, fromEmail: from.trim() || undefined }), view.enabled ? "Sending disabled." : "Sending enabled.")}>
+            {view.enabled ? "Turn off sending" : "Turn on sending"}
+          </button>
+        </div>
+
+        <div className="cxm-sec">
+          <div className="cxm-label">From address</div>
+          <p className="cxm-hint">Must be on a domain you’ve verified in Resend. Left blank, Arc uses the deployment default.</p>
+          <div className="cxm-field">
+            <input className="inp" type="text" placeholder="Arc <hello@yourdomain.com>" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <button className="btn gold" disabled={pending || from.trim() === (view.fromEmail ?? "")} onClick={() => run(() => setEmailConnectionEnabled({ enabled: view.enabled, fromEmail: from.trim() || undefined }), "From address saved.")}>Save</button>
+          </div>
+        </div>
+
+        {status ? <div className="cxm-statusline"><Status status={status} /></div> : null}
+      </div>
+    </Modal>
   );
 }
 
