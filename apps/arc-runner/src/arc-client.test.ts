@@ -9,6 +9,8 @@ const config: Config = {
   webhookSecret: null,
   port: 8788,
   webhookPath: "/webhooks/growth-chat",
+  maxConcurrentRuns: 4,
+  maxConcurrentRunsPerWorkspace: 2,
 };
 
 function stubFetch() {
