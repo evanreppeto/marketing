@@ -212,6 +212,10 @@ const DEMO_PACKAGE_CARDS: ArcActionCard[] = [
   },
 ];
 
+const DEMO_ATTACHMENTS: ArcAttachment[] = [
+  { url: "/brand/login-background-v2.png", name: "storm-job-reference.png", contentType: "image/png", objectPath: "demo-ref-1" },
+];
+
 const DEMO_SOURCES: ArcMention[] = [
   { type: "property", id: "demo-prop", label: "142 storm-zone properties", href: "/crm/properties" },
   { type: "campaign", id: "demo-camp", label: "Storm Rapid Response", href: "/campaigns" },
@@ -688,7 +692,37 @@ function ArcAvatar() {
   );
 }
 
-function OperatorMessage({ body, time, onEdit }: { body: string; time?: string; onEdit?: (newBody: string) => void }) {
+/** A tiny image thumbnail (composer chip). Attachment URLs are arbitrary signed
+ *  URLs, so next/image (which needs configured remote patterns) doesn't fit. */
+function ChipThumb({ url }: { url: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={url} alt="" className="arc-chip-thumb" />;
+}
+
+/** Renders a message's attachments — image uploads as clickable thumbnails, other
+ *  files as compact chips (both open the full asset in a new tab). */
+function MessageAttachments({ attachments }: { attachments: ArcAttachment[] }) {
+  if (attachments.length === 0) return null;
+  const images = attachments.filter((attachment) => attachment.contentType.startsWith("image/"));
+  const files = attachments.filter((attachment) => !attachment.contentType.startsWith("image/"));
+  return (
+    <div className="arc-attachments">
+      {images.map((attachment) => (
+        <a key={attachment.objectPath} href={attachment.url} target="_blank" rel="noopener noreferrer" className="arc-attachment-image" title={attachment.name}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={attachment.url} alt={attachment.name} loading="lazy" />
+        </a>
+      ))}
+      {files.map((attachment) => (
+        <a key={attachment.objectPath} href={attachment.url} target="_blank" rel="noopener noreferrer" className="arc-attachment-file" title={attachment.name}>
+          <FileText size={13} />{attachment.name}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function OperatorMessage({ body, time, attachments, onEdit }: { body: string; time?: string; attachments?: ArcAttachment[]; onEdit?: (newBody: string) => void }) {
   const reduceMotion = useReducedMotion();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(body);
@@ -730,6 +764,7 @@ function OperatorMessage({ body, time, onEdit }: { body: string; time?: string; 
     >
       {time ? <span className="arc-message-time">{time}</span> : null}
       <div>{body}</div>
+      {attachments && attachments.length > 0 ? <MessageAttachments attachments={attachments} /> : null}
       {onEdit ? <button type="button" className="arc-operator-edit" onClick={() => { setText(body); setEditing(true); }}><PencilLine size={12} /> Edit</button> : null}
     </motion.div>
   );
@@ -1225,7 +1260,7 @@ function LiveConversation({
   return (
     <>
       {messages.map((message, index) => {
-        if (message.role === "operator") return <OperatorMessage key={message.id} body={message.body} time={formatMessageTime(message.createdAt)} onEdit={awaitingReply ? undefined : (newBody) => onEdit(message.id, newBody)} />;
+        if (message.role === "operator") return <OperatorMessage key={message.id} body={message.body} time={formatMessageTime(message.createdAt)} attachments={message.attachments} onEdit={awaitingReply ? undefined : (newBody) => onEdit(message.id, newBody)} />;
         const pending = message.status === "pending" || (message.role === "arc" && !message.body.trim());
         const operatorMessage = operatorMessageBefore(messages, index);
         // Wall-clock of the run, from the operator's turn to this reply landing —
@@ -1293,6 +1328,7 @@ function DemoConversation({
   return (
     <>
       <div className="arc-day"><span>July 14, 2026</span></div>
+      <OperatorMessage time="9:34 AM" body="Here’s a reference photo from our last storm job — match this look in the creative." attachments={DEMO_ATTACHMENTS} onEdit={editable} />
       <OperatorMessage time="9:35 AM" body="Which homeowners should we reach first after the Naperville hailstorm?" onEdit={editable} />
       <AssistantMessage time="9:38 AM">
         <div className="arc-answer">
@@ -1984,7 +2020,7 @@ export function ArcView({
               <div className="arc-composer-chips">
                 {command ? <span className="arc-composer-chip is-command"><Slash size={12} />{command}<button type="button" onClick={() => setCommand(null)} aria-label={`Remove ${command} command`}><X size={11} /></button></span> : null}
                 {selectedMentions.map((mention) => <span className="arc-composer-chip" key={`${mention.type}-${mention.id}`}><AtSign size={12} />{mention.label}<button type="button" onClick={() => setSelectedMentions((current) => current.filter((item) => !(item.type === mention.type && item.id === mention.id)))} aria-label={`Remove ${mention.label}`}><X size={11} /></button></span>)}
-                {attachments.map((attachment) => <span className="arc-composer-chip" key={attachment.objectPath}><Paperclip size={12} />{attachment.name}<button type="button" onClick={() => setAttachments((current) => current.filter((item) => item.objectPath !== attachment.objectPath))} aria-label={`Remove ${attachment.name}`}><X size={11} /></button></span>)}
+                {attachments.map((attachment) => <span className={`arc-composer-chip${attachment.contentType.startsWith("image/") ? " has-thumb" : ""}`} key={attachment.objectPath}>{attachment.contentType.startsWith("image/") ? <ChipThumb url={attachment.url} /> : <Paperclip size={12} />}{attachment.name}<button type="button" onClick={() => setAttachments((current) => current.filter((item) => item.objectPath !== attachment.objectPath))} aria-label={`Remove ${attachment.name}`}><X size={11} /></button></span>)}
                 {composerNotice ? <span className="arc-composer-notice">{composerNotice}</span> : null}
               </div>
             ) : null}
