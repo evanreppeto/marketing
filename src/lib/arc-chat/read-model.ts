@@ -4,12 +4,17 @@ import { getOperatorActor } from "@/lib/auth/operator";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import {
+  listActiveArcRunConversationIds,
   listConversationsForViewer,
   listMessages,
   type ArcConversation,
   type ArcMessage,
 } from "./persistence";
 import { getShareViewer } from "./sharing";
+
+/** A run older than this is treated as stale (an orphaned/stuck task) and no
+ *  longer shows a "working" indicator — mirrors the client's awaiting-reply cap. */
+const RUN_FRESHNESS_MS = 120_000;
 
 /**
  * Page-facing read-model for the `/arc` chat screen. Resolves the current
@@ -49,6 +54,11 @@ export async function getArcChatModel(
     if (conversations.length === 0) return { status: "empty", operator };
 
     const nowMs = Date.now();
+    // Conversations with a genuinely in-flight Arc run — powers the "working"
+    // indicator on other threads. Unscoped read is safe: we only mark rows the
+    // viewer already sees (runningIds is intersected with their conversations).
+    const activeRuns = await listActiveArcRunConversationIds().catch(() => []);
+    const runningIds = new Set(activeRuns.filter((run) => nowMs - Date.parse(run.since) < RUN_FRESHNESS_MS).map((run) => run.conversationId));
 
     // "New chat": keep the rail (real threads) but open a blank composer. The
     // first send creates the conversation.
@@ -59,7 +69,7 @@ export async function getArcChatModel(
         conversations,
         activeConversationId: null,
         messages: [],
-        threadGroups: groupThreadsForRail(conversations, null, nowMs),
+        threadGroups: groupThreadsForRail(conversations, null, nowMs, runningIds),
       };
     }
 
@@ -78,7 +88,7 @@ export async function getArcChatModel(
       conversations,
       activeConversationId: active.id,
       messages,
-      threadGroups: groupThreadsForRail(conversations, active.id, nowMs),
+      threadGroups: groupThreadsForRail(conversations, active.id, nowMs, runningIds),
     };
   } catch {
     return { status: "unavailable" };
@@ -91,6 +101,9 @@ export type ArcThreadVM = {
   title: string;
   pinned: boolean;
   active: boolean;
+  /** True while an Arc run is genuinely in flight for this thread — drives the
+   *  "working" indicator so a run started here is visible from any other thread. */
+  running: boolean;
   /** Short relative-time label (e.g. "2h", "Jun 24") for the row's meta line. */
   when: string;
 };
@@ -134,6 +147,7 @@ export function groupThreadsForRail(
   conversations: ArcConversation[],
   activeConversationId: string | null,
   nowMs: number,
+  runningIds: ReadonlySet<string> = new Set(),
 ): ArcThreadGroupVM[] {
   const groups = new Map<string, ArcThreadVM[]>();
   for (const c of conversations) {
@@ -143,6 +157,7 @@ export function groupThreadsForRail(
       title: c.title?.trim() || "Untitled chat",
       pinned: Boolean(c.pinnedAt),
       active: c.id === activeConversationId,
+      running: runningIds.has(c.id),
       when: relativeWhen(c.lastMessageAt, nowMs),
     };
     const list = groups.get(group);
