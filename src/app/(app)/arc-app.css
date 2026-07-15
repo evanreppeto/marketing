@@ -1367,3 +1367,128 @@
 
 /* Brand "Saved ✓" flash after an identity edit */
 .arc-app .arc-brand .bsaved { align-self: center; font-size: 12px; font-weight: 600; color: var(--ok-text); animation: arc-overlay-in 0.2s var(--ease); }
+
+/* ============================================================================
+   Customer Journeys (/journeys) — P0 journey layer. Self-contained, namespaced
+   .jr-* classes on the global theme vars. --blue/--vio aren't global, so the
+   scope defines local fallbacks; --ok/--warn/--accent are inherited.
+   ============================================================================ */
+.arc-app .journeys { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 20px clamp(16px, 3vw, 30px) 48px; --jr-blue: #88b6d8; --jr-blue-soft: rgba(136, 182, 216, 0.14); --jr-vio: #cdbbe6; --jr-vio-soft: rgba(205, 187, 230, 0.14); }
+.arc-app .journeys h1 { font-size: 21px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); display: flex; align-items: center; gap: 10px; }
+.arc-app .journeys h2 { font-size: 14px; font-weight: 600; color: var(--text); display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.arc-app .journeys .jr-sub2 { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+.arc-app .journeys .jr-sub { font-size: 12.5px; color: var(--muted); padding: 8px 2px; }
+
+.arc-app .journeys .jr-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+.arc-app .journeys .jr-lede { font-size: 13px; color: var(--muted); margin-top: 5px; max-width: 62ch; }
+.arc-app .journeys .jr-tag { font-family: var(--mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 7px; border-radius: 5px; border: 1px solid transparent; }
+.arc-app .journeys .jr-tag.wired { color: var(--ok-text); background: var(--ok-soft); border-color: var(--ok-border); }
+.arc-app .journeys .jr-tag.demo { color: var(--warn-text); background: var(--warn-soft); border-color: var(--warn-border); }
+.arc-app .journeys .jr-model { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; padding: 6px 12px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel); }
+.arc-app .journeys .jr-modellab { font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.arc-app .journeys .jr-modelval { font-size: 13px; font-weight: 600; color: var(--accent); }
+
+/* KPI row */
+.arc-app .journeys .jr-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
+.arc-app .journeys .jr-kpi { display: flex; flex-direction: column; gap: 3px; padding: 13px 15px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); }
+.arc-app .journeys .jr-klab { font-size: 11px; color: var(--muted); }
+.arc-app .journeys .jr-kval { font-size: 22px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.05; }
+.arc-app .journeys .jr-khint { font-size: 10.5px; color: var(--muted); }
+.arc-app .journeys .jr-kpi.t-green .jr-kval { color: var(--ok-text); }
+.arc-app .journeys .jr-kpi.t-amber .jr-kval { color: var(--warn-text); }
+
+/* Panels */
+.arc-app .journeys .jr-panel { border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel); padding: 16px 18px; margin-bottom: 16px; }
+
+/* Funnel */
+.arc-app .journeys .jr-funnel { display: flex; flex-direction: column; gap: 4px; }
+.arc-app .journeys .jr-fstage { display: grid; grid-template-columns: 148px 1fr 52px 44px; align-items: center; gap: 12px; width: 100%; padding: 7px 10px; border: 1px solid transparent; border-radius: 9px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background 0.15s var(--ease), border-color 0.15s var(--ease); }
+.arc-app .journeys .jr-fstage:hover { background: var(--inset); }
+.arc-app .journeys .jr-fstage.active { border-color: var(--accent-border); background: var(--inset); }
+.arc-app .journeys .jr-flabel { font-size: 12.5px; font-weight: 500; color: var(--text-2); display: flex; align-items: center; gap: 7px; }
+.arc-app .journeys .jr-anon { font-size: 9px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line-2); border-radius: 4px; padding: 1px 4px; }
+.arc-app .journeys .jr-fbar { height: 22px; border-radius: 6px; background: var(--inset); overflow: hidden; }
+.arc-app .journeys .jr-fbar i { display: block; height: 100%; border-radius: 6px; min-width: 3px; transition: width 0.4s var(--ease); }
+.arc-app .journeys .jr-fcount { font-size: 14px; font-weight: 600; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+.arc-app .journeys .jr-frate { font-size: 11px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.arc-app .journeys .jr-filternote { margin-top: 10px; font-size: 12px; color: var(--text-2); }
+.arc-app .journeys .jr-clear, .arc-app .journeys .jr-clear:hover { background: none; border: none; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; padding: 0; }
+
+/* Two-column grid */
+.arc-app .journeys .jr-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.arc-app .journeys .jr-side { display: flex; flex-direction: column; }
+
+/* Journey list */
+.arc-app .journeys .jr-list { display: flex; flex-direction: column; gap: 8px; }
+.arc-app .journeys .jr-row { border: 1px solid var(--line); border-radius: 10px; background: var(--inset); overflow: hidden; transition: border-color 0.15s var(--ease); }
+.arc-app .journeys .jr-row.open { border-color: var(--line-3); }
+.arc-app .journeys .jr-rowhead { display: grid; grid-template-columns: minmax(120px, 1fr) auto 96px 84px 62px 16px; align-items: center; gap: 10px; width: 100%; padding: 10px 13px; background: none; border: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background 0.15s var(--ease); }
+.arc-app .journeys .jr-rowhead:hover { background: var(--raised); }
+.arc-app .journeys .jr-who { display: flex; align-items: center; gap: 9px; min-width: 0; overflow: hidden; }
+.arc-app .journeys .jr-who b { flex-shrink: 0; max-width: 190px; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arc-app .journeys .jr-persona { flex: 0 1 auto; min-width: 0; font-size: 10px; color: var(--text-2); border: 1px solid var(--line-2); background: var(--panel); border-radius: 5px; padding: 1px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arc-app .journeys .jr-track { display: inline-flex; gap: 3px; }
+.arc-app .journeys .jr-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line-3); }
+.arc-app .journeys .jr-pill { justify-self: start; display: inline-flex; align-items: center; height: 21px; padding: 0 9px; border-radius: 6px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+.arc-app .journeys .jr-span { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.arc-app .journeys .jr-val { font-size: 12.5px; font-weight: 600; color: var(--ok-text); text-align: right; font-variant-numeric: tabular-nums; }
+.arc-app .journeys .jr-muted { color: var(--muted); font-weight: 400; font-style: italic; }
+.arc-app .journeys .jr-touches { font-size: 11px; color: var(--muted); text-align: right; white-space: nowrap; }
+.arc-app .journeys .jr-caret { color: var(--muted); font-size: 13px; transition: transform 0.18s var(--ease); justify-self: center; }
+.arc-app .journeys .jr-caret.up { transform: rotate(180deg); }
+
+/* Expanded detail + timeline */
+.arc-app .journeys .jr-detail { padding: 4px 14px 14px; border-top: 1px solid var(--line); }
+.arc-app .journeys .jr-detailmeta { display: flex; flex-wrap: wrap; gap: 16px; padding: 10px 0 6px; font-size: 11px; color: var(--muted); }
+.arc-app .journeys .jr-detailmeta b { color: var(--text-2); font-weight: 600; }
+.arc-app .journeys .jr-tl { position: relative; list-style: none; margin: 4px 0 0; padding: 0; }
+.arc-app .journeys .jr-tl::before { content: ""; position: absolute; left: 6px; top: 10px; bottom: 12px; width: 1px; background: var(--line-2); }
+.arc-app .journeys .jr-tlrow { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: start; gap: 10px; padding: 6px 0; }
+.arc-app .journeys .jr-tldot { width: 9px; height: 9px; margin: 3px 0 0 2px; border-radius: 50%; box-shadow: 0 0 0 3px var(--inset); }
+.arc-app .journeys .jr-tlmain { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.arc-app .journeys .jr-tlkind { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.arc-app .journeys .jr-tlkind b { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.arc-app .journeys .jr-dir { color: var(--muted); font-size: 12px; }
+.arc-app .journeys .jr-chip { font-size: 10px; color: var(--text-2); border: 1px solid var(--line-2); background: var(--panel); border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
+.arc-app .journeys .jr-chip.win { color: var(--ok-text); border-color: var(--ok-border); background: var(--ok-soft); }
+.arc-app .journeys .jr-tlsum { font-size: 11.5px; color: var(--muted); }
+.arc-app .journeys .jr-tltime { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Channel credit breakdown */
+.arc-app .journeys .jr-bd { display: flex; flex-direction: column; gap: 9px; }
+.arc-app .journeys .jr-bdrow { display: grid; grid-template-columns: 84px 1fr auto; align-items: center; gap: 10px; }
+.arc-app .journeys .jr-bn { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arc-app .journeys .jr-bb { height: 8px; border-radius: 99px; background: var(--inset); overflow: hidden; }
+.arc-app .journeys .jr-bb i { display: block; height: 100%; border-radius: 99px; background: var(--accent); min-width: 3px; }
+.arc-app .journeys .jr-bv { font-size: 12px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* How-it-works note */
+.arc-app .journeys .jr-note p { font-size: 12.5px; line-height: 1.55; color: var(--text-2); margin-bottom: 9px; }
+.arc-app .journeys .jr-note p:last-child { margin-bottom: 0; }
+.arc-app .journeys .jr-notenext { color: var(--muted) !important; }
+.arc-app .journeys .jr-notenext b { color: var(--accent); }
+
+/* Empty state */
+.arc-app .journeys .jr-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 56px 24px; border: 1px dashed var(--line-3); border-radius: 14px; background: var(--panel); }
+.arc-app .journeys .jr-emptymk { font-size: 34px; color: var(--muted); line-height: 1; }
+.arc-app .journeys .jr-empty b { font-size: 15px; color: var(--text); }
+.arc-app .journeys .jr-empty p { font-size: 12.5px; color: var(--muted); max-width: 48ch; line-height: 1.5; }
+
+/* Tone tokens — solid fills (dots, bars) + soft pills */
+.arc-app .journeys .jr-dot.t-blue, .arc-app .journeys .jr-fbar i.t-blue, .arc-app .journeys .jr-tldot.t-blue { background: var(--jr-blue); }
+.arc-app .journeys .jr-dot.t-gold, .arc-app .journeys .jr-fbar i.t-gold, .arc-app .journeys .jr-tldot.t-gold { background: var(--accent); }
+.arc-app .journeys .jr-dot.t-amber, .arc-app .journeys .jr-fbar i.t-amber, .arc-app .journeys .jr-tldot.t-amber { background: var(--warn); }
+.arc-app .journeys .jr-dot.t-green, .arc-app .journeys .jr-fbar i.t-green, .arc-app .journeys .jr-tldot.t-green { background: var(--ok); }
+.arc-app .journeys .jr-dot.t-vio, .arc-app .journeys .jr-fbar i.t-vio, .arc-app .journeys .jr-tldot.t-vio { background: var(--jr-vio); }
+.arc-app .journeys .jr-pill.t-blue { background: var(--jr-blue-soft); color: var(--jr-blue); }
+.arc-app .journeys .jr-pill.t-gold { background: var(--accent-soft); color: var(--accent); }
+.arc-app .journeys .jr-pill.t-amber { background: var(--warn-soft); color: var(--warn-text); }
+.arc-app .journeys .jr-pill.t-green { background: var(--ok-soft); color: var(--ok-text); }
+.arc-app .journeys .jr-pill.t-vio { background: var(--jr-vio-soft); color: var(--jr-vio); }
+
+@media (max-width: 900px) {
+  .arc-app .journeys .jr-kpis { grid-template-columns: repeat(2, 1fr); }
+  .arc-app .journeys .jr-grid { grid-template-columns: 1fr; }
+  .arc-app .journeys .jr-rowhead { grid-template-columns: minmax(0, 1fr) auto 92px 62px 16px; }
+  .arc-app .journeys .jr-span { display: none; }
+}

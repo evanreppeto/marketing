@@ -1,0 +1,375 @@
+import { type SupabaseClient } from "@supabase/supabase-js";
+
+import {
+  assembleJourney,
+  computeAttribution,
+  summarizeFunnel,
+  TOUCH_KINDS,
+  type AttributionModel,
+  type FunnelStage,
+  type Journey,
+  type JourneyIdentity,
+  type JourneyTouch,
+  type TouchDirection,
+} from "@/domain";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
+
+/**
+ * Journeys read-model — assembles each contact's ordered customer journey from
+ * data the app *already* records, with no new tracking:
+ *
+ *   • engagement_events  → outbound sends + inbound engagement (the touch log #440 writes)
+ *   • leads              → the identification moment + captured attribution (campaign/channel)
+ *   • jobs               → active consideration (booked / in-progress work)
+ *   • outcomes (won/paid)→ the conversion + realized revenue
+ *
+ * All rows are contact-anchored (a "journey" is one known person's path), so
+ * rows without a contact_id are skipped in P0. The anonymous pre-lead half of
+ * the ladder (Reached/Engaged before identification) lights up in P1 when the
+ * collector endpoint + identity stitch land — the model already supports it.
+ *
+ * Tenancy mirrors performance/read-model: the service-role client bypasses RLS,
+ * so every query is org-scoped in app code. Demo data renders only when
+ * ARC_DEMO_DATA=1 and there is no live data.
+ */
+
+export const DEFAULT_ATTRIBUTION_MODEL: AttributionModel = "last_touch";
+
+export type JourneyWithMeta = Journey & { persona: string | null };
+
+export type JourneyKpis = {
+  total: number;
+  identified: number;
+  /** Identified but not yet converted — the live pipeline Arc can act on. */
+  inFlight: number;
+  converted: number;
+  conversionRate: number;
+  realizedCents: number;
+  avgDaysToConvert: number | null;
+};
+
+export type JourneyChannelCredit = { channel: string; valueCents: number; conversions: number };
+
+export type JourneysReadModel =
+  | {
+      status: "live";
+      isDemo?: boolean;
+      funnel: FunnelStage[];
+      kpis: JourneyKpis;
+      journeys: JourneyWithMeta[];
+      /** Conversion value credited per channel under the default (last-touch) lens. */
+      channelCredit: JourneyChannelCredit[];
+      defaultModel: AttributionModel;
+    }
+  | { status: "unavailable"; message: string };
+
+const MAX_ROWS = 1000;
+const MAX_JOURNEYS = 60;
+const WON_STATUSES = ["won", "closed_won", "paid"];
+
+type ContactRow = { id: string; full_name: string | null; email: string | null; persona: string | null; created_at: string | null };
+type EngagementRow = {
+  id: string;
+  contact_id: string | null;
+  campaign_id: string | null;
+  campaign_asset_id: string | null;
+  event_type: string | null;
+  channel: string | null;
+  direction: string | null;
+  occurred_at: string | null;
+  summary: string | null;
+};
+type LeadRow = {
+  id: string;
+  contact_id: string | null;
+  attributed_campaign_id: string | null;
+  attributed_asset_id: string | null;
+  attribution_channel: string | null;
+  source: string | null;
+  received_at: string | null;
+  created_at: string | null;
+};
+type JobRow = { id: string; contact_id: string | null; status: string | null; scheduled_at: string | null; created_at: string | null };
+type OutcomeRow = {
+  id: string;
+  contact_id: string | null;
+  status: string | null;
+  gross_revenue_cents: number | null;
+  closed_at: string | null;
+  created_at: string | null;
+};
+
+/** App-specific engagement_events.event_type → generic touch kind + direction. */
+function mapEngagement(row: EngagementRow): { kind: string; direction: TouchDirection } | null {
+  const dir = (row.direction ?? "").toLowerCase();
+  // Operational/agent events are not part of the *customer's* journey.
+  if (dir === "internal") return null;
+  const type = (row.event_type ?? "").toLowerCase();
+
+  if (type === "lead_received") return { kind: TOUCH_KINDS.LeadCreated, direction: "inbound" };
+  if (type.includes("reply")) return { kind: TOUCH_KINDS.ReplyReceived, direction: "inbound" };
+  if (type.includes("open")) return { kind: TOUCH_KINDS.EmailOpen, direction: "inbound" };
+  if (type.includes("click")) return { kind: TOUCH_KINDS.EmailClick, direction: "inbound" };
+  if (type.includes("visit") || type.includes("landing")) return { kind: TOUCH_KINDS.SiteVisit, direction: "inbound" };
+  if (type === "outbound_send" || type.startsWith("dispatch")) {
+    const ch = (row.channel ?? "").toLowerCase();
+    return { kind: ch.includes("sms") ? TOUCH_KINDS.SmsSent : TOUCH_KINDS.EmailSent, direction: "outbound" };
+  }
+  // Fall back on the recorded direction; unknown inbound → engaged, outbound → reached.
+  if (dir === "outbound") return { kind: TOUCH_KINDS.EmailSent, direction: "outbound" };
+  if (dir === "inbound") return { kind: row.event_type ?? "inbound_event", direction: "inbound" };
+  return null;
+}
+
+export async function getJourneysReadModel(client?: SupabaseClient, orgId?: string, nowMs: number = Date.now()): Promise<JourneysReadModel> {
+  if (!client && !isSupabaseAdminConfigured()) {
+    return isDemoDataEnabled() ? buildDemoJourneys(nowMs) : { status: "unavailable", message: "Journey data is unavailable." };
+  }
+
+  try {
+    const supabase = client ?? getSupabaseAdminClient();
+    const resolvedOrgId = orgId ?? (client ? undefined : await getCurrentOrgId());
+    const byOrg = <B>(builder: B): B =>
+      resolvedOrgId ? (builder as unknown as { eq(c: string, v: string): B }).eq("org_id", resolvedOrgId) : builder;
+
+    const [contacts, engagement, leads, jobs, outcomes] = await Promise.all([
+      byOrg(supabase.from("contacts").select("id,full_name,email,persona,created_at")).limit(MAX_ROWS),
+      byOrg(
+        supabase.from("engagement_events").select("id,contact_id,campaign_id,campaign_asset_id,event_type,channel,direction,occurred_at,summary"),
+      ).limit(MAX_ROWS),
+      byOrg(
+        supabase.from("leads").select("id,contact_id,attributed_campaign_id,attributed_asset_id,attribution_channel,source,received_at,created_at"),
+      ).limit(MAX_ROWS),
+      byOrg(supabase.from("jobs").select("id,contact_id,status,scheduled_at,created_at")).limit(MAX_ROWS),
+      byOrg(supabase.from("outcomes").select("id,contact_id,status,gross_revenue_cents,closed_at,created_at")).limit(MAX_ROWS),
+    ]);
+
+    // contacts is the identity anchor and must succeed; the touch sources are
+    // tolerated-optional (an empty/absent table just yields thinner journeys).
+    if (contacts.error) throw new Error(`contacts lookup failed: ${contacts.error.message}`);
+    const contactRows = (contacts.data ?? []) as ContactRow[];
+    const engagementRows = engagement.error ? [] : ((engagement.data ?? []) as EngagementRow[]);
+    const leadRows = leads.error ? [] : ((leads.data ?? []) as LeadRow[]);
+    const jobRows = jobs.error ? [] : ((jobs.data ?? []) as JobRow[]);
+    const outcomeRows = outcomes.error ? [] : ((outcomes.data ?? []) as OutcomeRow[]);
+
+    // Nothing to show → demo fallback (only when the flag is on), else empty-live.
+    if (contactRows.length === 0 && engagementRows.length === 0 && leadRows.length === 0) {
+      if (isDemoDataEnabled()) return buildDemoJourneys(nowMs);
+    }
+
+    // Group every touch under its contact.
+    const touchesByContact = new Map<string, JourneyTouch[]>();
+    const push = (contactId: string | null, touch: JourneyTouch) => {
+      if (!contactId) return;
+      const list = touchesByContact.get(contactId);
+      if (list) list.push(touch);
+      else touchesByContact.set(contactId, [touch]);
+    };
+
+    for (const row of engagementRows) {
+      const mapped = mapEngagement(row);
+      if (!mapped) continue;
+      push(row.contact_id, {
+        id: `eng:${row.id}`,
+        occurredAt: row.occurred_at ?? "",
+        kind: mapped.kind,
+        direction: mapped.direction,
+        channel: row.channel,
+        campaignId: row.campaign_id,
+        assetId: row.campaign_asset_id,
+        summary: row.summary,
+      });
+    }
+    for (const row of leadRows) {
+      push(row.contact_id, {
+        id: `lead:${row.id}`,
+        occurredAt: row.received_at ?? row.created_at ?? "",
+        kind: TOUCH_KINDS.LeadCreated,
+        direction: "inbound",
+        channel: row.attribution_channel,
+        campaignId: row.attributed_campaign_id,
+        assetId: row.attributed_asset_id,
+        summary: row.source ? `Lead from ${row.source}` : "Lead created",
+      });
+    }
+    for (const row of jobRows) {
+      push(row.contact_id, {
+        id: `job:${row.id}`,
+        occurredAt: row.scheduled_at ?? row.created_at ?? "",
+        kind: TOUCH_KINDS.JobOpened,
+        direction: "system",
+        summary: row.status ? `Job ${row.status}` : "Job opened",
+      });
+    }
+    for (const row of outcomeRows) {
+      const won = WON_STATUSES.includes(row.status ?? "");
+      if (!won) continue;
+      push(row.contact_id, {
+        id: `outcome:${row.id}`,
+        occurredAt: row.closed_at ?? row.created_at ?? "",
+        kind: TOUCH_KINDS.OutcomeWon,
+        direction: "inbound",
+        isConversion: true,
+        valueCents: row.gross_revenue_cents ?? 0,
+        summary: "Won / paid",
+      });
+    }
+
+    const contactById = new Map(contactRows.map((c) => [c.id, c]));
+    const journeys: JourneyWithMeta[] = [];
+    for (const [contactId, touches] of touchesByContact) {
+      if (touches.length === 0) continue;
+      const contact = contactById.get(contactId);
+      const identity: JourneyIdentity = {
+        id: contactId,
+        label: contact?.full_name || contact?.email || "Unknown contact",
+        resolution: "known",
+      };
+      journeys.push({ ...assembleJourney(identity, touches), persona: contact?.persona ?? null });
+    }
+
+    return buildLiveModel(journeys, nowMs, false);
+  } catch (error) {
+    return { status: "unavailable", message: error instanceof Error ? error.message : "Journey data is unavailable." };
+  }
+}
+
+/** Shared shaping of assembled journeys → funnel + KPIs + channel credit + sorted list. */
+function buildLiveModel(journeys: JourneyWithMeta[], nowMs: number, isDemo: boolean): JourneysReadModel {
+  const funnel = summarizeFunnel(journeys);
+
+  const converted = journeys.filter((j) => j.converted);
+  const identified = journeys.filter((j) => j.stagesReached.includes("identified"));
+  const realizedCents = converted.reduce((s, j) => s + j.conversionValueCents, 0);
+  const daysList = converted.map((j) => j.daysToConvert).filter((d): d is number => d !== null);
+  const avgDaysToConvert = daysList.length ? Math.round(daysList.reduce((a, b) => a + b, 0) / daysList.length) : null;
+
+  const kpis: JourneyKpis = {
+    total: journeys.length,
+    identified: identified.length,
+    inFlight: identified.filter((j) => !j.converted).length,
+    converted: converted.length,
+    conversionRate: identified.length > 0 ? converted.length / identified.length : 0,
+    realizedCents,
+    avgDaysToConvert,
+  };
+
+  // Channel credit: distribute each converted journey's value under the default
+  // (last-touch) lens, then roll up by channel — the "which channels actually
+  // drove revenue" signal that closes the learning loop.
+  const creditByChannel = new Map<string, JourneyChannelCredit>();
+  for (const journey of converted) {
+    const rows = computeAttribution(journey, DEFAULT_ATTRIBUTION_MODEL, nowMs);
+    for (const row of rows) {
+      const channel = row.channel ?? "unattributed";
+      const cur = creditByChannel.get(channel) ?? { channel, valueCents: 0, conversions: 0 };
+      cur.valueCents += row.valueCents;
+      cur.conversions += row.weight; // fractional credit
+      creditByChannel.set(channel, cur);
+    }
+  }
+  const channelCredit = [...creditByChannel.values()]
+    .map((c) => ({ ...c, conversions: Math.round(c.conversions * 10) / 10 }))
+    .sort((a, b) => b.valueCents - a.valueCents);
+
+  const sorted = [...journeys]
+    .sort((a, b) => (Date.parse(b.lastTouchAt ?? "") || 0) - (Date.parse(a.lastTouchAt ?? "") || 0))
+    .slice(0, MAX_JOURNEYS);
+
+  return { status: "live", isDemo: isDemo || undefined, funnel, kpis, journeys: sorted, channelCredit, defaultModel: DEFAULT_ATTRIBUTION_MODEL };
+}
+
+// ---------------------------------------------------------------------------
+// Demo dataset — believable synthetic journeys for environments with no
+// Supabase (local preview, screenshots, sales demos). Flagged via isDemo.
+// Read-only display; nothing here implies an outbound action.
+// ---------------------------------------------------------------------------
+
+function buildDemoJourneys(nowMs: number): JourneysReadModel {
+  const DAY = 86_400_000;
+  const CAMP = {
+    storm: "aaaaaaaa-0000-4000-8000-000000000001",
+    water: "aaaaaaaa-0000-4000-8000-000000000002",
+    mold: "aaaaaaaa-0000-4000-8000-000000000003",
+  };
+  const iso = (daysAgo: number) => new Date(nowMs - daysAgo * DAY).toISOString();
+
+  const specs: { id: string; label: string; persona: string; touches: JourneyTouch[] }[] = [
+    {
+      id: "demo-1",
+      label: "Dana Whitfield",
+      persona: "Distressed Homeowner",
+      touches: [
+        { id: "t1", occurredAt: iso(21), kind: TOUCH_KINDS.AdImpression, direction: "outbound", channel: "meta", campaignId: CAMP.water, summary: "Saw Emergency Water Response ad" },
+        { id: "t2", occurredAt: iso(20), kind: TOUCH_KINDS.AdClick, direction: "inbound", channel: "meta", campaignId: CAMP.water, summary: "Clicked the ad" },
+        { id: "t3", occurredAt: iso(20), kind: TOUCH_KINDS.LeadCreated, direction: "inbound", channel: "meta", campaignId: CAMP.water, summary: "Submitted the estimate form" },
+        { id: "t4", occurredAt: iso(18), kind: TOUCH_KINDS.JobOpened, direction: "system", summary: "Job scheduled" },
+        { id: "t5", occurredAt: iso(12), kind: TOUCH_KINDS.OutcomeWon, direction: "inbound", isConversion: true, valueCents: 4_820_00, channel: "meta", campaignId: CAMP.water, summary: "Job paid" },
+      ],
+    },
+    {
+      id: "demo-2",
+      label: "Priya Raman",
+      persona: "Proactive Homeowner",
+      touches: [
+        { id: "t1", occurredAt: iso(9), kind: TOUCH_KINDS.EmailSent, direction: "outbound", channel: "email", campaignId: CAMP.storm, summary: "Spring Storm Prep email" },
+        { id: "t2", occurredAt: iso(8), kind: TOUCH_KINDS.EmailClick, direction: "inbound", channel: "email", campaignId: CAMP.storm, summary: "Clicked through to the offer" },
+        { id: "t3", occurredAt: iso(7), kind: TOUCH_KINDS.LeadCreated, direction: "inbound", channel: "email", campaignId: CAMP.storm, summary: "Requested an estimate" },
+        { id: "t4", occurredAt: iso(3), kind: TOUCH_KINDS.JobOpened, direction: "system", summary: "Estimate booked" },
+      ],
+    },
+    {
+      id: "demo-3",
+      label: "Northgate Property Group",
+      persona: "Property Manager",
+      touches: [
+        { id: "t1", occurredAt: iso(30), kind: TOUCH_KINDS.EmailSent, direction: "outbound", channel: "email", campaignId: CAMP.mold, summary: "Commercial mitigation outreach" },
+        { id: "t2", occurredAt: iso(27), kind: TOUCH_KINDS.ReplyReceived, direction: "inbound", channel: "email", campaignId: CAMP.mold, summary: "Replied asking for a quote" },
+        { id: "t3", occurredAt: iso(25), kind: TOUCH_KINDS.LeadCreated, direction: "inbound", channel: "email", campaignId: CAMP.mold, summary: "Qualified lead" },
+        { id: "t4", occurredAt: iso(20), kind: TOUCH_KINDS.JobOpened, direction: "system", summary: "Multi-unit job scheduled" },
+        { id: "t5", occurredAt: iso(6), kind: TOUCH_KINDS.OutcomeWon, direction: "inbound", isConversion: true, valueCents: 12_400_00, channel: "email", campaignId: CAMP.mold, summary: "Contract signed & paid" },
+      ],
+    },
+    {
+      id: "demo-4",
+      label: "Marcus Bell",
+      persona: "Distressed Homeowner",
+      touches: [
+        { id: "t1", occurredAt: iso(5), kind: TOUCH_KINDS.AdImpression, direction: "outbound", channel: "meta", campaignId: CAMP.water, summary: "Saw Burst Pipe ad" },
+        { id: "t2", occurredAt: iso(5), kind: TOUCH_KINDS.SiteVisit, direction: "inbound", channel: "meta", campaignId: CAMP.water, summary: "Visited the landing page" },
+      ],
+    },
+    {
+      id: "demo-5",
+      label: "Elena Vasquez",
+      persona: "Health-Conscious Homeowner",
+      touches: [
+        { id: "t1", occurredAt: iso(14), kind: TOUCH_KINDS.EmailSent, direction: "outbound", channel: "email", campaignId: CAMP.mold, summary: "Mold Awareness email" },
+        { id: "t2", occurredAt: iso(13), kind: TOUCH_KINDS.EmailOpen, direction: "inbound", channel: "email", campaignId: CAMP.mold, summary: "Opened the email" },
+        { id: "t3", occurredAt: iso(11), kind: TOUCH_KINDS.LeadCreated, direction: "inbound", channel: "email", campaignId: CAMP.mold, summary: "Booked an inspection" },
+      ],
+    },
+    {
+      id: "demo-6",
+      label: "Riverside HOA",
+      persona: "Property Manager",
+      touches: [
+        { id: "t1", occurredAt: iso(120), kind: TOUCH_KINDS.LeadCreated, direction: "inbound", channel: "referral", summary: "Referred by an insurance partner" },
+        { id: "t2", occurredAt: iso(110), kind: TOUCH_KINDS.OutcomeWon, direction: "inbound", isConversion: true, valueCents: 6_200_00, channel: "referral", summary: "First job paid" },
+        { id: "t3", occurredAt: iso(20), kind: TOUCH_KINDS.EmailSent, direction: "outbound", channel: "email", campaignId: CAMP.storm, summary: "Seasonal re-engagement" },
+        { id: "t4", occurredAt: iso(8), kind: TOUCH_KINDS.OutcomeWon, direction: "inbound", isConversion: true, valueCents: 3_100_00, channel: "email", campaignId: CAMP.storm, summary: "Repeat job paid" },
+      ],
+    },
+  ];
+
+  const journeys: JourneyWithMeta[] = specs.map((s) => ({
+    ...assembleJourney({ id: s.id, label: s.label, resolution: "known" }, s.touches),
+    persona: s.persona,
+  }));
+
+  const model = buildLiveModel(journeys, nowMs, true);
+  return model;
+}

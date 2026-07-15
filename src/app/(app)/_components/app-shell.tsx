@@ -32,6 +32,7 @@ const IconOpp = <svg viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 4 1 5.5L12
 const IconAnalytics = <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-8" /></svg>;
 const IconBrain = <svg viewBox="0 0 24 24"><path d="M12 4a4 4 0 00-4 4 3 3 0 00-1 6 3 3 0 003 3 3 3 0 006 0 3 3 0 003-3 3 3 0 00-1-6 4 4 0 00-4-4z" /></svg>;
 const IconPersonas = <svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="2.5" /><circle cx="16" cy="9" r="2.5" /><path d="M3 19c0-3 2-4.5 5-4.5M21 19c0-3-2-4.5-5-4.5M9 19c0-2 1.5-3 3-3s3 1 3 3" /></svg>;
+const IconJourneys = <svg viewBox="0 0 24 24"><path d="M6 6h6a3 3 0 0 1 0 6H8a3 3 0 0 0 0 6h10" /><circle cx="6" cy="6" r="1.7" /><circle cx="18" cy="18" r="1.7" /></svg>;
 const IconStudio = <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z" /><path d="M4 14l5-4 4 3 3-2 4 3" /><circle cx="9" cy="9" r="1.4" /></svg>;
 const IconLibrary = <svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z" /></svg>;
 const IconBrand = <svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 4-3.5 7-8 8-4.5-1-8-4-8-8V7z" /></svg>;
@@ -54,6 +55,7 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
   {
     group: "Intelligence",
     items: [
+      { label: "Journeys", href: "/journeys", icon: IconJourneys },
       { label: "Brain", href: "/brain", icon: IconBrain },
       { label: "Personas", href: "/personas", icon: IconPersonas },
     ],
@@ -89,6 +91,7 @@ const CRUMBS: Record<string, string> = {
   "/crm": "CRM",
   "/analytics": "Analytics",
   "/brain": "Brain",
+  "/journeys": "Journeys",
   "/opportunities": "Opportunities",
   "/personas": "Personas",
   "/outbox": "Outbox",
