@@ -1052,6 +1052,9 @@ export function ArcView({
   const scrollRef = useRef<HTMLElement | null>(null);
   const pinnedRef = useRef(true);
   const [showJump, setShowJump] = useState(false);
+  // Live reply pushed over SSE (body/reasoning/steps as they land), overlaid onto
+  // the pending message for instant streaming without a full server refetch.
+  const [streamOverlay, setStreamOverlay] = useState<{ id: string; body: string; reasoning: string | null; steps: ArcStep[] } | null>(null);
   const awaitingReply = live && messages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim()));
   const isStreaming = awaitingReply || demoPending;
   const turnCount = live ? messages.length : demoTurns.length;
@@ -1068,16 +1071,49 @@ export function ArcView({
     });
   }, []);
 
-  // Poll the server for streamed reply chunks/steps. Faster than a plain refresh
-  // (1.4s) so partial bodies land often; the client-side typewriter smooths the
-  // gaps between polls into continuous typing.
+  // Subscribe to the live reply over SSE while one is in flight — pushes the
+  // growing body/reasoning/steps as they land (no interval polling), then a `done`
+  // event triggers a single refetch of the canonical message. The overlay is
+  // cleared on teardown, so a completed reply always renders from server state.
+  useEffect(() => {
+    if (!live || !awaitingReply || !activeConversationId) return;
+    const source = new EventSource(`/api/arc/stream/${encodeURIComponent(activeConversationId)}`);
+    source.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as { messageId: string; body?: string; reasoning?: string | null; steps?: ArcStep[] };
+        if (!data.messageId) return;
+        setStreamOverlay({
+          id: data.messageId,
+          body: data.body ?? "",
+          reasoning: data.reasoning ?? null,
+          steps: Array.isArray(data.steps) ? data.steps : [],
+        });
+      } catch {
+        /* ignore a malformed frame */
+      }
+    };
+    source.addEventListener("done", () => {
+      source.close();
+      router.refresh(); // pull the final message (body + actions / recall / suggestions)
+    });
+    // On a transient drop EventSource reconnects on its own; the backstop below
+    // covers a hard failure so the bubble can never hang.
+    return () => {
+      source.close();
+      setStreamOverlay(null);
+    };
+  }, [live, awaitingReply, activeConversationId, router]);
+
+  // Backstop: reconcile with the server on a slow cadence while awaiting, so a
+  // blocked or proxy-buffered SSE stream still resolves. Defense in depth, not the
+  // primary path — the SSE stream above carries the live updates.
   useEffect(() => {
     if (!awaitingReply) return;
     const startedAt = Date.now();
     const interval = window.setInterval(() => {
       if (Date.now() - startedAt > 120_000) return window.clearInterval(interval);
       router.refresh();
-    }, 1400);
+    }, 6000);
     return () => window.clearInterval(interval);
   }, [awaitingReply, router]);
 
@@ -1387,6 +1423,23 @@ export function ArcView({
     router.refresh();
   };
 
+  // Overlay the SSE-streamed body/reasoning/steps onto the in-flight message, so
+  // it types out live. Applied ONLY while that message is still pending — once the
+  // server marks it complete, the canonical message (with its structured extras)
+  // wins and the overlay is ignored.
+  const renderedMessages = streamOverlay
+    ? messages.map((message) =>
+        message.id === streamOverlay.id && (message.status === "pending" || (message.role === "arc" && !message.body.trim()))
+          ? {
+              ...message,
+              body: streamOverlay.body || message.body,
+              reasoning: streamOverlay.reasoning ?? message.reasoning,
+              steps: streamOverlay.steps.length ? streamOverlay.steps : message.steps,
+            }
+          : message,
+      )
+    : messages;
+
   return (
     <div className="arc-chat" data-workspace-open={workspaceOpen ? "true" : "false"}>
       <header className="arc-conversation-header">
@@ -1401,7 +1454,7 @@ export function ArcView({
 
       <main className="arc-conversation-scroll" ref={scrollRef}>
         <div className="arc-conversation-column">
-          {live ? <LiveConversation messages={messages} brandName={brandName} onSuggestion={setDraft} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <div className="arc-empty-chat"><ArcAvatar /><h2>What should we work on?</h2><p>Start with an audience, a signal, or a draft. Arc will keep the work visible and the send path locked.</p></div> : <DemoConversation turns={demoTurns} pending={demoPending} reviewState={artifactReviewState} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReviewPackage={() => openCampaignWorkspace("email")} onStop={stopDemoRun} />}
+          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} onSuggestion={setDraft} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <div className="arc-empty-chat"><ArcAvatar /><h2>What should we work on?</h2><p>Start with an audience, a signal, or a draft. Arc will keep the work visible and the send path locked.</p></div> : <DemoConversation turns={demoTurns} pending={demoPending} reviewState={artifactReviewState} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReviewPackage={() => openCampaignWorkspace("email")} onStop={stopDemoRun} />}
           <div ref={endRef} />
         </div>
       </main>

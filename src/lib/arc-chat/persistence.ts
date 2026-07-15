@@ -631,6 +631,29 @@ export async function listMessages(
 }
 
 /**
+ * The single in-flight (pending) Arc reply for a conversation — the newest one.
+ * Powers the SSE live-stream that pushes the growing body/steps/reasoning to the
+ * browser. Null when nothing is in flight (the reply has completed, or none was
+ * sent). Cheap indexed lookup (conversation_id, role, status).
+ */
+export async function getPendingArcMessage(
+  conversationId: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<ArcMessage | null> {
+  const { data, error } = await client
+    .from("arc_messages")
+    .select(MESSAGE_COLUMNS)
+    .eq("conversation_id", conversationId)
+    .eq("role", "arc")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<MessageRow>();
+  assertOk("arc_messages pending get", error);
+  return data ? toMessage(data) : null;
+}
+
+/**
  * Every asset-bearing Arc message from the OTHER active conversations in a
  * project — the source for the Studio's project-wide Assets library. The active
  * conversation is excluded (its messages already arrive live), and messages
