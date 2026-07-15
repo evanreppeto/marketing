@@ -123,6 +123,24 @@ export function createArcClient(config: Config, identity?: WakeTenantIdentity) {
   }
 
   /**
+   * Stream Arc's growing reasoning (extended-thinking tokens) into the pending
+   * chat bubble so the chat shows the thought forming live. Best-effort — the
+   * canonical reasoning is written by the final postChatReply, so a dropped
+   * chunk never affects the recorded result.
+   */
+  async function postChatThinking(agentTaskId: string, reasoning: string): Promise<void> {
+    try {
+      await fetch(`${config.appApiBaseUrl}/api/v1/arc/messages/${agentTaskId}/reasoning`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ reasoning }),
+      });
+    } catch {
+      /* live reasoning is cosmetic; the final reply is the source of truth */
+    }
+  }
+
+  /**
    * Report token usage for a completed turn to the app's usage ledger.
    * Best-effort — metering must never break or delay the chat reply.
    */
@@ -150,7 +168,7 @@ export function createArcClient(config: Config, identity?: WakeTenantIdentity) {
     }
   }
 
-  return { apiGet, apiPost, apiPut, postChatReply, postStep, postChatChunk, postUsage };
+  return { apiGet, apiPost, apiPut, postChatReply, postStep, postChatChunk, postChatThinking, postUsage };
 }
 
 export type ArcClient = ReturnType<typeof createArcClient>;
