@@ -1,6 +1,9 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type LeadIngestionResult, type ParsedLeadIngestionInput } from "../../domain";
+import { pickLastTouchAttribution, type LeadIngestionResult, type ParsedLeadIngestionInput, type ResolvedAttribution } from "../../domain";
+
+/** How far back an outbound touch can be and still attribute an inbound lead. */
+const LAST_TOUCH_WINDOW_DAYS = 30;
 
 type AcceptedLeadIngestionResult = Extract<LeadIngestionResult, { ok: true }>;
 
@@ -109,6 +112,13 @@ export async function persistLeadIngestion({
         })
       : null;
 
+  // Last-touch backfill: a lead that carried no campaign of its own still counts
+  // toward the campaign that last reached this contact. Fills attribution from the
+  // most recent outbound touch (recorded at dispatch) so the loop self-completes
+  // even without the landing page forwarding a bsg_at token. Lowest precedence —
+  // only runs when nothing else attributed the lead.
+  const attribution = await resolveLastTouchAttribution(supabase, orgId, contactId, result.attribution);
+
   const leadValues = {
     company_id: companyId,
     contact_id: contactId,
@@ -123,11 +133,11 @@ export async function persistLeadIngestion({
     matched_target_keywords: result.classification.matchedTargetKeywords,
     matched_non_target_keywords: result.classification.matchedNonTargetKeywords,
     lead_score: result.scores.leadScore,
-    attributed_campaign_id: result.attribution.campaignId,
-    attributed_asset_id: result.attribution.assetId,
-    attribution_channel: result.attribution.channel,
-    attribution_method: result.attribution.method,
-    attribution_utm: result.attribution.utm,
+    attributed_campaign_id: attribution.campaignId,
+    attributed_asset_id: attribution.assetId,
+    attribution_channel: attribution.channel,
+    attribution_method: attribution.method,
+    attribution_utm: attribution.utm,
     ...stamp,
     agent_confidence: provenance?.agentConfidence ?? null,
     metadata: {
@@ -195,6 +205,58 @@ function toLocationMetadata(
   }
 
   return Object.keys(out).length > 0 ? out : null;
+}
+
+type TouchRow = {
+  campaign_id: string | null;
+  campaign_asset_id: string | null;
+  channel: string | null;
+  occurred_at: string | null;
+};
+
+/**
+ * When the lead resolved to no campaign of its own, attribute it to the most
+ * recent outbound campaign touch to the same contact (recorded at dispatch in
+ * engagement_events). Best-effort and read-only — any lookup failure or absent
+ * contact simply leaves the resolved attribution unchanged.
+ */
+async function resolveLastTouchAttribution(
+  supabase: SupabaseClient,
+  orgId: string,
+  contactId: string | null,
+  resolved: ResolvedAttribution,
+): Promise<ResolvedAttribution> {
+  if (resolved.method !== "unattributed" || !contactId) return resolved;
+
+  // Best-effort: any lookup failure (or a client that can't serve the query)
+  // must leave ingestion untouched — attribution enrichment never blocks a lead.
+  try {
+    const cutoff = new Date(Date.now() - LAST_TOUCH_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from("engagement_events")
+      .select("campaign_id,campaign_asset_id,channel,occurred_at")
+      .eq("org_id", orgId)
+      .eq("contact_id", contactId)
+      .eq("direction", "outbound")
+      .gte("occurred_at", cutoff)
+      .order("occurred_at", { ascending: false })
+      .limit(20);
+    if (error || !data) return resolved;
+
+    const touch = pickLastTouchAttribution(
+      (data as TouchRow[]).map((r) => ({
+        campaignId: r.campaign_id,
+        assetId: r.campaign_asset_id,
+        channel: r.channel,
+        occurredAt: r.occurred_at,
+      })),
+      Date.now(),
+      LAST_TOUCH_WINDOW_DAYS,
+    );
+    return touch ?? resolved;
+  } catch {
+    return resolved;
+  }
 }
 
 function toDatabaseRoutingRecommendation(routing: AcceptedLeadIngestionResult["routing"]) {

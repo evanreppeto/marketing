@@ -122,7 +122,7 @@ export function stampCampaignLinks(
   return { html: stampedHtml, text: stampedText };
 }
 
-export type AttributionMethod = "explicit" | "token" | "utm" | "source_rule" | "unattributed";
+export type AttributionMethod = "explicit" | "token" | "utm" | "source_rule" | "last_touch" | "unattributed";
 
 export type AttributionInput = {
   campaignId?: string;
@@ -200,6 +200,45 @@ export function resolveAttribution(
   }
 
   return { campaignId: null, assetId: null, channel: input.channel ?? null, utm, method: "unattributed" };
+}
+
+export type LastTouchCandidate = {
+  campaignId: string | null;
+  assetId: string | null;
+  channel: string | null;
+  /** ISO timestamp of the outbound touch. */
+  occurredAt: string | null;
+};
+
+/**
+ * Pure + total: given a contact's outbound campaign touches, pick the most recent
+ * one inside the attribution window as a `last_touch` attribution — the fallback
+ * used when a lead arrives with no token/utm/explicit campaign of its own. Touches
+ * without a valid campaign UUID, without a parseable time, in the future, or older
+ * than `windowDays` are ignored. Returns null when nothing qualifies. Never throws.
+ */
+export function pickLastTouchAttribution(
+  candidates: LastTouchCandidate[],
+  nowMs: number,
+  windowDays = 30,
+): ResolvedAttribution | null {
+  const windowMs = windowDays * 24 * 60 * 60 * 1000;
+  let best: { at: number; c: LastTouchCandidate } | null = null;
+  for (const c of candidates) {
+    if (!c.campaignId || !UUID_RE.test(c.campaignId)) continue;
+    if (!c.occurredAt) continue;
+    const at = Date.parse(c.occurredAt);
+    if (Number.isNaN(at) || at > nowMs || nowMs - at > windowMs) continue;
+    if (!best || at > best.at) best = { at, c };
+  }
+  if (!best) return null;
+  return {
+    campaignId: best.c.campaignId,
+    assetId: best.c.assetId && UUID_RE.test(best.c.assetId) ? best.c.assetId : null,
+    channel: best.c.channel,
+    utm: {},
+    method: "last_touch",
+  };
 }
 
 export type CampaignEconomicsInput = {
