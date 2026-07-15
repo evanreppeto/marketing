@@ -16,6 +16,7 @@ import { runSignalSourceDetection } from "@/lib/connectors/detection";
 import {
   runColdLeadDetection,
   runCompetitorSignalDetection,
+  runNextIterationDetection,
   runWeatherEventDetection,
 } from "@/lib/opportunities/detector";
 import { executeOpportunityDraftTask } from "@/lib/opportunities/draft-package";
@@ -45,6 +46,9 @@ export async function scanForOpportunitiesAction(): Promise<void> {
     runColdLeadDetection().catch(swallow),
     runWeatherEventDetection().catch(swallow),
     runCompetitorSignalDetection().catch(swallow),
+    // Campaigns whose real results warrant a follow-up — the proactive close of
+    // the performance learning loop, surfaced in the same inbox.
+    runNextIterationDetection().catch(swallow),
     // Enabled signal_source connectors (live NWS weather, etc). Requires a
     // workspace to scope + read the per-workspace connector config.
     ctx.workspaceId

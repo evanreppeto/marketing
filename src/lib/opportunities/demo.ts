@@ -20,6 +20,29 @@ function daysAgoIso(days: number): string {
 export function buildDemoOpportunities(): OpportunityRecord[] {
   return [
     {
+      id: "demo-opp-next-iteration-storm-prep",
+      subject_type: "campaign",
+      subject_id: "demo-spring-storm-prep",
+      title: "Spring Storm Prep is converting — draft the next iteration",
+      summary:
+        "Email booked 6 jobs from 45 leads. For the next iteration, lead with Email, reuse “Storm-watch SMS nudge”. Arc can draft round two now — approval-gated, nothing sends until you approve.",
+      confidence: 90,
+      urgency: "high",
+      status: "pending",
+      recommended_action:
+        "Draft the next iteration — For the next iteration, lead with Email, reuse “Storm-watch SMS nudge”.",
+      evidence: {
+        persona: "persona_homeowner_emergency",
+        campaignName: "Spring Storm Prep",
+        topChannel: "Email",
+        bookedJobs: 6,
+        leads: 45,
+        topAsset: "Storm-watch SMS nudge",
+        arcPrompt:
+          "Draft the next iteration of the Spring Storm Prep campaign based on what worked: For the next iteration, lead with Email, reuse “Storm-watch SMS nudge”. Keep it approval-gated.",
+      },
+    },
+    {
       id: "demo-opp-storm-riverside",
       subject_type: "weather_event",
       subject_id: "demo-weather-riverside-flood",
