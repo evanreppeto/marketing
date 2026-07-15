@@ -172,6 +172,43 @@ const DEMO_DRAFT_CARD: ArcActionCard = {
   approval: { kind: "campaign", campaignId: "demo-campaign", assetId: "demo-asset-email" },
 };
 
+const DEMO_PACKAGE_CARDS: ArcActionCard[] = [
+  DEMO_DRAFT_CARD,
+  {
+    kind: "draft",
+    title: "Warm inspection check-in",
+    channel: "SMS",
+    format: "152 / 160 chars",
+    status: "draft",
+    preview: "Hi {first_name} — it’s the BSR crew. We’re checking roofs near you after the Naperville hail, no charge and no pressure. Want us to stop by?",
+    rows: [{ name: "Audience", meta: "142-home segment" }],
+    flags: [{ tone: "ok", label: "Claims-safe" }],
+    approval: { kind: "campaign", campaignId: "demo-campaign", assetId: "demo-asset-sms" },
+  },
+  {
+    kind: "draft",
+    title: "Naperville storm awareness",
+    channel: "Paid social",
+    format: "1:1 · Meta",
+    status: "draft",
+    preview: "Naperville got hit hard. Hidden hail damage can become a much bigger repair if it sits — book a free roof inspection while our crews are nearby.",
+    rows: [{ name: "Headline", meta: "See what the storm left behind" }, { name: "CTA", meta: "Book now" }],
+    flags: [{ tone: "ok", label: "Brand voice" }, { tone: "warn", label: "Needs image" }],
+    approval: { kind: "campaign", campaignId: "demo-campaign", assetId: "demo-asset-social" },
+  },
+  {
+    kind: "draft",
+    title: "Storm inspection landing page",
+    channel: "Landing page",
+    format: "Mobile-ready",
+    status: "draft",
+    preview: "Free roof inspection for storm-hit homes. See whether your roof has claimable damage before the next storm rolls through.",
+    rows: [{ name: "Destination", meta: "Campaign-matched" }],
+    flags: [{ tone: "ok", label: "Claims-safe" }],
+    approval: { kind: "campaign", campaignId: "demo-campaign", assetId: "demo-asset-landing" },
+  },
+];
+
 const DEMO_SOURCES: ArcMention[] = [
   { type: "property", id: "demo-prop", label: "142 storm-zone properties", href: "/crm/properties" },
   { type: "campaign", id: "demo-camp", label: "Storm Rapid Response", href: "/campaigns" },
@@ -185,8 +222,6 @@ const DEMO_RECALL: ArcRecall[] = [
 
 type DemoTurn = { id: string; role: "operator" | "arc"; body: string; outcome?: "complete" | "canceled"; mode?: ArcMode; command?: string | null };
 type ComposerMenu = "tools" | "model" | "mode" | "context" | "mentions" | "commands" | null;
-type ArtifactTab = "audience" | "email" | "sms" | "social" | "landing";
-type ArtifactReviewState = "ready" | "revising" | "approved";
 type RunKind = "think" | "search" | "match" | "draft" | "media" | "tool";
 type RunRow = {
   id: string;
@@ -201,14 +236,6 @@ type RunRow = {
 const MODEL_OPTIONS: Array<{ id: ArcRoute; label: string; description: string }> = [
   { id: "fast", label: "Fast", description: "Quick answers and everyday work" },
   { id: "standard", label: "Deep", description: "Complex planning and careful reasoning" },
-];
-
-const ARTIFACT_TABS: Array<{ id: ArtifactTab; label: string; icon: typeof Target }> = [
-  { id: "audience", label: "Audience", icon: Target },
-  { id: "email", label: "Email", icon: Mail },
-  { id: "sms", label: "SMS", icon: Smartphone },
-  { id: "social", label: "Social", icon: Megaphone },
-  { id: "landing", label: "Landing page", icon: LayoutTemplate },
 ];
 
 const MODE_OPTIONS: Array<{ id: ArcMode; label: string; description: string }> = [
@@ -696,140 +723,153 @@ function AssistantMessage({
   );
 }
 
-function CampaignPackageCard({ onReview, reviewState }: { onReview: () => void; reviewState: ArtifactReviewState }) {
-  const channels = ["Email", "SMS", "Paid Social", "Landing Page"];
-  const status = reviewState === "approved" ? "Approved" : reviewState === "revising" ? "Revising" : "Ready";
-  const action = reviewState === "approved" ? "View approved" : reviewState === "revising" ? "View progress" : "Review package";
+/** Channel-keyed icon for an asset tab / summary. */
+function ChannelIcon({ channel, size = 17 }: { channel?: string; size?: number }) {
+  const c = (channel ?? "").toLowerCase();
+  if (c.includes("email")) return <Mail size={size} />;
+  if (c.includes("sms") || c.includes("text")) return <Smartphone size={size} />;
+  if (c.includes("social") || c.includes("ad") || c.includes("meta") || c.includes("instagram")) return <Megaphone size={size} />;
+  if (c.includes("land") || c.includes("page")) return <LayoutTemplate size={size} />;
+  if (c.includes("audience") || c.includes("segment")) return <Target size={size} />;
+  return <FileText size={size} />;
+}
+
+function assetStatusMeta(status: ArcAssetStatus | null) {
+  return DRAFT_STATUS_META[status ?? "review"] ?? DRAFT_STATUS_META.review;
+}
+
+/** The compact package summary shown inline when Arc drafts a multi-asset
+ *  campaign — a channel overview + a button into the review workspace. */
+function DraftPackageCard({ cards, statuses, onReview }: { cards: ArcActionCard[]; statuses: Record<string, ArcAssetStatus>; onReview: () => void }) {
+  const statusOf = (card: ArcActionCard) => statuses[card.approval?.assetId ?? ""] ?? card.status ?? null;
+  const approvedCount = cards.filter((card) => statusOf(card) === "approved").length;
   return (
-    <div className="arc-package" data-status={reviewState}>
-      <div className="arc-package-kicker">Campaign package</div>
+    <div className="arc-package">
+      <div className="arc-package-kicker">Campaign package · {approvedCount}/{cards.length} approved</div>
       <div className="arc-package-row">
         <span className="arc-package-icon"><MessageSquareText size={18} /></span>
-        <span className="arc-package-title"><b>Storm Rapid Response</b><small>4 assets · Naperville, IL</small></span>
+        <span className="arc-package-title"><b>{cards.length} assets ready for review</b><small>Outbound stays locked until you approve</small></span>
         <div className="arc-package-channels">
-          {channels.map((channel) => <span key={channel}><i />{channel}<small>{status}</small></span>)}
+          {cards.slice(0, 4).map((card, index) => {
+            const meta = assetStatusMeta(statusOf(card));
+            return <span key={`${card.title}-${index}`} data-tone={meta.tone}><i />{card.channel ?? card.title}<small>{meta.label}</small></span>;
+          })}
         </div>
-        <button type="button" className="arc-review-button" data-arc-campaign-trigger="true" onClick={onReview}>
-          {action} <PanelRightOpen size={15} />
-        </button>
+        <button type="button" className="arc-review-button" data-arc-review-trigger="true" onClick={onReview}>Review package <PanelRightOpen size={15} /></button>
       </div>
-      <div className="arc-package-sources">Sources · Hail model · CRM properties · Inspection history · Prior claim activity</div>
     </div>
   );
 }
 
-function ArtifactWorkspace({
-  activeTab,
-  reviewState,
-  notice,
-  busy,
-  onSelect,
-  onApprove,
-  onSubmitRevision,
-  onClose,
-}: {
-  activeTab: ArtifactTab;
-  reviewState: ArtifactReviewState;
-  notice: string | null;
-  busy: boolean;
-  onSelect: (tab: ArtifactTab) => void;
-  onApprove: () => void;
-  onSubmitRevision: (request: string, tab: ArtifactTab) => void;
-  onClose: () => void;
-}) {
+/**
+ * Card-driven review workspace: the assets Arc drafted, one tab each, with the
+ * full draft content and per-asset Approve / Revise / Decline wired to the real
+ * campaign decision flow. Decisions are lifted to the parent (keyed by asset id)
+ * so they persist while the panel is open and reflect back on the package summary.
+ */
+function AssetReviewPanel({ cards, statuses, onStatus, onClose }: { cards: ArcActionCard[]; statuses: Record<string, ArcAssetStatus>; onStatus: (assetId: string, status: ArcAssetStatus) => void; onClose: () => void }) {
   const reduceMotion = useReducedMotion();
-  const [revisionOpen, setRevisionOpen] = useState(false);
-  const [revisionRequest, setRevisionRequest] = useState("");
-  const approved = reviewState === "approved";
-  const revising = reviewState === "revising";
-  const activeLabel = ARTIFACT_TABS.find((tab) => tab.id === activeTab)?.label ?? "asset";
+  const [active, setActive] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [reviseOpen, setReviseOpen] = useState(false);
+  const [reviseText, setReviseText] = useState("");
+  const card = cards[Math.min(active, cards.length - 1)];
+  const assetId = card.approval?.assetId ?? "";
+  const status = statuses[assetId] ?? card.status ?? null;
+  const meta = assetStatusMeta(status);
+  const decided = status === "approved" || status === "rejected";
+  const approvedCount = cards.filter((c) => (statuses[c.approval?.assetId ?? ""] ?? c.status) === "approved").length;
+
+  const selectTab = (index: number) => { setActive(index); setReviseOpen(false); setReviseText(""); setNotice(null); };
+
+  const decide = (decision: "approved" | "declined") => {
+    const approval = card.approval;
+    if (!approval || busy) return;
+    setBusy(true); setNotice(null);
+    decideArcDraftAction({ campaignId: approval.campaignId, assetId: approval.assetId, decision }).then((result) => {
+      setBusy(false);
+      if (!result.ok) return setNotice(result.error);
+      onStatus(approval.assetId, decision === "approved" ? "approved" : "rejected");
+      setNotice(result.persisted ? (decision === "approved" ? "Approved · outbound stays locked" : "Declined") : "Preview — decision not saved");
+    });
+  };
+
   const submitRevision = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const request = revisionRequest.trim();
-    if (!request || busy) return;
-    onSubmitRevision(request, activeTab);
-    setRevisionRequest("");
-    setRevisionOpen(false);
+    const approval = card.approval;
+    const instruction = reviseText.trim();
+    if (!approval || !instruction || busy) return;
+    setBusy(true); setNotice(null);
+    requestArcDraftRevisionAction({ campaignId: approval.campaignId, assetId: approval.assetId, instruction }).then((result) => {
+      setBusy(false);
+      if (!result.ok) return setNotice(result.error);
+      onStatus(approval.assetId, "revision");
+      setReviseOpen(false); setReviseText("");
+      setNotice(result.persisted ? "Revision requested — Arc is updating it" : "Preview — revision not saved");
+    });
   };
+
   return (
     <motion.aside
       className="arc-artifact-workspace"
-      aria-label="Campaign workspace"
+      aria-label="Asset review workspace"
       initial={reduceMotion ? false : { opacity: 0, x: 24 }}
       animate={{ opacity: 1, x: 0 }}
       exit={reduceMotion ? undefined : { opacity: 0, x: 18 }}
       transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
     >
       <header className="arc-artifact-header">
-        <div><span>Campaign workspace</span><h2>Storm Rapid Response</h2><p>4 assets · Naperville, IL</p></div>
-        <button type="button" onClick={onClose} aria-label="Close campaign workspace"><PanelRightClose size={17} /></button>
+        <div><span>Review workspace</span><h2>Campaign package</h2><p>{cards.length} assets · {approvedCount} approved</p></div>
+        <button type="button" onClick={onClose} aria-label="Close review workspace"><PanelRightClose size={17} /></button>
       </header>
       <div className="arc-artifact-shell">
-        <div className="arc-artifact-tabs" role="tablist" aria-label="Campaign artifacts">
-          {ARTIFACT_TABS.map((tab) => {
-            const Icon = tab.icon;
-            return <button type="button" role="tab" id={`arc-artifact-tab-${tab.id}`} aria-controls="arc-artifact-panel" aria-selected={activeTab === tab.id} key={tab.id} className={activeTab === tab.id ? "is-active" : ""} onClick={() => onSelect(tab.id)}><Icon size={17} /><span>{tab.label}</span></button>;
+        <div className="arc-artifact-tabs" role="tablist" aria-label="Campaign assets">
+          {cards.map((tabCard, index) => {
+            const tabStatus = statuses[tabCard.approval?.assetId ?? ""] ?? tabCard.status ?? null;
+            return (
+              <button type="button" role="tab" key={`${tabCard.title}-${index}`} aria-selected={index === active} className={index === active ? "is-active" : ""} onClick={() => selectTab(index)}>
+                <ChannelIcon channel={tabCard.channel} />
+                <span>{tabCard.channel ?? tabCard.title}</span>
+                <i className={`arc-artifact-dot is-${assetStatusMeta(tabStatus).tone}`} aria-hidden="true" />
+              </button>
+            );
           })}
         </div>
         <div className="arc-artifact-content">
-          <div className="arc-artifact-status" aria-live="polite"><span className={approved ? "is-approved" : revising ? "is-revising" : ""}><CheckCircle2 size={14} />{approved ? "Approved" : revising ? `Revising ${activeLabel}` : "Ready for review"}</span><span><LockKeyhole size={13} />Outbound locked</span></div>
+          <div className="arc-artifact-status" aria-live="polite"><span className={`is-${meta.tone}`}><CheckCircle2 size={14} />{meta.label}</span><span><LockKeyhole size={13} />Outbound locked</span></div>
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={activeTab} id="arc-artifact-panel" role="tabpanel" aria-labelledby={`arc-artifact-tab-${activeTab}`} className="arc-artifact-view" initial={reduceMotion ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: 0.16 }}>
-              {activeTab === "audience" ? <AudienceArtifact /> : null}
-              {activeTab === "email" ? <EmailArtifact /> : null}
-              {activeTab === "sms" ? <SmsArtifact /> : null}
-              {activeTab === "social" ? <SocialArtifact /> : null}
-              {activeTab === "landing" ? <LandingArtifact /> : null}
+            <motion.div key={active} role="tabpanel" className="arc-artifact-view" initial={reduceMotion ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: 0.16 }}>
+              <div className="arc-artifact-title"><span>{card.channel ?? "Asset"}</span><h3>{card.title}</h3>{card.format ? <p>{card.format}</p> : null}</div>
+              {card.preview ? <div className="arc-asset-preview">{card.preview}</div> : null}
+              {card.rows.length > 0 ? (
+                <section className="arc-artifact-section"><h4>Details</h4>{card.rows.slice(0, 6).map((row, index) => <div className="arc-asset-row" key={`${row.name}-${index}`}><b>{row.name}</b><span>{row.meta ?? ""}</span></div>)}</section>
+              ) : null}
+              {card.flags.length > 0 ? (
+                <section className="arc-artifact-section"><h4>Checks</h4><div className="arc-check-grid">{card.flags.slice(0, 4).map((flag, index) => <span key={`${flag.label}-${index}`} className={`is-${flag.tone}`}><CheckCircle2 size={14} />{flag.label}</span>)}</div></section>
+              ) : null}
             </motion.div>
           </AnimatePresence>
         </div>
       </div>
-      <footer className="arc-artifact-footer" aria-busy={busy || revising}>
-        {revisionOpen ? (
+      <footer className="arc-artifact-footer" aria-busy={busy}>
+        {reviseOpen ? (
           <form className="arc-revision-form" onSubmit={submitRevision}>
-            <label htmlFor="arc-revision-request">What should Arc change in the {activeLabel.toLowerCase()}?</label>
-            <textarea id="arc-revision-request" autoFocus value={revisionRequest} onChange={(event) => setRevisionRequest(event.target.value)} placeholder="Describe the change…" rows={2} />
-            <div><button type="button" onClick={() => { setRevisionOpen(false); setRevisionRequest(""); }}>Cancel</button><button type="submit" className="is-primary" disabled={!revisionRequest.trim() || busy}>Send revision</button></div>
+            <label htmlFor="arc-revision-request">What should Arc change in the {(card.channel ?? "asset").toLowerCase()}?</label>
+            <textarea id="arc-revision-request" autoFocus value={reviseText} onChange={(event) => setReviseText(event.target.value)} placeholder="Describe the change…" rows={2} />
+            <div><button type="button" onClick={() => { setReviseOpen(false); setReviseText(""); }}>Cancel</button><button type="submit" className="is-primary" disabled={!reviseText.trim() || busy}>Send revision</button></div>
           </form>
         ) : (
           <>
-            <div role="status" aria-live="polite">{notice ?? (approved ? "Approved for use. Outbound remains locked until send approval." : revising ? "Arc is updating the selected asset. Nothing can send while it works." : "Review the assets, request changes, or approve them for use. Sending stays locked.")}</div>
-            <button type="button" onClick={() => setRevisionOpen(true)} disabled={busy || revising}>Revise</button>
-            <button type="button" className="is-primary" onClick={onApprove} disabled={approved || busy || revising}><Check size={14} />{approved ? "Approved" : revising ? "Revising…" : "Approve ready"}</button>
+            <div role="status" aria-live="polite">{notice ?? "Approve, revise, or decline each asset. Sending stays locked."}</div>
+            <button type="button" onClick={() => setReviseOpen(true)} disabled={busy || decided}>Revise</button>
+            <button type="button" onClick={() => decide("declined")} disabled={busy || decided}>Decline</button>
+            <button type="button" className="is-primary" onClick={() => decide("approved")} disabled={busy || decided}><Check size={14} />{status === "approved" ? "Approved" : "Approve"}</button>
           </>
         )}
       </footer>
     </motion.aside>
   );
-}
-
-function AudienceArtifact() {
-  const segments = [
-    ["Insured · fresh damage", "64 homes", 45],
-    ["Aging roof · out-of-pocket", "41 homes", 29],
-    ["Property manager · multi-unit", "37 homes", 26],
-  ] as const;
-  return <><div className="arc-artifact-title"><span>Audience</span><h3>142 priority homes</h3><p>Ranked from hail exposure, inspection status, roof age, and prior claim activity.</p></div><div className="arc-audience-stats"><div><b>142</b><span>target homes</span></div><div><b>$1.4M</b><span>estimated value</span></div><div><b>23%</b><span>of storm zone</span></div></div><section className="arc-artifact-section"><h4>Persona mix</h4>{segments.map(([name, count, pct]) => <div className="arc-audience-row" key={name}><div><b>{name}</b><span>{count}</span></div><div className="arc-audience-bar"><i style={{ width: `${pct}%` }} /></div></div>)}</section><section className="arc-artifact-note"><Brain size={15} /><div><b>Why this audience</b><p>No inspection booked after the storm, with older-roof and claim signals weighted highest.</p></div></section></>;
-}
-
-function EmailArtifact() {
-  return <><div className="arc-artifact-title"><span>Email</span><h3>Inspection follow-up</h3><p>Approval-safe draft for the highest-priority homeowners.</p></div><div className="arc-email-preview"><div><span>From</span><b>Big Shoulders Restoration</b></div><div><span>Subject</span><b>Your roof may have hidden hail damage</b></div><p>Hi {"{first_name}"}, the recent Naperville hailstorm hit your block harder than most. We’re offering a free, no-pressure inspection this week—and if there’s claimable damage, we can help coordinate the insurance process.</p></div><ArtifactChecks /> </>;
-}
-
-function SmsArtifact() {
-  return <><div className="arc-artifact-title"><span>SMS</span><h3>Warm inspection check-in</h3><p>152 characters · one segment · personalized at send time</p></div><div className="arc-sms-preview"><p>Hi {"{first_name}"} — it’s the BSR crew. We’re checking roofs near you after the Naperville hail, no charge and no pressure. Want us to stop by?</p><span>152 / 160</span></div><ArtifactChecks /></>;
-}
-
-function SocialArtifact() {
-  return <><div className="arc-artifact-title"><span>Paid social</span><h3>Naperville storm awareness</h3><p>Localized lead campaign · homeowner audience</p></div><div className="arc-copy-preview"><label>Primary text</label><p>Naperville got hit hard. Hidden hail damage can become a much bigger repair if it sits—book a free roof inspection while our crews are nearby.</p><label>Headline</label><b>See what the storm left behind</b><label>Call to action</label><b>Book now</b></div><ArtifactChecks /></>;
-}
-
-function LandingArtifact() {
-  return <><div className="arc-artifact-title"><span>Landing page</span><h3>Storm inspection page</h3><p>Campaign-matched destination · mobile ready</p></div><div className="arc-landing-preview"><span>Naperville storm zone</span><h4>Free roof inspection for storm-hit homes</h4><p>See whether your roof has claimable damage before the next storm rolls through.</p><button type="button">Book a free inspection</button></div><ArtifactChecks /></>;
-}
-
-function ArtifactChecks() {
-  return <section className="arc-artifact-section"><h4>Checks</h4><div className="arc-check-grid"><span><CheckCircle2 size={14} />Brand voice</span><span><CheckCircle2 size={14} />Claims language</span><span><CheckCircle2 size={14} />Audience match</span><span><CheckCircle2 size={14} />Outbound locked</span></div></section>;
 }
 
 const DRAFT_STATUS_META: Record<ArcAssetStatus | "review", { label: string; tone: string }> = {
@@ -1041,13 +1081,17 @@ function operatorMessageBefore(messages: ArcMessage[], index: number): ArcMessag
 function LiveConversation({
   messages,
   brandName,
+  assetStatuses,
   onSuggestion,
+  onReview,
   onCancelRun,
   stoppingTaskId,
 }: {
   messages: ArcMessage[];
   brandName: string;
+  assetStatuses: Record<string, ArcAssetStatus>;
   onSuggestion: (value: string) => void;
+  onReview: (cards: ArcActionCard[]) => void;
   onCancelRun: (taskId: string, conversationId: string) => void;
   stoppingTaskId: string | null;
 }) {
@@ -1088,7 +1132,17 @@ function LiveConversation({
             {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div> : null}
             {!pending && message.mentions.length ? <SourcesRow mentions={message.mentions} /> : null}
             {!pending && message.recall?.length ? <RecallRow recall={message.recall} /> : null}
-            {!pending && message.actions.length ? <div className="arc-action-list">{message.actions.map((card, index) => <ArcDraftCard card={card} key={`${card.title}-${index}`} />)}</div> : null}
+            {!pending && message.actions.length ? (() => {
+              const approvalCards = message.actions.filter((card) => card.approval);
+              const otherCards = message.actions.filter((card) => !card.approval);
+              const inlineCards = approvalCards.length >= 2 ? otherCards : message.actions;
+              return (
+                <>
+                  {inlineCards.length ? <div className="arc-action-list">{inlineCards.map((card, index) => <ArcDraftCard card={card} key={`${card.title}-${index}`} />)}</div> : null}
+                  {approvalCards.length >= 2 ? <DraftPackageCard cards={approvalCards} statuses={assetStatuses} onReview={() => onReview(approvalCards)} /> : null}
+                </>
+              );
+            })() : null}
             {!pending && message.suggestions.length ? <div className="arc-suggestions">{message.suggestions.map((suggestion, index) => <button type="button" key={`${suggestion}-${index}`} onClick={() => onSuggestion(suggestion)}>{suggestion}</button>)}</div> : null}
             {!pending ? <MessageActions message={message} /> : null}
           </AssistantMessage>
@@ -1101,16 +1155,16 @@ function LiveConversation({
 function DemoConversation({
   turns,
   pending,
-  reviewState,
+  packageStatuses,
   pendingContract,
-  onReviewPackage,
+  onReview,
   onStop,
 }: {
   turns: DemoTurn[];
   pending: boolean;
-  reviewState: ArtifactReviewState;
+  packageStatuses: Record<string, ArcAssetStatus>;
   pendingContract: ArcRunContract;
-  onReviewPackage: () => void;
+  onReview: (cards: ArcActionCard[]) => void;
   onStop: () => void;
 }) {
   const pendingTurn = [...turns].reverse().find((turn) => turn.role === "operator");
@@ -1135,7 +1189,7 @@ function DemoConversation({
       </AssistantMessage>
       <AssistantMessage time="9:42 AM">
         <div className="arc-answer"><p>I built the Storm Rapid Response package for the 142 highest-urgency homes.</p></div>
-        <CampaignPackageCard onReview={onReviewPackage} reviewState={reviewState} />
+        <DraftPackageCard cards={DEMO_PACKAGE_CARDS} statuses={packageStatuses} onReview={() => onReview(DEMO_PACKAGE_CARDS)} />
       </AssistantMessage>
       <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." />
       <AssistantMessage time="9:45 AM">
@@ -1295,10 +1349,11 @@ export function ArcView({
   const [composerNotice, setComposerNotice] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
-  const [activeArtifact, setActiveArtifact] = useState<ArtifactTab>("audience");
-  const [artifactReviewState, setArtifactReviewState] = useState<ArtifactReviewState>("ready");
-  const [artifactNotice, setArtifactNotice] = useState<string | null>(null);
+  // The assets open in the review workspace (null = closed), plus a per-asset
+  // decision map so approvals persist while the panel is open and reflect back on
+  // the inline package summary.
+  const [reviewCards, setReviewCards] = useState<ArcActionCard[] | null>(null);
+  const [assetStatuses, setAssetStatuses] = useState<Record<string, ArcAssetStatus>>({});
   const [selectedDemoId, setSelectedDemoId] = useState("storm");
   const [dismissedQuestionId, setDismissedQuestionId] = useState<string | null>(null);
   const [demoTurns, setDemoTurns] = useState<DemoTurn[]>([]);
@@ -1451,7 +1506,7 @@ export function ArcView({
   }, [composerMenu]);
 
   useEffect(() => {
-    if (!composerMenu && !workspaceOpen) return;
+    if (!composerMenu && !reviewCards) return;
 
     const dismissOpenSurface = (event: PointerEvent) => {
       const target = event.target;
@@ -1461,14 +1516,14 @@ export function ArcView({
         setComposerMenu(null);
       }
 
-      if (workspaceOpen && !target.closest(".arc-artifact-workspace") && !target.closest('[data-arc-campaign-trigger="true"]')) {
-        setWorkspaceOpen(false);
+      if (reviewCards && !target.closest(".arc-artifact-workspace") && !target.closest('[data-arc-review-trigger="true"]')) {
+        setReviewCards(null);
       }
     };
 
     document.addEventListener("pointerdown", dismissOpenSurface);
     return () => document.removeEventListener("pointerdown", dismissOpenSurface);
-  }, [composerMenu, workspaceOpen]);
+  }, [composerMenu, reviewCards]);
 
   const activeThread = threadGroups.flatMap((group) => group.items).find((thread) => thread.id === activeConversationId);
   const selectedDemoThread = DEMO_THREADS.flatMap((group) => group.items).find((thread) => thread.id === selectedDemoId);
@@ -1619,40 +1674,18 @@ export function ArcView({
   const selectDemoThread = (id: string) => {
     setSelectedDemoId(id);
     setHistoryOpen(false);
-    setWorkspaceOpen(false);
+    setReviewCards(null);
     setDemoTurns([]);
     setDemoPending(false);
-    setArtifactReviewState("ready");
-    setArtifactNotice(null);
   };
 
-  const openCampaignWorkspace = (tab: ArtifactTab = "audience") => {
-    setActiveArtifact(tab);
+  const openReview = (cards: ArcActionCard[]) => {
     setComposerMenu(null);
-    setArtifactNotice(null);
-    setWorkspaceOpen(true);
+    setReviewCards(cards.filter((card) => card.approval));
   };
 
-  const submitArtifactRevision = (request: string, tab: ArtifactTab) => {
-    if (demoPending) return;
-    const tabLabel = ARTIFACT_TABS.find((item) => item.id === tab)?.label ?? "asset";
-    const now = Date.now();
-    setArtifactReviewState("revising");
-    setArtifactNotice(`Arc is revising the ${tabLabel.toLowerCase()}. Outbound remains locked.`);
-    setDemoTurns((current) => [...current, { id: `operator-revision-${now}`, role: "operator", body: `Revise the ${tabLabel.toLowerCase()}: ${request}`, mode: "draft", command: `draft-${tab}` }]);
-    setDemoPending(true);
-    demoTimer.current = window.setTimeout(() => {
-      setDemoPending(false);
-      setArtifactReviewState("ready");
-      setArtifactNotice(`${tabLabel} updated and ready for another review. Outbound remains locked.`);
-      setDemoTurns((current) => [...current, {
-        id: `arc-revision-${Date.now()}`,
-        role: "arc",
-        body: `I updated the ${tabLabel.toLowerCase()} from your revision request. The new version is ready for review, and outbound is still locked.`,
-        mode: "draft",
-        command: `draft-${tab}`,
-      }]);
-    }, 2800);
+  const recordAssetStatus = (assetId: string, status: ArcAssetStatus) => {
+    setAssetStatuses((current) => ({ ...current, [assetId]: status }));
   };
 
   const stopDemoRun = () => {
@@ -1701,12 +1734,11 @@ export function ArcView({
     : messages;
 
   return (
-    <div className="arc-chat" data-workspace-open={workspaceOpen ? "true" : "false"}>
+    <div className="arc-chat" data-workspace-open={reviewCards ? "true" : "false"}>
       <header className="arc-conversation-header">
         <button type="button" className="arc-history-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversation history"><Menu size={17} /><span>History</span></button>
         <div className="arc-conversation-title"><h1>{title}</h1><p>{live ? "Private conversation" : "Storm-damage homeowners · 4 assets · Naperville, IL"}</p></div>
         <div className="arc-conversation-actions">
-          {!live && selectedDemoId === "storm" ? <button type="button" className="arc-header-artifact" data-status={artifactReviewState} data-arc-campaign-trigger="true" aria-label={workspaceOpen ? "Close campaign workspace" : "Open campaign workspace"} aria-expanded={workspaceOpen} onClick={() => workspaceOpen ? setWorkspaceOpen(false) : openCampaignWorkspace(activeArtifact)}><MessageSquareText size={15} /><span>Campaign</span><i aria-hidden="true" /></button> : null}
           <button type="button" onClick={() => setShareOpen(true)} disabled={!activeConversationId} title={!activeConversationId ? "Start a real conversation before sharing" : "Share conversation"}><Share2 size={15} /> Share</button>
           <span className="arc-lock"><LockKeyhole size={14} /> Outbound locked</span>
         </div>
@@ -1714,7 +1746,7 @@ export function ArcView({
 
       <main className="arc-conversation-scroll" ref={scrollRef}>
         <div className="arc-conversation-column">
-          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} onSuggestion={setDraft} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <div className="arc-empty-chat"><ArcAvatar /><h2>What should we work on?</h2><p>Start with an audience, a signal, or a draft. Arc will keep the work visible and the send path locked.</p></div> : <DemoConversation turns={demoTurns} pending={demoPending} reviewState={artifactReviewState} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReviewPackage={() => openCampaignWorkspace("email")} onStop={stopDemoRun} />}
+          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} assetStatuses={assetStatuses} onSuggestion={setDraft} onReview={openReview} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <div className="arc-empty-chat"><ArcAvatar /><h2>What should we work on?</h2><p>Start with an audience, a signal, or a draft. Arc will keep the work visible and the send path locked.</p></div> : <DemoConversation turns={demoTurns} pending={demoPending} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onStop={stopDemoRun} />}
           <div ref={endRef} />
         </div>
       </main>
@@ -1819,7 +1851,7 @@ export function ArcView({
       </footer>
 
       <AnimatePresence>
-        {workspaceOpen ? <ArtifactWorkspace key="campaign-workspace" activeTab={activeArtifact} reviewState={artifactReviewState} notice={artifactNotice} busy={demoPending} onSelect={setActiveArtifact} onApprove={() => { setArtifactReviewState("approved"); setArtifactNotice("All campaign assets are approved for use. Outbound remains locked until send approval."); }} onSubmitRevision={submitArtifactRevision} onClose={() => setWorkspaceOpen(false)} /> : null}
+        {reviewCards && reviewCards.length > 0 ? <AssetReviewPanel key="asset-review" cards={reviewCards} statuses={assetStatuses} onStatus={recordAssetStatus} onClose={() => setReviewCards(null)} /> : null}
         {historyOpen ? <Fragment key="conversation-history"><motion.button type="button" className="arc-drawer-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setHistoryOpen(false)} aria-label="Close conversation history" /><ThreadDrawer live={live} groups={threadGroups} activeConversationId={activeConversationId} selectedDemoId={selectedDemoId} onSelectDemo={selectDemoThread} onClose={() => setHistoryOpen(false)} /></Fragment> : null}
         {shareOpen ? <ShareDialog key="share-dialog" conversationId={activeConversationId} onClose={() => setShareOpen(false)} /> : null}
       </AnimatePresence>
