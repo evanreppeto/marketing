@@ -176,6 +176,58 @@
   color: var(--muted);
   padding-right: 3px;
 }
+/* Edit affordance on operator messages — quiet until hover. */
+.arc-operator-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10.5px;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity var(--arc-base), color var(--arc-fast), transform var(--arc-base);
+}
+.arc-operator-message:hover .arc-operator-edit,
+.arc-operator-edit:focus-visible { opacity: 1; transform: none; }
+.arc-operator-edit:hover { color: var(--text-2); }
+.arc-operator-message.is-editing {
+  margin: 4px 0 28px auto;
+  width: min(72%, 520px);
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.arc-operator-message.is-editing textarea {
+  width: 100%;
+  min-height: 60px;
+  resize: vertical;
+  border: 1px solid var(--accent-border);
+  border-radius: 12px;
+  outline: 0;
+  background: var(--inset);
+  color: var(--text);
+  padding: 11px 13px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.arc-operator-edit-actions { display: flex; justify-content: flex-end; gap: 7px; }
+.arc-operator-edit-actions button {
+  min-height: 32px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  padding: 0 12px;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.arc-operator-edit-actions button.is-primary { border-color: var(--accent-border-strong); background: var(--accent); color: var(--on-accent); font-weight: 620; }
+.arc-operator-edit-actions button:disabled { opacity: .5; cursor: default; }
 
 .arc-assistant-message {
   display: grid;

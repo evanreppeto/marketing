@@ -42,6 +42,7 @@ import {
   PencilLine,
   Pin,
   Plus,
+  RotateCcw,
   Search,
   Share2,
   ShieldCheck,
@@ -87,6 +88,8 @@ import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
 import {
   cancelArcRunAction,
   decideArcDraftAction,
+  editAndResendArcMessageAction,
+  regenerateArcReplyAction,
   requestArcDraftRevisionAction,
   saveArcMessageAction,
   sendArcMessageAction,
@@ -685,8 +688,40 @@ function ArcAvatar() {
   );
 }
 
-function OperatorMessage({ body, time }: { body: string; time?: string }) {
+function OperatorMessage({ body, time, onEdit }: { body: string; time?: string; onEdit?: (newBody: string) => void }) {
   const reduceMotion = useReducedMotion();
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(body);
+
+  const cancel = () => { setText(body); setEditing(false); };
+  const submit = () => {
+    const next = text.trim();
+    if (!next) return;
+    setEditing(false);
+    if (next !== body) onEdit?.(next);
+  };
+
+  if (editing) {
+    return (
+      <div className="arc-operator-message is-editing">
+        <textarea
+          autoFocus
+          rows={2}
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") cancel();
+            if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); }
+          }}
+        />
+        <div className="arc-operator-edit-actions">
+          <button type="button" onClick={cancel}>Cancel</button>
+          <button type="button" className="is-primary" onClick={submit} disabled={!text.trim()}>Save &amp; resend</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <motion.div
       className="arc-operator-message"
@@ -695,6 +730,7 @@ function OperatorMessage({ body, time }: { body: string; time?: string }) {
     >
       {time ? <span className="arc-message-time">{time}</span> : null}
       <div>{body}</div>
+      {onEdit ? <button type="button" className="arc-operator-edit" onClick={() => { setText(body); setEditing(true); }}><PencilLine size={12} /> Edit</button> : null}
     </motion.div>
   );
 }
@@ -1021,7 +1057,7 @@ function QuestionPrompt({ question, onChoose, onDismiss }: { question: ArcQuesti
   );
 }
 
-function MessageActions({ message }: { message: ArcMessage }) {
+function MessageActions({ message, onRegenerate }: { message: ArcMessage; onRegenerate?: () => void }) {
   const [feedback, setFeedback] = useState<"up" | "down" | null>(message.feedback);
   const [saved, setSaved] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -1065,6 +1101,7 @@ function MessageActions({ message }: { message: ArcMessage }) {
         <button type="button" aria-label="Good response" title="Good response" aria-pressed={feedback === "up"} className={feedback === "up" ? "is-active" : ""} onClick={() => rate("up")} disabled={busy}><ThumbsUp size={15} /></button>
         <button type="button" aria-label="Bad response" title="Bad response" aria-pressed={feedback === "down"} className={feedback === "down" ? "is-active" : ""} onClick={() => rate("down")} disabled={busy}><ThumbsDown size={15} /></button>
         <button type="button" aria-label={saved ? "Response saved" : "Save response"} title={saved ? "Saved" : "Save response"} aria-pressed={saved} className={saved ? "is-active" : ""} onClick={save} disabled={busy || saved}><Bookmark size={15} /></button>
+        {onRegenerate ? <button type="button" aria-label="Regenerate response" title="Regenerate response" onClick={() => { setNotice("Regenerating…"); onRegenerate(); }} disabled={busy}><RotateCcw size={15} /></button> : null}
       </div>
       <span className="arc-message-action-notice" role="status" aria-live="polite">{notice}</span>
     </div>
@@ -1138,6 +1175,8 @@ function LiveConversation({
   assetStatuses,
   onSuggestion,
   onReview,
+  onEdit,
+  onRegenerate,
   onCancelRun,
   stoppingTaskId,
 }: {
@@ -1146,6 +1185,8 @@ function LiveConversation({
   assetStatuses: Record<string, ArcAssetStatus>;
   onSuggestion: (value: string) => void;
   onReview: (cards: ArcActionCard[]) => void;
+  onEdit: (messageId: string, newBody: string) => void;
+  onRegenerate: (replyMessageId: string) => void;
   onCancelRun: (taskId: string, conversationId: string) => void;
   stoppingTaskId: string | null;
 }) {
@@ -1153,10 +1194,14 @@ function LiveConversation({
     return <ArcLauncher brandName={brandName} onPick={onSuggestion} />;
   }
 
+  // While a reply is in flight, hide edit/regenerate — the turn is already running.
+  const awaitingReply = messages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim()));
+  const lastIndex = messages.length - 1;
+
   return (
     <>
       {messages.map((message, index) => {
-        if (message.role === "operator") return <OperatorMessage key={message.id} body={message.body} time={formatMessageTime(message.createdAt)} />;
+        if (message.role === "operator") return <OperatorMessage key={message.id} body={message.body} time={formatMessageTime(message.createdAt)} onEdit={awaitingReply ? undefined : (newBody) => onEdit(message.id, newBody)} />;
         const pending = message.status === "pending" || (message.role === "arc" && !message.body.trim());
         const operatorMessage = operatorMessageBefore(messages, index);
         // Wall-clock of the run, from the operator's turn to this reply landing —
@@ -1192,7 +1237,7 @@ function LiveConversation({
               );
             })() : null}
             {!pending && message.suggestions.length ? <div className="arc-suggestions">{message.suggestions.map((suggestion, index) => <button type="button" key={`${suggestion}-${index}`} onClick={() => onSuggestion(suggestion)}>{suggestion}</button>)}</div> : null}
-            {!pending ? <MessageActions message={message} /> : null}
+            {!pending ? <MessageActions message={message} onRegenerate={!awaitingReply && index === lastIndex ? () => onRegenerate(message.id) : undefined} /> : null}
           </AssistantMessage>
         );
       })}
@@ -1206,6 +1251,7 @@ function DemoConversation({
   packageStatuses,
   pendingContract,
   onReview,
+  onEditResend,
   onStop,
 }: {
   turns: DemoTurn[];
@@ -1213,15 +1259,17 @@ function DemoConversation({
   packageStatuses: Record<string, ArcAssetStatus>;
   pendingContract: ArcRunContract;
   onReview: (cards: ArcActionCard[]) => void;
+  onEditResend: (body: string) => void;
   onStop: () => void;
 }) {
   const pendingTurn = [...turns].reverse().find((turn) => turn.role === "operator");
   const demoLiveWork = buildDemoLiveWork(pendingTurn?.body);
+  const editable = pending ? undefined : onEditResend;
 
   return (
     <>
       <div className="arc-day"><span>July 14, 2026</span></div>
-      <OperatorMessage time="9:35 AM" body="Which homeowners should we reach first after the Naperville hailstorm?" />
+      <OperatorMessage time="9:35 AM" body="Which homeowners should we reach first after the Naperville hailstorm?" onEdit={editable} />
       <AssistantMessage time="9:38 AM">
         <div className="arc-answer">
           <h2>142 homes took the heaviest hail and still haven’t booked an inspection.</h2>
@@ -1239,13 +1287,13 @@ function DemoConversation({
         <div className="arc-answer"><p>I built the Storm Rapid Response package for the 142 highest-urgency homes.</p></div>
         <DraftPackageCard cards={DEMO_PACKAGE_CARDS} statuses={packageStatuses} onReview={() => onReview(DEMO_PACKAGE_CARDS)} />
       </AssistantMessage>
-      <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." />
+      <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." onEdit={editable} />
       <AssistantMessage time="9:45 AM">
         <div className="arc-answer"><p>Here’s the inspection email for the 64 insured, fresh-damage homes. Approve it when it looks right — it stays locked until you do.</p></div>
         <div className="arc-action-list"><ArcDraftCard card={DEMO_DRAFT_CARD} /></div>
       </AssistantMessage>
       {turns.map((turn, index) => {
-        if (turn.role === "operator") return <OperatorMessage key={turn.id} body={turn.body} />;
+        if (turn.role === "operator") return <OperatorMessage key={turn.id} body={turn.body} onEdit={editable} />;
         const operatorTurn = [...turns.slice(0, index)].reverse().find((candidate) => candidate.role === "operator");
         const turnContract = buildArcRunContract({ mode: turn.mode, route: "fast", contextScopes: ["workspace", "brand", "crm", "campaigns"], agentTaskId: turn.id });
         const turnProfile = buildArcRunProfile({ request: operatorTurn?.body, mode: turn.mode, command: turn.command, sources: turnContract.readScopes });
@@ -1764,6 +1812,36 @@ export function ArcView({
     router.refresh();
   };
 
+  const handleEditResend = (messageId: string, newBody: string) => {
+    setComposerNotice(null);
+    startSend(async () => {
+      const result = await editAndResendArcMessageAction({ messageId, body: newBody });
+      if (!result.ok) return setComposerNotice(result.error);
+      router.refresh();
+    });
+  };
+
+  const handleRegenerate = (replyMessageId: string) => {
+    setComposerNotice(null);
+    startSend(async () => {
+      const result = await regenerateArcReplyAction(replyMessageId);
+      if (!result.ok) return setComposerNotice(result.error);
+      router.refresh();
+    });
+  };
+
+  // Demo-only: simulate edit-and-resend by re-running the edited turn locally.
+  const demoEditResend = (body: string) => {
+    if (demoPending) return;
+    const profile = buildArcRunProfile({ request: body, mode, command, sources: buildArcRunContract({ mode, route, contextScopes }).readScopes });
+    setDemoTurns((current) => [...current, { id: `operator-edit-${Date.now()}`, role: "operator", body, mode, command }]);
+    setDemoPending(true);
+    demoTimer.current = window.setTimeout(() => {
+      setDemoPending(false);
+      setDemoTurns((current) => [...current, { id: `arc-edit-${Date.now()}`, role: "arc", body: profile.completedSummary, mode, command }]);
+    }, 4500);
+  };
+
   // Overlay the SSE-streamed body/reasoning/steps onto the in-flight message, so
   // it types out live. Applied ONLY while that message is still pending — once the
   // server marks it complete, the canonical message (with its structured extras)
@@ -1794,7 +1872,7 @@ export function ArcView({
 
       <main className="arc-conversation-scroll" ref={scrollRef}>
         <div className="arc-conversation-column">
-          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} assetStatuses={assetStatuses} onSuggestion={setDraft} onReview={openReview} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <ArcLauncher brandName={brandName} onPick={setDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onStop={stopDemoRun} />}
+          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} assetStatuses={assetStatuses} onSuggestion={setDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <ArcLauncher brandName={brandName} onPick={setDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
           <div ref={endRef} />
         </div>
       </main>
