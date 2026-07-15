@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCampaignLink, computeCampaignEconomics, resolveAttribution, stampCampaignLinks } from "../attribution";
+import { buildCampaignLink, computeCampaignEconomics, pickLastTouchAttribution, resolveAttribution, stampCampaignLinks } from "../attribution";
 
 const CAMPAIGN = "11111111-1111-1111-1111-111111111111";
 const ASSET = "22222222-2222-2222-2222-222222222222";
@@ -123,5 +123,34 @@ describe("stampCampaignLinks", () => {
   it("respects extra skipHosts", () => {
     const html = '<a href="https://reviews.example.com/leave">review</a>';
     expect(stampCampaignLinks({ html }, { ...at, skipHosts: ["reviews.example.com"] }).html).toBe(html);
+  });
+});
+
+describe("pickLastTouchAttribution", () => {
+  const NOW = Date.parse("2026-07-15T00:00:00Z");
+  const iso = (daysAgo: number) => new Date(NOW - daysAgo * 86_400_000).toISOString();
+
+  it("picks the most recent in-window touch with a valid campaign", () => {
+    const out = pickLastTouchAttribution(
+      [
+        { campaignId: CAMPAIGN, assetId: ASSET, channel: "email", occurredAt: iso(10) },
+        { campaignId: "33333333-3333-3333-3333-333333333333", assetId: null, channel: "sms", occurredAt: iso(2) },
+      ],
+      NOW,
+    );
+    expect(out).toMatchObject({ campaignId: "33333333-3333-3333-3333-333333333333", channel: "sms", method: "last_touch" });
+  });
+
+  it("ignores touches outside the window, in the future, or without a valid campaign", () => {
+    expect(pickLastTouchAttribution([{ campaignId: CAMPAIGN, assetId: null, channel: "email", occurredAt: iso(45) }], NOW)).toBeNull();
+    expect(pickLastTouchAttribution([{ campaignId: CAMPAIGN, assetId: null, channel: "email", occurredAt: iso(-3) }], NOW)).toBeNull();
+    expect(pickLastTouchAttribution([{ campaignId: "nope", assetId: null, channel: "email", occurredAt: iso(1) }], NOW)).toBeNull();
+    expect(pickLastTouchAttribution([{ campaignId: null, assetId: null, channel: "email", occurredAt: iso(1) }], NOW)).toBeNull();
+    expect(pickLastTouchAttribution([{ campaignId: CAMPAIGN, assetId: null, channel: "email", occurredAt: null }], NOW)).toBeNull();
+  });
+
+  it("drops a non-UUID asset id but keeps the campaign", () => {
+    const out = pickLastTouchAttribution([{ campaignId: CAMPAIGN, assetId: "not-a-uuid", channel: "email", occurredAt: iso(1) }], NOW);
+    expect(out).toMatchObject({ campaignId: CAMPAIGN, assetId: null, method: "last_touch" });
   });
 });
