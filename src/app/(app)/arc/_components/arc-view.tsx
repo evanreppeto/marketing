@@ -43,7 +43,6 @@ import {
   Share2,
   ShieldCheck,
   Slash,
-  Sparkles,
   Smartphone,
   Square,
   Target,
@@ -252,6 +251,61 @@ function buildDemoLiveWork(request?: string | null): { commentary: string; rows:
   };
 }
 
+/**
+ * Smoothly reveal streamed text. The runner posts partial reply bodies that the
+ * client only re-fetches on a poll (~1–2.5s apart), so without smoothing the
+ * answer lands in visible chunks. This reveals the target at a steady,
+ * backlog-aware cadence so it reads as continuous typing — a bigger backlog
+ * reveals faster, so a fresh chunk catches up in a beat instead of dumping — and
+ * snaps to full the instant streaming ends or reduced-motion is requested.
+ */
+function useSmoothStream(target: string, streaming: boolean): string {
+  const reduceMotion = useReducedMotion();
+  const [count, setCount] = useState(streaming ? 0 : target.length);
+  const rafRef = useRef<number | null>(null);
+  const lastRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    // No animation when not streaming or motion is reduced — the render below
+    // derives the full text directly, so there's nothing to advance here.
+    if (!streaming || reduceMotion) return;
+    const tick = (now: number) => {
+      const last = lastRef.current ?? now;
+      lastRef.current = now;
+      const dt = Math.min(now - last, 120); // clamp gaps (backgrounded tab)
+      setCount((current) => {
+        const remaining = target.length - current;
+        if (remaining <= 0) return Math.min(current, target.length); // clamp on reset
+        // Reveal faster when the backlog is larger so a ~1.5s chunk catches up in
+        // well under a second of smooth typing, then settles to a calm cadence.
+        const cps = Math.max(45, remaining * 5);
+        const advance = Math.max(1, Math.round((cps * dt) / 1000));
+        return Math.min(target.length, current + advance);
+      });
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      lastRef.current = null;
+    };
+  }, [streaming, reduceMotion, target]);
+
+  const revealed = streaming && !reduceMotion ? Math.min(count, target.length) : target.length;
+  return target.slice(0, revealed);
+}
+
+/** Markdown that types itself out while `streaming`, with a trailing caret (the
+ *  caret is a CSS `::after` on the last rendered block — see `.arc-stream`). */
+function StreamingMarkdown({ text, streaming, className }: { text: string; streaming: boolean; className?: string }) {
+  const shown = useSmoothStream(text, streaming);
+  return (
+    <div className={`arc-stream${streaming ? " is-streaming" : ""}${className ? ` ${className}` : ""}`}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{shown}</ReactMarkdown>
+    </div>
+  );
+}
+
 function RunContract({ contract, pending, outcome = "complete" }: { contract: ArcRunContract; pending: boolean; outcome?: "complete" | "failed" | "canceled" }) {
   const title = pending ? "Run plan" : outcome === "canceled" ? "Canceled receipt" : outcome === "failed" ? "Failed receipt" : "Run receipt";
   const sourceLabel = contract.readScopes.length === 1 ? "1 source" : `${contract.readScopes.length} sources`;
@@ -300,6 +354,7 @@ function RunTrace({
   stopping = false,
   outcome = "complete",
   demoRows = [],
+  thoughtSeconds,
 }: {
   pending: boolean;
   liveText?: string | null;
@@ -311,6 +366,9 @@ function RunTrace({
   stopping?: boolean;
   outcome?: "complete" | "failed" | "canceled";
   demoRows?: RunRow[];
+  /** Measured wall-clock of the run, rendered as "Thought for Ns" on the
+   *  collapsed summary (Claude-style). Omitted when unknown. */
+  thoughtSeconds?: number;
 }) {
   const reduceMotion = useReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
@@ -357,11 +415,14 @@ function RunTrace({
     const completeCount = sourceRows.filter((row) => row.status === "done").length;
     const activityCount = sourceRows.length;
     const activityLabel = activityCount === 1 ? "activity" : "activities";
+    const durationLabel = thoughtSeconds && thoughtSeconds > 0 ? formatWorkingTime(Math.round(thoughtSeconds)) : null;
     const summaryLabel = outcome === "canceled"
       ? activityCount > 0 ? `Stopped after ${activityCount} ${activityLabel}` : "Run stopped"
       : outcome === "failed"
         ? activityCount > 0 ? `Failed after ${activityCount} ${activityLabel}` : "Run failed"
-        : activityCount > 0 ? `Completed ${completeCount || activityCount} ${activityLabel}` : "Run complete";
+        : durationLabel
+          ? `Thought for ${durationLabel}${activityCount > 0 ? ` · ${completeCount || activityCount} ${activityLabel}` : ""}`
+          : activityCount > 0 ? `Completed ${completeCount || activityCount} ${activityLabel}` : "Run complete";
     return (
       <details className="arc-run-summary" data-outcome={outcome}>
         <summary>
@@ -372,8 +433,8 @@ function RunTrace({
           {contract ? <RunContract contract={contract} pending={false} outcome={outcome} /> : null}
           {reasoning ? (
             <div className="arc-reasoning-summary">
-              <Sparkles size={15} />
-              <div><b>Work summary</b><p>{reasoning}</p></div>
+              <Brain size={15} />
+              <div><b>Thinking</b><p>{reasoning}</p></div>
             </div>
           ) : null}
           <div className="arc-run-rows">
@@ -397,7 +458,7 @@ function RunTrace({
     return row;
   }).filter((row) => sourceRows.length > 0 || row.status !== "queued");
   const hasError = liveRows.some((row) => row.status === "error");
-  const hasReportedWork = liveRows.length > 0 || Boolean(liveText?.trim());
+  const hasReportedWork = liveRows.length > 0 || Boolean(liveText?.trim()) || Boolean(reasoning?.trim());
   const elapsedLabel = formatWorkingTime(elapsedSeconds);
 
   return (
@@ -409,14 +470,20 @@ function RunTrace({
     >
       <div className="arc-run-live-head">
         <span className="arc-run-spinner arc-luma" aria-hidden="true"><span /><span /></span>
-        <span><b aria-hidden="true">{stopping ? "Stopping safely…" : hasError ? `Needs attention after ${elapsedLabel}` : `Working for ${elapsedLabel}`}</b><span className="sr-only" role="status" aria-live="polite">{stopping ? "Arc is stopping safely" : hasError ? "Arc needs attention" : "Arc is working"}</span></span>
+        <span><b aria-hidden="true" className={!stopping && !hasError ? "arc-shimmer" : undefined}>{stopping ? "Stopping safely…" : hasError ? `Needs attention after ${elapsedLabel}` : liveText?.trim() ? `Responding · ${elapsedLabel}` : `Thinking · ${elapsedLabel}`}</b><span className="sr-only" role="status" aria-live="polite">{stopping ? "Arc is stopping safely" : hasError ? "Arc needs attention" : "Arc is working"}</span></span>
         <button type="button" className="arc-stop" aria-label="Stop Arc" onClick={onStop} disabled={!onStop || stopping}><Square size={11} /> {stopping ? "Stopping…" : "Stop"}</button>
       </div>
       <div className="arc-run-divider" />
       <div className="arc-live-worklog">
+        {reasoning?.trim() ? (
+          <motion.div className="arc-live-reasoning" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+            <span className="arc-live-reasoning-label"><Brain size={12} /> Thinking</span>
+            <StreamingMarkdown className="arc-markdown" text={reasoning} streaming={!liveText?.trim()} />
+          </motion.div>
+        ) : null}
         {liveText?.trim() ? (
-          <motion.div className="arc-live-commentary arc-markdown" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{liveText}</ReactMarkdown>
+          <motion.div initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+            <StreamingMarkdown className="arc-live-commentary arc-markdown" text={liveText} streaming />
           </motion.div>
         ) : null}
         <div className="arc-live-events" role="list" aria-label="Live activity">
@@ -748,6 +815,13 @@ function LiveConversation({
         if (message.role === "operator") return <OperatorMessage key={message.id} body={message.body} time={formatMessageTime(message.createdAt)} />;
         const pending = message.status === "pending" || (message.role === "arc" && !message.body.trim());
         const operatorMessage = operatorMessageBefore(messages, index);
+        // Wall-clock of the run, from the operator's turn to this reply landing —
+        // rendered as "Thought for Ns" on the collapsed summary. Clamped so a clock
+        // skew or a very long gap never prints an absurd value.
+        const gapSeconds = operatorMessage
+          ? (new Date(message.createdAt).getTime() - new Date(operatorMessage.createdAt).getTime()) / 1000
+          : 0;
+        const thoughtSeconds = !pending && gapSeconds > 0 && gapSeconds < 900 ? gapSeconds : undefined;
         const contract = buildArcRunContract({
           mode: operatorMessage?.mode,
           route: operatorMessage?.route,
@@ -758,7 +832,7 @@ function LiveConversation({
         });
         return (
           <AssistantMessage key={message.id} time={formatMessageTime(message.createdAt)}>
-            <RunTrace pending={pending} liveText={pending ? message.body : null} reasoning={message.reasoning} steps={message.steps} toolCalls={message.toolCalls} contract={contract} onStop={pending && message.agentTaskId ? () => onCancelRun(message.agentTaskId as string, message.conversationId) : undefined} stopping={stoppingTaskId === message.agentTaskId} outcome={message.status === "failed" ? (message.body.startsWith("Stopped by you") ? "canceled" : "failed") : "complete"} />
+            <RunTrace pending={pending} liveText={pending ? message.body : null} reasoning={message.reasoning} steps={message.steps} toolCalls={message.toolCalls} contract={contract} thoughtSeconds={thoughtSeconds} onStop={pending && message.agentTaskId ? () => onCancelRun(message.agentTaskId as string, message.conversationId) : undefined} stopping={stoppingTaskId === message.agentTaskId} outcome={message.status === "failed" ? (message.body.startsWith("Stopped by you") ? "canceled" : "failed") : "complete"} />
             {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{message.body}</ReactMarkdown></div> : null}
             {!pending && message.recall?.length ? (
               <div className="arc-recall"><span><Brain size={14} /> Recalled</span>{message.recall.map((item, index) => <button type="button" key={`${item.label}-${index}`}>{item.label}{item.confidence != null ? <small>{Math.round(item.confidence * 100)}%</small> : null}</button>)}</div>
@@ -801,7 +875,7 @@ function DemoConversation({
           <p>That’s 23% of the storm zone and about $1.4M in estimated restoration work. The clearest urgency signals across them:</p>
           <ul><li>Sit in the <b>worst-hit hail swath</b>, with no inspection on file — <b>3.1× more likely</b> to have hidden damage</li><li>No inspection booked in the six days since the storm</li><li>Roof age 8+ years or prior claim history</li></ul>
         </div>
-        <RunTrace pending={false} reasoning="I combined the storm footprint with property condition and recent CRM activity, then favored an inspection-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "ask", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
+        <RunTrace pending={false} thoughtSeconds={8} reasoning="I combined the storm footprint with property condition and recent CRM activity, then favored an inspection-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "ask", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
       </AssistantMessage>
       <AssistantMessage time="9:42 AM">
         <div className="arc-answer"><p>I built the Storm Rapid Response package for the 142 highest-urgency homes.</p></div>
@@ -820,6 +894,7 @@ function DemoConversation({
           <AssistantMessage key={turn.id} time="now">
             <RunTrace
               pending={false}
+              thoughtSeconds={turn.outcome === "canceled" ? undefined : 5}
               outcome={turn.outcome ?? "complete"}
               reasoning={turn.outcome === "canceled" ? "The run ended at your request. Completed work remains visible, and no outbound action was taken." : turnProfile.completedSummary}
               steps={completedSteps}
@@ -829,7 +904,7 @@ function DemoConversation({
           </AssistantMessage>
         );
       })}
-      {pending ? <AssistantMessage time="now"><RunTrace pending liveText={demoLiveWork.commentary} demoRows={demoLiveWork.rows} contract={pendingContract} onStop={onStop} /></AssistantMessage> : null}
+      {pending ? <AssistantMessage time="now"><RunTrace pending reasoning={demoLiveWork.commentary} demoRows={demoLiveWork.rows} contract={pendingContract} onStop={onStop} /></AssistantMessage> : null}
     </>
   );
 }
@@ -974,22 +1049,134 @@ export function ArcView({
   const composerMenuRef = useRef<HTMLDivElement | null>(null);
   const composerMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLElement | null>(null);
+  const pinnedRef = useRef(true);
+  const [showJump, setShowJump] = useState(false);
+  // Live reply pushed over SSE (body/reasoning/steps as they land), overlaid onto
+  // the pending message for instant streaming without a full server refetch.
+  const [streamOverlay, setStreamOverlay] = useState<{ id: string; body: string; reasoning: string | null; steps: ArcStep[] } | null>(null);
   const awaitingReply = live && messages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim()));
+  const isStreaming = awaitingReply || demoPending;
+  const turnCount = live ? messages.length : demoTurns.length;
 
+  // Default to "instant": the scroll container sets `scroll-behavior: smooth`, so
+  // an animated follow would restart a new tween every tick toward a moving
+  // bottom and never arrive. Only the explicit jump pill animates.
+  const scrollToEnd = useCallback((behavior: ScrollBehavior = "instant") => {
+    // Defer a frame so we measure after new content (a fresh turn, a streamed
+    // line, a card) has laid out — otherwise we under-scroll and appear stuck.
+    requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior });
+    });
+  }, []);
+
+  // Subscribe to the live reply over SSE while one is in flight — pushes the
+  // growing body/reasoning/steps as they land (no interval polling), then a `done`
+  // event triggers a single refetch of the canonical message. The overlay is
+  // cleared on teardown, so a completed reply always renders from server state.
+  useEffect(() => {
+    if (!live || !awaitingReply || !activeConversationId) return;
+    const source = new EventSource(`/api/arc/stream/${encodeURIComponent(activeConversationId)}`);
+    source.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as { messageId: string; body?: string; reasoning?: string | null; steps?: ArcStep[] };
+        if (!data.messageId) return;
+        setStreamOverlay({
+          id: data.messageId,
+          body: data.body ?? "",
+          reasoning: data.reasoning ?? null,
+          steps: Array.isArray(data.steps) ? data.steps : [],
+        });
+      } catch {
+        /* ignore a malformed frame */
+      }
+    };
+    source.addEventListener("done", () => {
+      source.close();
+      router.refresh(); // pull the final message (body + actions / recall / suggestions)
+    });
+    // On a transient drop EventSource reconnects on its own; the backstop below
+    // covers a hard failure so the bubble can never hang.
+    return () => {
+      source.close();
+      setStreamOverlay(null);
+    };
+  }, [live, awaitingReply, activeConversationId, router]);
+
+  // Backstop: reconcile with the server on a slow cadence while awaiting, so a
+  // blocked or proxy-buffered SSE stream still resolves. Defense in depth, not the
+  // primary path — the SSE stream above carries the live updates.
   useEffect(() => {
     if (!awaitingReply) return;
     const startedAt = Date.now();
     const interval = window.setInterval(() => {
       if (Date.now() - startedAt > 120_000) return window.clearInterval(interval);
       router.refresh();
-    }, 2500);
+    }, 6000);
     return () => window.clearInterval(interval);
   }, [awaitingReply, router]);
 
+  // Track whether the reader is pinned to the bottom, so we only auto-follow the
+  // stream when they haven't scrolled up to read. We unpin on a genuine USER
+  // scroll-up (wheel / touch), not on the `scroll` event — streamed content and
+  // the row animations fire scroll events constantly, and reading those as intent
+  // would unpin us mid-stream. We re-pin when the user returns near the bottom.
   useEffect(() => {
-    if (!demoPending && demoTurns.length === 0 && !awaitingReply) return;
-    endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [awaitingReply, demoPending, demoTurns.length]);
+    const el = scrollRef.current;
+    if (!el) return;
+    // Tight threshold so a deliberate scroll-up reliably breaks the follow (and
+    // isn't immediately re-pinned) — you re-pin only by returning to the bottom.
+    const nearBottom = () => el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    const unpin = () => {
+      if (pinnedRef.current) {
+        pinnedRef.current = false;
+        setShowJump(true);
+      }
+    };
+    const onWheel = (event: WheelEvent) => { if (event.deltaY < 0) unpin(); };
+    let touchY = 0;
+    const onTouchStart = (event: TouchEvent) => { touchY = event.touches[0]?.clientY ?? 0; };
+    const onTouchMove = (event: TouchEvent) => {
+      const y = event.touches[0]?.clientY ?? 0;
+      if (y - touchY > 6) unpin();
+      touchY = y;
+    };
+    const onScroll = () => {
+      if (nearBottom()) {
+        pinnedRef.current = true;
+        setShowJump(false); // no-op re-render when already hidden
+      }
+    };
+    el.addEventListener("wheel", onWheel, { passive: true });
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: true });
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+
+  // Follow the answer as it types out — but only while pinned, so a reader who
+  // scrolled up to re-read isn't yanked back down.
+  useEffect(() => {
+    if (!isStreaming) return;
+    const interval = window.setInterval(() => {
+      if (pinnedRef.current) scrollToEnd();
+    }, 120);
+    return () => window.clearInterval(interval);
+  }, [isStreaming, scrollToEnd]);
+
+  // A new turn (yours or Arc's) re-pins and jumps to the latest. Scrolling to the
+  // bottom fires onScroll, which clears the jump pill — so we don't setState here.
+  useEffect(() => {
+    if (turnCount === 0) return;
+    pinnedRef.current = true;
+    scrollToEnd();
+  }, [turnCount, scrollToEnd]);
 
   useEffect(() => () => {
     if (demoTimer.current != null) window.clearTimeout(demoTimer.current);
@@ -1236,6 +1423,23 @@ export function ArcView({
     router.refresh();
   };
 
+  // Overlay the SSE-streamed body/reasoning/steps onto the in-flight message, so
+  // it types out live. Applied ONLY while that message is still pending — once the
+  // server marks it complete, the canonical message (with its structured extras)
+  // wins and the overlay is ignored.
+  const renderedMessages = streamOverlay
+    ? messages.map((message) =>
+        message.id === streamOverlay.id && (message.status === "pending" || (message.role === "arc" && !message.body.trim()))
+          ? {
+              ...message,
+              body: streamOverlay.body || message.body,
+              reasoning: streamOverlay.reasoning ?? message.reasoning,
+              steps: streamOverlay.steps.length ? streamOverlay.steps : message.steps,
+            }
+          : message,
+      )
+    : messages;
+
   return (
     <div className="arc-chat" data-workspace-open={workspaceOpen ? "true" : "false"}>
       <header className="arc-conversation-header">
@@ -1248,15 +1452,31 @@ export function ArcView({
         </div>
       </header>
 
-      <main className="arc-conversation-scroll">
+      <main className="arc-conversation-scroll" ref={scrollRef}>
         <div className="arc-conversation-column">
-          {live ? <LiveConversation messages={messages} brandName={brandName} onSuggestion={setDraft} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <div className="arc-empty-chat"><ArcAvatar /><h2>What should we work on?</h2><p>Start with an audience, a signal, or a draft. Arc will keep the work visible and the send path locked.</p></div> : <DemoConversation turns={demoTurns} pending={demoPending} reviewState={artifactReviewState} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReviewPackage={() => openCampaignWorkspace("email")} onStop={stopDemoRun} />}
+          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} onSuggestion={setDraft} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <div className="arc-empty-chat"><ArcAvatar /><h2>What should we work on?</h2><p>Start with an audience, a signal, or a draft. Arc will keep the work visible and the send path locked.</p></div> : <DemoConversation turns={demoTurns} pending={demoPending} reviewState={artifactReviewState} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReviewPackage={() => openCampaignWorkspace("email")} onStop={stopDemoRun} />}
           <div ref={endRef} />
         </div>
       </main>
 
       <footer className="arc-composer-dock">
         <div className="arc-composer-column">
+          <AnimatePresence>
+            {showJump ? (
+              <motion.button
+                type="button"
+                className="arc-jump"
+                onClick={() => { pinnedRef.current = true; setShowJump(false); scrollToEnd("smooth"); }}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.16 }}
+                aria-label="Jump to latest message"
+              >
+                <ChevronDown size={15} /> Latest
+              </motion.button>
+            ) : null}
+          </AnimatePresence>
           {visibleQuestion ? <QuestionPrompt question={visibleQuestion} onChoose={(value) => { setDraft(value); setDismissedQuestionId(visibleQuestion.id); }} onDismiss={() => setDismissedQuestionId(visibleQuestion.id)} /> : null}
           <div className="arc-composer" data-busy={isSending || demoPending ? "true" : "false"}>
             <input ref={fileInputRef} type="file" hidden multiple accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,text/plain,text/markdown,text/csv" onChange={handleAttachmentFiles} />

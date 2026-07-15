@@ -23,6 +23,7 @@ export async function handleChatMessage(
     if (result.suggestions.length > 0) metadata.suggestions = result.suggestions;
     if (result.questions.length > 0) metadata.questions = result.questions;
     if (result.memory.length > 0) metadata.recall = result.memory;
+    if (result.reasoning) metadata.reasoning = result.reasoning;
     await client.postChatReply({
       agentTaskId: payload.agentTaskId,
       body: reply || "(Arc returned an empty reply.)",

@@ -34,6 +34,9 @@ export type ArcTurnResult = {
   sources: ArcMention[];
   questions: ArcQuestion[];
   memory: RecallItem[];
+  /** The model's extended-thinking transcript for this turn, preserved so the
+   *  completed reply keeps the "Thought for Ns" trace. Null when none was emitted. */
+  reasoning?: string | null;
   usage: { model: string; inputTokens: number | null; outputTokens: number | null };
 };
 
@@ -105,6 +108,8 @@ async function runArcQuery(opts: {
   skill?: ArcSkill | null;
   /** Live partial reply text, posted as the model streams (chat-turn only). */
   onPartial?: (text: string) => void | Promise<void>;
+  /** Live partial reasoning, posted as the model thinks (chat-turn only). */
+  onThinking?: (text: string) => void | Promise<void>;
 }): Promise<ArcTurnResult> {
   const { actions, suggestions, sources, questions, sink } = makeSink();
 
@@ -131,6 +136,11 @@ async function runArcQuery(opts: {
   // partial events are unavailable the reply is unchanged — streaming is additive.
   let streamBuf = "";
   let lastEmit = 0;
+  // Live-thinking buffer, accumulated from thinking-token deltas purely for the
+  // "Thinking…" stream. Like streamBuf it's cosmetic — the canonical reasoning is
+  // set on the final reply, so if thinking deltas are unavailable nothing breaks.
+  let thinkBuf = "";
+  let lastThinkEmit = 0;
   let inputTokens: number | null = null;
   let outputTokens: number | null = null;
 
@@ -154,6 +164,18 @@ async function runArcQuery(opts: {
           // postChatChunk swallows its own errors, so this never breaks the run.
           await opts.onPartial(streamBuf);
         }
+      } else if (event.type === "content_block_delta" && event.delta.type === "thinking_delta") {
+        // Extended-thinking tokens — streamed to the "Thinking…" trace. Typed as
+        // unknown on some SDK versions, so read the field defensively.
+        const thinking = (event.delta as { thinking?: unknown }).thinking;
+        if (typeof thinking === "string") {
+          thinkBuf += thinking;
+          const now = Date.now();
+          if (opts.onThinking && now - lastThinkEmit >= STREAM_THROTTLE_MS) {
+            lastThinkEmit = now;
+            await opts.onThinking(thinkBuf);
+          }
+        }
       }
     } else if (message.type === "assistant") {
       for (const block of message.message.content) {
@@ -176,6 +198,7 @@ async function runArcQuery(opts: {
     sources,
     questions: questions.slice(0, 4),
     memory: opts.ctx.memory ?? [],
+    reasoning: thinkBuf.trim() || null,
     usage: { model: opts.inference.model, inputTokens, outputTokens },
   };
 }
@@ -225,6 +248,8 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     skill,
     // Type the reply out live into the pending bubble as the model streams.
     onPartial: (text) => client.postChatChunk(payload.agentTaskId, text),
+    // Stream the thinking live so the pending bubble shows the thought forming.
+    onThinking: (text) => client.postChatThinking(payload.agentTaskId, text),
   });
 
   // When the conversation has grown past the verbatim window, do two best-effort,

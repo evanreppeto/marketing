@@ -631,6 +631,29 @@ export async function listMessages(
 }
 
 /**
+ * The single in-flight (pending) Arc reply for a conversation — the newest one.
+ * Powers the SSE live-stream that pushes the growing body/steps/reasoning to the
+ * browser. Null when nothing is in flight (the reply has completed, or none was
+ * sent). Cheap indexed lookup (conversation_id, role, status).
+ */
+export async function getPendingArcMessage(
+  conversationId: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<ArcMessage | null> {
+  const { data, error } = await client
+    .from("arc_messages")
+    .select(MESSAGE_COLUMNS)
+    .eq("conversation_id", conversationId)
+    .eq("role", "arc")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<MessageRow>();
+  assertOk("arc_messages pending get", error);
+  return data ? toMessage(data) : null;
+}
+
+/**
  * Every asset-bearing Arc message from the OTHER active conversations in a
  * project — the source for the Studio's project-wide Assets library. The active
  * conversation is excluded (its messages already arrive live), and messages
@@ -795,6 +818,37 @@ export async function streamArcMessageBody(
     .eq("agent_task_id", input.agentTaskId)
     .eq("status", "pending");
   assertOk("arc_messages body stream", error);
+}
+
+/**
+ * Live-stream Arc's reasoning (extended-thinking tokens) into the pending message
+ * while it's still thinking, so the chat shows the thought forming instead of a
+ * post-hoc summary. Writes ONLY `metadata.reasoning`, and ONLY while the row is
+ * still `pending` — once completeArcMessage runs, late chunks match nothing and
+ * are harmless no-ops. Read-modify-write of metadata (like appendArcStep) so it
+ * never clobbers concurrently-written steps; best-effort, like the body stream.
+ */
+export async function streamArcMessageReasoning(
+  input: { agentTaskId: string; reasoning: string },
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<void> {
+  const { data, error } = await client
+    .from("arc_messages")
+    .select("id, metadata")
+    .eq("agent_task_id", input.agentTaskId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string; metadata: Record<string, unknown> | null }>();
+  assertOk("arc_messages reasoning lookup", error);
+  if (!data) return;
+  const meta = (data.metadata ?? {}) as Record<string, unknown>;
+  const { error: upErr } = await client
+    .from("arc_messages")
+    .update({ metadata: { ...meta, reasoning: input.reasoning } })
+    .eq("id", data.id)
+    .eq("status", "pending");
+  assertOk("arc_messages reasoning stream", upErr);
 }
 
 export async function failArcMessage(
