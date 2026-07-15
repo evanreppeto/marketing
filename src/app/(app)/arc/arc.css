@@ -871,7 +871,8 @@
 .arc-launcher .arc-avatar { width: 40px; height: 40px; border-radius: 10px; margin-bottom: 18px; }
 .arc-launcher h2 { margin: 0; font-family: var(--serif); font-size: clamp(26px, 3vw, 32px); font-weight: 540; letter-spacing: -.02em; color: var(--text); }
 .arc-launcher > p { max-width: 54ch; margin: 11px 0 0; color: var(--muted); font-size: 13px; line-height: 1.62; }
-.arc-launcher-waiting { display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 9px; margin: 22px 0 0; }
+.arc-launcher-waiting { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 22px 0 0; width: 100%; }
+.arc-launcher-waiting-row { display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 9px; }
 .arc-launcher-waiting-label { color: var(--muted); font-size: 10px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; }
 .arc-launcher-waiting-item {
   display: inline-flex;
@@ -894,6 +895,34 @@
 .arc-launcher-waiting-item.is-warn { border-color: var(--warn-border); }
 .arc-launcher-waiting-item.is-warn svg:first-child { color: var(--warn); }
 .arc-launcher-waiting-item.is-warn b { color: var(--warn-text); }
+
+/* Top opportunity nudges — tappable rows that prefill the composer so opening
+   Arc greets the operator with the work actually waiting. */
+.arc-launcher-nudges { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 460px; }
+.arc-launcher-nudge {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--panel) 55%, transparent);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--arc-fast), border-color var(--arc-fast), background var(--arc-fast);
+}
+.arc-launcher-nudge:hover { color: var(--text); border-color: var(--accent-border); background: var(--accent-soft); }
+.arc-nudge-dot { flex: none; width: 7px; height: 7px; border-radius: 999px; background: var(--muted); }
+.arc-nudge-dot.is-high { background: var(--warn); }
+.arc-nudge-dot.is-medium { background: var(--accent); }
+.arc-nudge-dot.is-low { background: var(--muted); }
+.arc-nudge-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arc-nudge-go { flex: none; color: var(--muted); transform: translateX(-2px); transition: transform var(--arc-fast), color var(--arc-fast); }
+.arc-launcher-nudge:hover .arc-nudge-go { color: var(--accent); transform: translateX(0); }
 
 .arc-launcher-grid {
   width: min(560px, 100%);
