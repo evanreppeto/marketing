@@ -38,6 +38,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Paperclip,
+  PencilLine,
   Pin,
   Plus,
   Search,
@@ -60,6 +61,7 @@ import remarkGfm from "remark-gfm";
 
 import type {
   ArcActionCard,
+  ArcAssetStatus,
   ArcMention,
   ArcMode,
   ArcQuestion,
@@ -82,6 +84,8 @@ import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
 
 import {
   cancelArcRunAction,
+  decideArcDraftAction,
+  requestArcDraftRevisionAction,
   saveArcMessageAction,
   sendArcMessageAction,
   setArcMessageFeedbackAction,
@@ -146,6 +150,25 @@ Every link gets tagged so attribution is clean:
 ?utm_source=arc&utm_medium=email&utm_campaign=naperville_storm&segment={persona}
 \`\`\`
 `;
+
+const DEMO_DRAFT_CARD: ArcActionCard = {
+  kind: "draft",
+  title: "Inspection follow-up email",
+  channel: "Email",
+  format: "64-home segment",
+  status: "draft",
+  preview:
+    "Hi {first_name}, the recent Naperville hailstorm hit your block harder than most. We're offering a free, no-pressure inspection this week — and if there's claimable damage, we can help coordinate the insurance process.",
+  rows: [
+    { name: "Audience", meta: "64 insured · fresh damage" },
+    { name: "Subject", meta: "Your roof may have hidden hail damage" },
+  ],
+  flags: [
+    { tone: "ok", label: "Brand voice" },
+    { tone: "ok", label: "Claims-safe" },
+  ],
+  approval: { kind: "campaign", campaignId: "demo-campaign", assetId: "demo-asset-email" },
+};
 
 type DemoTurn = { id: string; role: "operator" | "arc"; body: string; outcome?: "complete" | "canceled"; mode?: ArcMode; command?: string | null };
 type ComposerMenu = "tools" | "model" | "mode" | "context" | "mentions" | "commands" | null;
@@ -796,17 +819,100 @@ function ArtifactChecks() {
   return <section className="arc-artifact-section"><h4>Checks</h4><div className="arc-check-grid"><span><CheckCircle2 size={14} />Brand voice</span><span><CheckCircle2 size={14} />Claims language</span><span><CheckCircle2 size={14} />Audience match</span><span><CheckCircle2 size={14} />Outbound locked</span></div></section>;
 }
 
-function StructuredActionCard({ card }: { card: ArcActionCard }) {
+const DRAFT_STATUS_META: Record<ArcAssetStatus | "review", { label: string; tone: string }> = {
+  review: { label: "Needs review", tone: "muted" },
+  draft: { label: "Needs review", tone: "muted" },
+  revision: { label: "Revising", tone: "accent" },
+  approved: { label: "Approved", tone: "ok" },
+  rejected: { label: "Declined", tone: "red" },
+};
+
+/**
+ * An Arc-drafted deliverable, in-flow: title + channel + status, the draft preview
+ * (so it never reads empty when an asset exists), structured detail, guardrail
+ * checks, an always-on "Outbound locked" badge, and — when the card is
+ * approval-gated — Approve / Revise / Decline wired to the real campaign decision
+ * flow. Cards without an approval hook fall back to a compact deep-link.
+ */
+function ArcDraftCard({ card }: { card: ArcActionCard }) {
+  const [status, setStatus] = useState<ArcAssetStatus | null>(card.status ?? null);
+  const [reviseOpen, setReviseOpen] = useState(false);
+  const [reviseText, setReviseText] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, start] = useTransition();
+  const approval = card.approval;
   const destination = card.appState?.href ?? card.href;
-  const content = (
-    <>
-      <span className="arc-package-icon"><FileText size={17} /></span>
-      <span className="arc-package-title"><b>{card.title}</b><small>{card.channel ?? card.kind}</small></span>
-      {card.flags.slice(0, 2).map((flag, index) => <span className={`arc-action-flag is-${flag.tone}`} key={`${flag.label}-${index}`}>{flag.label}</span>)}
-      <span className="arc-action-open">Open <ArrowRight size={14} /></span>
-    </>
+  const meta = DRAFT_STATUS_META[status ?? "review"] ?? DRAFT_STATUS_META.review;
+  const decided = status === "approved" || status === "rejected";
+
+  const decide = (decision: "approved" | "declined") => {
+    if (!approval || busy) return;
+    setNotice(null);
+    start(async () => {
+      const result = await decideArcDraftAction({ campaignId: approval.campaignId, assetId: approval.assetId, decision });
+      if (!result.ok) return setNotice(result.error);
+      setStatus(decision === "approved" ? "approved" : "rejected");
+      setNotice(result.persisted ? (decision === "approved" ? "Approved · outbound stays locked" : "Declined") : "Preview — decision not saved");
+    });
+  };
+
+  const submitRevision = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const instruction = reviseText.trim();
+    if (!approval || !instruction || busy) return;
+    setNotice(null);
+    start(async () => {
+      const result = await requestArcDraftRevisionAction({ campaignId: approval.campaignId, assetId: approval.assetId, instruction });
+      if (!result.ok) return setNotice(result.error);
+      setStatus("revision");
+      setReviseOpen(false);
+      setReviseText("");
+      setNotice(result.persisted ? "Revision requested — Arc is updating it" : "Preview — revision not saved");
+    });
+  };
+
+  return (
+    <div className="arc-draft" data-status={status ?? "review"}>
+      <div className="arc-draft-head">
+        <span className="arc-draft-icon"><FileText size={16} /></span>
+        <span className="arc-draft-title"><b>{card.title}</b>{card.channel || card.format ? <small>{[card.channel, card.format].filter(Boolean).join(" · ")}</small> : null}</span>
+        <span className={`arc-draft-status is-${meta.tone}`}><i />{meta.label}</span>
+      </div>
+      {card.preview ? <p className="arc-draft-preview">{card.preview}</p> : null}
+      {card.rows.length > 0 ? (
+        <div className="arc-draft-rows">
+          {card.rows.slice(0, 4).map((row, index) => (
+            <div key={`${row.name}-${index}`}><b>{row.name}</b>{row.meta ? <span>{row.meta}</span> : null}{row.badge ? <em>{row.badge}</em> : null}</div>
+          ))}
+        </div>
+      ) : null}
+      {card.flags.length > 0 ? <div className="arc-draft-flags">{card.flags.slice(0, 3).map((flag, index) => <span key={`${flag.label}-${index}`} className={`arc-action-flag is-${flag.tone}`}>{flag.label}</span>)}</div> : null}
+      {reviseOpen ? (
+        <form className="arc-draft-revise" onSubmit={submitRevision}>
+          <textarea autoFocus rows={2} value={reviseText} onChange={(event) => setReviseText(event.target.value)} placeholder={`What should Arc change in the ${(card.channel ?? "draft").toLowerCase()}?`} />
+          <div>
+            <button type="button" onClick={() => { setReviseOpen(false); setReviseText(""); }}>Cancel</button>
+            <button type="submit" className="is-primary" disabled={!reviseText.trim() || busy}>Send revision</button>
+          </div>
+        </form>
+      ) : (
+        <div className="arc-draft-foot">
+          <span className="arc-draft-lock"><LockKeyhole size={13} /> Outbound locked</span>
+          {notice ? <span className="arc-draft-notice" role="status" aria-live="polite">{notice}</span> : null}
+          <div className="arc-draft-actions">
+            {destination?.startsWith("/") ? <Link className="arc-draft-open" href={destination}>Open <ArrowRight size={13} /></Link> : null}
+            {approval ? (
+              <>
+                <button type="button" className="arc-draft-btn" onClick={() => setReviseOpen(true)} disabled={busy || decided}><PencilLine size={13} /> Revise</button>
+                <button type="button" className="arc-draft-btn" onClick={() => decide("declined")} disabled={busy || decided}><X size={13} /> Decline</button>
+                <button type="button" className="arc-draft-btn is-approve" onClick={() => decide("approved")} disabled={busy || decided}><Check size={14} /> {status === "approved" ? "Approved" : "Approve"}</button>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
+    </div>
   );
-  return destination?.startsWith("/") ? <Link className="arc-action-card" href={destination}>{content}</Link> : <div className="arc-action-card">{content}</div>;
 }
 
 function QuestionPrompt({ question, onChoose, onDismiss }: { question: ArcQuestion; onChoose: (value: string) => void; onDismiss: () => void }) {
@@ -927,7 +1033,7 @@ function LiveConversation({
             {!pending && message.recall?.length ? (
               <div className="arc-recall"><span><Brain size={14} /> Recalled</span>{message.recall.map((item, index) => <button type="button" key={`${item.label}-${index}`}>{item.label}{item.confidence != null ? <small>{Math.round(item.confidence * 100)}%</small> : null}</button>)}</div>
             ) : null}
-            {!pending && message.actions.length ? <div className="arc-action-list">{message.actions.map((card, index) => <StructuredActionCard card={card} key={`${card.title}-${index}`} />)}</div> : null}
+            {!pending && message.actions.length ? <div className="arc-action-list">{message.actions.map((card, index) => <ArcDraftCard card={card} key={`${card.title}-${index}`} />)}</div> : null}
             {!pending && message.suggestions.length ? <div className="arc-suggestions">{message.suggestions.map((suggestion, index) => <button type="button" key={`${suggestion}-${index}`} onClick={() => onSuggestion(suggestion)}>{suggestion}</button>)}</div> : null}
             {!pending ? <MessageActions message={message} /> : null}
           </AssistantMessage>
@@ -975,6 +1081,10 @@ function DemoConversation({
         <CampaignPackageCard onReview={onReviewPackage} reviewState={reviewState} />
       </AssistantMessage>
       <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." />
+      <AssistantMessage time="9:45 AM">
+        <div className="arc-answer"><p>Here’s the inspection email for the 64 insured, fresh-damage homes. Approve it when it looks right — it stays locked until you do.</p></div>
+        <div className="arc-action-list"><ArcDraftCard card={DEMO_DRAFT_CARD} /></div>
+      </AssistantMessage>
       {turns.map((turn, index) => {
         if (turn.role === "operator") return <OperatorMessage key={turn.id} body={turn.body} />;
         const operatorTurn = [...turns.slice(0, index)].reverse().find((candidate) => candidate.role === "operator");
