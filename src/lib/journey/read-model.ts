@@ -100,6 +100,21 @@ type OutcomeRow = {
   closed_at: string | null;
   created_at: string | null;
 };
+type IdentityRow = { id: string; contact_id: string | null; resolution: string | null; anonymous_id: string | null };
+type TouchpointRow = {
+  id: string;
+  identity_id: string;
+  contact_id: string | null;
+  occurred_at: string | null;
+  kind: string;
+  direction: string | null;
+  channel: string | null;
+  campaign_id: string | null;
+  campaign_asset_id: string | null;
+  summary: string | null;
+  is_conversion: boolean | null;
+  value_cents: number | null;
+};
 
 /** App-specific engagement_events.event_type → generic touch kind + direction. */
 function mapEngagement(row: EngagementRow): { kind: string; direction: TouchDirection } | null {
@@ -134,7 +149,7 @@ export async function getJourneysReadModel(client?: SupabaseClient, orgId?: stri
     const byOrg = <B>(builder: B): B =>
       resolvedOrgId ? (builder as unknown as { eq(c: string, v: string): B }).eq("org_id", resolvedOrgId) : builder;
 
-    const [contacts, engagement, leads, jobs, outcomes] = await Promise.all([
+    const [contacts, engagement, leads, jobs, outcomes, identities, touchpoints] = await Promise.all([
       byOrg(supabase.from("contacts").select("id,full_name,email,persona,created_at")).limit(MAX_ROWS),
       byOrg(
         supabase.from("engagement_events").select("id,contact_id,campaign_id,campaign_asset_id,event_type,channel,direction,occurred_at,summary"),
@@ -144,19 +159,28 @@ export async function getJourneysReadModel(client?: SupabaseClient, orgId?: stri
       ).limit(MAX_ROWS),
       byOrg(supabase.from("jobs").select("id,contact_id,status,scheduled_at,created_at")).limit(MAX_ROWS),
       byOrg(supabase.from("outcomes").select("id,contact_id,status,gross_revenue_cents,closed_at,created_at")).limit(MAX_ROWS),
+      byOrg(supabase.from("journey_identities").select("id,contact_id,resolution,anonymous_id")).limit(MAX_ROWS),
+      byOrg(
+        supabase
+          .from("journey_touchpoints")
+          .select("id,identity_id,contact_id,occurred_at,kind,direction,channel,campaign_id,campaign_asset_id,summary,is_conversion,value_cents"),
+      ).limit(MAX_ROWS),
     ]);
 
     // contacts is the identity anchor and must succeed; the touch sources are
     // tolerated-optional (an empty/absent table just yields thinner journeys).
+    // The journey_* tables are also optional — absent before the P1 migration.
     if (contacts.error) throw new Error(`contacts lookup failed: ${contacts.error.message}`);
     const contactRows = (contacts.data ?? []) as ContactRow[];
     const engagementRows = engagement.error ? [] : ((engagement.data ?? []) as EngagementRow[]);
     const leadRows = leads.error ? [] : ((leads.data ?? []) as LeadRow[]);
     const jobRows = jobs.error ? [] : ((jobs.data ?? []) as JobRow[]);
     const outcomeRows = outcomes.error ? [] : ((outcomes.data ?? []) as OutcomeRow[]);
+    const identityRows = identities.error ? [] : ((identities.data ?? []) as IdentityRow[]);
+    const touchpointRows = touchpoints.error ? [] : ((touchpoints.data ?? []) as TouchpointRow[]);
 
     // Nothing to show → demo fallback (only when the flag is on), else empty-live.
-    if (contactRows.length === 0 && engagementRows.length === 0 && leadRows.length === 0) {
+    if (contactRows.length === 0 && engagementRows.length === 0 && leadRows.length === 0 && touchpointRows.length === 0) {
       if (isDemoDataEnabled()) return buildDemoJourneys(nowMs);
     }
 
@@ -218,6 +242,36 @@ export async function getJourneysReadModel(client?: SupabaseClient, orgId?: stri
       });
     }
 
+    // Fold in P1 collected touchpoints. A stitched identity's touches merge onto
+    // its contact (and mark that contact stitched); an anonymous identity becomes
+    // its own pre-lead journey — this is what lights up the Reached/Engaged half.
+    const identityById = new Map(identityRows.map((r) => [r.id, r]));
+    const anonTouches = new Map<string, JourneyTouch[]>();
+    const stitchedContacts = new Set<string>();
+    for (const tp of touchpointRows) {
+      const touch: JourneyTouch = {
+        id: `tp:${tp.id}`,
+        occurredAt: tp.occurred_at ?? "",
+        kind: tp.kind,
+        direction: (tp.direction as JourneyTouch["direction"]) ?? "inbound",
+        channel: tp.channel,
+        campaignId: tp.campaign_id,
+        assetId: tp.campaign_asset_id,
+        summary: tp.summary,
+        isConversion: tp.is_conversion ?? false,
+        valueCents: tp.value_cents,
+      };
+      const contactId = tp.contact_id ?? identityById.get(tp.identity_id)?.contact_id ?? null;
+      if (contactId) {
+        push(contactId, touch);
+        stitchedContacts.add(contactId);
+      } else {
+        const list = anonTouches.get(tp.identity_id);
+        if (list) list.push(touch);
+        else anonTouches.set(tp.identity_id, [touch]);
+      }
+    }
+
     const contactById = new Map(contactRows.map((c) => [c.id, c]));
     const journeys: JourneyWithMeta[] = [];
     for (const [contactId, touches] of touchesByContact) {
@@ -226,9 +280,15 @@ export async function getJourneysReadModel(client?: SupabaseClient, orgId?: stri
       const identity: JourneyIdentity = {
         id: contactId,
         label: contact?.full_name || contact?.email || "Unknown contact",
-        resolution: "known",
+        resolution: stitchedContacts.has(contactId) ? "stitched" : "known",
       };
       journeys.push({ ...assembleJourney(identity, touches), persona: contact?.persona ?? null });
+    }
+    // Still-anonymous identities (never stitched) as their own journeys.
+    for (const [identityId, touches] of anonTouches) {
+      if (touches.length === 0) continue;
+      const identity: JourneyIdentity = { id: `anon:${identityId}`, label: "Anonymous visitor", resolution: "anonymous" };
+      journeys.push({ ...assembleJourney(identity, touches), persona: null });
     }
 
     return buildLiveModel(journeys, nowMs, false);

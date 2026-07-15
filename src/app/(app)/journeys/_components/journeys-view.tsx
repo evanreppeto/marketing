@@ -124,6 +124,7 @@ function JourneyRow({ journey }: { journey: JourneyWithMeta }) {
         <span className="jr-who">
           <b>{journey.identity.label}</b>
           {journey.persona && <span className="jr-persona">{titleize(journey.persona)}</span>}
+          {journey.identity.resolution !== "known" && <span className={`jr-res ${journey.identity.resolution}`}>{journey.identity.resolution}</span>}
         </span>
         <StageTrack current={journey.currentStage} />
         <span className={`jr-pill t-${tone}`}>{stageLabel(journey.currentStage)}</span>
@@ -307,8 +308,9 @@ export function JourneysView({ model }: { model: JourneysReadModel }) {
               then placed on a six-stage ladder that fits any business.
             </p>
             <p className="jr-notenext">
-              <b>Next (P1):</b> an anonymous collector lights up the pre-lead <em>Reached</em> and <em>Engaged</em> stages before a
-              contact is known, and stitches that history onto them at identification.
+              <b>Anonymous capture (P1):</b> a first-party collector records pre-lead <em>Reached</em> and <em>Engaged</em> touches
+              against an anonymous id, then stitches that history onto the contact at identification — shown as an{" "}
+              <em>anonymous</em> or <em>stitched</em> tag.
             </p>
           </section>
         </aside>

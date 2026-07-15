@@ -1427,6 +1427,9 @@
 .arc-app .journeys .jr-who { display: flex; align-items: center; gap: 9px; min-width: 0; overflow: hidden; }
 .arc-app .journeys .jr-who b { flex-shrink: 0; max-width: 190px; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arc-app .journeys .jr-persona { flex: 0 1 auto; min-width: 0; font-size: 10px; color: var(--text-2); border: 1px solid var(--line-2); background: var(--panel); border-radius: 5px; padding: 1px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arc-app .journeys .jr-res { flex: 0 0 auto; font-size: 8.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+.arc-app .journeys .jr-res.anonymous { color: var(--jr-blue); background: var(--jr-blue-soft); }
+.arc-app .journeys .jr-res.stitched { color: var(--accent); background: var(--accent-soft); }
 .arc-app .journeys .jr-track { display: inline-flex; gap: 3px; }
 .arc-app .journeys .jr-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line-3); }
 .arc-app .journeys .jr-pill { justify-self: start; display: inline-flex; align-items: center; height: 21px; padding: 0 9px; border-radius: 6px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
