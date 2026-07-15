@@ -73,6 +73,48 @@ describe("executeResendDispatch", () => {
     expect(findCalls(supabase, "insert")).toContainEqual(expect.objectContaining({ event_type: "dispatch_sent" }));
   });
 
+  it("tags first-party links in the body and records an outbound attribution touch", async () => {
+    const CAMPAIGN_UUID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+    const ASSET_UUID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+    const CONTACT_UUID = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+    const send = vi.fn().mockResolvedValue({ id: "resend-999" });
+    const supabase = createSupabaseQueryMock({
+      campaign_dispatches: {
+        data: queuedDispatch({
+          campaign_id: CAMPAIGN_UUID,
+          campaign_asset_id: ASSET_UUID,
+          contact_id: CONTACT_UUID,
+          payload: { to: "lead@example.com", subject: "Storm prep", html: '<a href="https://bigshoulders.com/book">Book now</a>' },
+        }),
+        error: null,
+      },
+      approval_items: { data: APPROVED, error: null },
+      connections: { data: ENABLED_RESEND, error: null },
+      campaign_events: { data: null, error: null },
+      engagement_events: { data: null, error: null },
+    });
+
+    const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { apiKey: "re_test", send });
+    expect(result.ok).toBe(true);
+
+    // The body's first-party CTA now carries this campaign's attribution.
+    const sentPayload = send.mock.calls[0][1] as { html?: string };
+    expect(sentPayload.html).toMatch(/bsg_at=/);
+    expect(sentPayload.html).toContain(`utm_campaign=${CAMPAIGN_UUID}`);
+
+    // A durable outbound touch is recorded for last-touch attribution + traffic.
+    const touch = findCalls(supabase, "insert").find((row) => row.event_type === "outbound_send");
+    expect(touch).toMatchObject({
+      event_type: "outbound_send",
+      direction: "outbound",
+      channel: "email",
+      campaign_id: CAMPAIGN_UUID,
+      campaign_asset_id: ASSET_UUID,
+      contact_id: CONTACT_UUID,
+      org_id: "org-1",
+    });
+  });
+
   it("sends a scheduled dispatch when the operator forces it (send now)", async () => {
     const send = vi.fn().mockResolvedValue({ id: "resend-sched" });
     const supabase = createSupabaseQueryMock({

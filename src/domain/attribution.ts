@@ -32,6 +32,96 @@ export function buildCampaignLink({ destinationUrl, campaignId, assetId, channel
   return url.toString();
 }
 
+// Hosts we never rewrite: tagging an unsubscribe or a social-profile link with a
+// campaign token is wrong (pollutes third-party analytics, and the token would
+// never round-trip back through our ingest). Matched as a suffix so subdomains
+// count (m.facebook.com → facebook.com).
+const NEVER_TAG_HOSTS = [
+  "facebook.com",
+  "instagram.com",
+  "twitter.com",
+  "x.com",
+  "linkedin.com",
+  "youtube.com",
+  "tiktok.com",
+  "maps.google.com",
+  "goo.gl",
+];
+
+function hostIsSkipped(host: string, extraSkip: string[]): boolean {
+  const h = host.toLowerCase();
+  return [...NEVER_TAG_HOSTS, ...extraSkip].some((skip) => h === skip || h.endsWith(`.${skip}`));
+}
+
+/** Whether a single URL should receive campaign tagging. Total — never throws. */
+function shouldTag(raw: string, extraSkip: string[]): boolean {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false; // relative/mailto/tel/#anchor/malformed — leave untouched
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  if (url.searchParams.has("bsg_at")) return false; // already tagged — idempotent
+  if (/unsubscribe|list-unsubscribe/i.test(raw)) return false;
+  return !hostIsSkipped(url.hostname, extraSkip);
+}
+
+export type StampLinksInput = {
+  campaignId: string;
+  assetId?: string | null;
+  channel?: string | null;
+  /** Extra hosts to leave untagged, in addition to the social/unsubscribe defaults. */
+  skipHosts?: string[];
+};
+
+// A bare-URL match for plain-text bodies. Trailing sentence punctuation is peeled
+// back off the match so "visit https://x.co/a." keeps the period outside the link.
+const TEXT_URL_RE = /https?:\/\/[^\s<>"')\]]+/gi;
+const TRAILING_PUNCT_RE = /[.,;:!?)]+$/;
+
+/**
+ * Pure: rewrite first-party links in an email body so a recipient's click-through
+ * carries campaign identity (utm + the compact bsg_at token resolveAttribution
+ * reads). Social, unsubscribe, non-http, and already-tagged links are left alone;
+ * an unparseable body or a non-UUID campaignId is returned unchanged. Idempotent.
+ */
+export function stampCampaignLinks(
+  body: { html?: string | null; text?: string | null },
+  input: StampLinksInput,
+): { html: string | null; text: string | null } {
+  const html = body.html ?? null;
+  const text = body.text ?? null;
+  if (!UUID_RE.test(input.campaignId)) return { html, text };
+
+  const skip = input.skipHosts ?? [];
+  const tag = (raw: string): string => {
+    if (!shouldTag(raw, skip)) return raw;
+    try {
+      return buildCampaignLink({
+        destinationUrl: raw,
+        campaignId: input.campaignId,
+        assetId: input.assetId ?? undefined,
+        channel: input.channel ?? undefined,
+      });
+    } catch {
+      return raw;
+    }
+  };
+
+  const stampedHtml = html == null ? null : html.replace(/(\bhref\s*=\s*)(["'])(.*?)\2/gi, (_m, pre, q, url) => `${pre}${q}${tag(url)}${q}`);
+  const stampedText =
+    text == null
+      ? null
+      : text.replace(TEXT_URL_RE, (match) => {
+          const trailing = match.match(TRAILING_PUNCT_RE)?.[0] ?? "";
+          const core = trailing ? match.slice(0, -trailing.length) : match;
+          return `${tag(core)}${trailing}`;
+        });
+
+  return { html: stampedHtml, text: stampedText };
+}
+
 export type AttributionMethod = "explicit" | "token" | "utm" | "source_rule" | "unattributed";
 
 export type AttributionInput = {
