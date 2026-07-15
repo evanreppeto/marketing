@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 import { buildTrendBuckets, computeDelta, sumTwoPeriods, type KpiDelta, type TrendPoint } from "./overview-shape";
@@ -185,7 +186,11 @@ type EngagementEventRow = {
   created_at: string | null;
 };
 
-export async function getPerformanceReadModel(client?: SupabaseClient, rangeDays: number = 30): Promise<PerformanceReadModel> {
+export async function getPerformanceReadModel(
+  client?: SupabaseClient,
+  rangeDays: number = 30,
+  orgId?: string,
+): Promise<PerformanceReadModel> {
   if (!client && !isSupabaseAdminConfigured()) {
     // No DB in this environment (local preview, demo): when the flag is on, render an
     // illustrative dashboard flagged via `isDemo`. When off, return unavailable.
@@ -196,15 +201,24 @@ export async function getPerformanceReadModel(client?: SupabaseClient, rangeDays
 
   try {
     const supabase = client ?? getSupabaseAdminClient();
+    // Tenancy: these reads go through the RLS-bypassing service-role client, so every query MUST
+    // be org-scoped in app code — RLS is not a backstop here. Resolve the org from the explicit
+    // arg, else the request session. When a client is injected (unit tests) we skip session
+    // resolution and leave scoping to the caller, since the mock returns per-table fixtures.
+    const resolvedOrgId = orgId ?? (client ? undefined : await getCurrentOrgId());
+    const byOrg = <B>(builder: B): B =>
+      resolvedOrgId
+        ? (builder as unknown as { eq(column: string, value: string): B }).eq("org_id", resolvedOrgId)
+        : builder;
     const [leads, jobs, outcomes, campaigns, assets, approvals, companies, events] = await Promise.all([
-      supabase.from("leads").select("id,persona,source,status,lead_score,created_at,updated_at").limit(1000),
-      supabase.from("jobs").select("id,lead_id,persona,status,estimated_revenue_cents,created_at,updated_at").limit(1000),
-      supabase.from("outcomes").select("id,lead_id,company_id,persona,status,gross_revenue_cents,gross_margin_cents,closed_at,created_at").limit(1000),
-      supabase.from("campaigns").select("id,name,persona,status,created_at,updated_at").limit(1000),
-      supabase.from("campaign_assets").select("id,campaign_id,asset_type,channel,status").limit(1000),
-      supabase.from("approval_items").select("id,campaign_id,item_type,status,risk_level").limit(1000),
-      supabase.from("companies").select("id,persona,status,partner_tier,metadata").limit(1000),
-      supabase.from("engagement_events").select("id,event_type,channel,campaign_id,lead_id,created_at").limit(1000),
+      byOrg(supabase.from("leads").select("id,persona,source,status,lead_score,created_at,updated_at")).limit(1000),
+      byOrg(supabase.from("jobs").select("id,lead_id,persona,status,estimated_revenue_cents,created_at,updated_at")).limit(1000),
+      byOrg(supabase.from("outcomes").select("id,lead_id,company_id,persona,status,gross_revenue_cents,gross_margin_cents,closed_at,created_at")).limit(1000),
+      byOrg(supabase.from("campaigns").select("id,name,persona,status,created_at,updated_at")).limit(1000),
+      byOrg(supabase.from("campaign_assets").select("id,campaign_id,asset_type,channel,status")).limit(1000),
+      byOrg(supabase.from("approval_items").select("id,campaign_id,item_type,status,risk_level")).limit(1000),
+      byOrg(supabase.from("companies").select("id,persona,status,partner_tier,metadata")).limit(1000),
+      byOrg(supabase.from("engagement_events").select("id,event_type,channel,campaign_id,lead_id,created_at")).limit(1000),
     ]);
 
     assertResult("leads", leads.error);

@@ -1,3 +1,4 @@
+import { resolveAgentConnection } from "@/lib/agent/connection";
 import { getViewerAvatarUrl } from "@/lib/auth/display-name";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getSettingsTeamView } from "@/lib/auth/team-view";
@@ -18,7 +19,7 @@ export const metadata = { title: "Settings — Arc" };
 export default async function SettingsPage() {
   // Resolve the workspace first (React-cached) so its org scopes the settings read.
   const ctx = await getCurrentWorkspaceContext().catch(() => null);
-  const [user, team, usage, connectorSpend, billing, settings, connectors, workspaces, emailConnection] = await Promise.all([
+  const [user, team, usage, connectorSpend, billing, settings, connectors, workspaces, emailConnection, agentConnection] = await Promise.all([
     getSupabaseAuthenticatedUser().catch(() => null),
     getSettingsTeamView().catch(() => ({ workspaceId: null, isDemo: false, members: [], invites: [], activity: [] })),
     getSettingsUsageView().catch(() => null),
@@ -28,9 +29,10 @@ export default async function SettingsPage() {
     getSettingsConnectorsView().catch(() => ({ configured: false, connectors: [] })),
     getSettingsWorkspacesView().catch(() => ({ isDemo: false, workspaces: [] })),
     getEmailConnection().catch(() => null),
+    resolveAgentConnection().catch(() => null),
   ]);
   const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
   const email = user?.email || "owner@bsr.test";
   const avatarUrl = await getViewerAvatarUrl(user);
-  return <SettingsView brandName={brandName} email={email} avatarUrl={avatarUrl} team={team} usage={usage} connectorSpend={connectorSpend} billing={billing} settings={settings} connectors={connectors} workspaces={workspaces} emailConnection={emailConnection} />;
+  return <SettingsView brandName={brandName} email={email} avatarUrl={avatarUrl} team={team} usage={usage} connectorSpend={connectorSpend} billing={billing} settings={settings} connectors={connectors} workspaces={workspaces} emailConnection={emailConnection} agentConnection={agentConnection} />;
 }

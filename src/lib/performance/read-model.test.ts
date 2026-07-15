@@ -140,4 +140,17 @@ describe("getPerformanceReadModel", () => {
       }),
     );
   });
+
+  it("scopes every service-role query to the caller's org (no cross-tenant leak)", async () => {
+    const supabase = createSupabaseQueryMock({});
+    await getPerformanceReadModel(supabase, 30, "org-abc");
+    const calls = (supabase as unknown as { calls: Array<[string, ...unknown[]]> }).calls;
+    const orgScopedCalls = calls.filter(
+      (call) => call[0] === "eq" && call[1] === "org_id" && call[2] === "org-abc",
+    );
+    // One org_id filter per underlying table read: leads, jobs, outcomes, campaigns,
+    // campaign_assets, approval_items, companies, engagement_events. The read model uses the
+    // RLS-bypassing service-role client, so missing scoping here = cross-tenant leak.
+    expect(orgScopedCalls).toHaveLength(8);
+  });
 });
