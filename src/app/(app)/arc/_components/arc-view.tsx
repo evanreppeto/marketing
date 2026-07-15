@@ -111,29 +111,29 @@ import {
   type ChatSharingState,
 } from "../sharing-actions";
 
-const DEMO_THREADS = [
+const DEMO_THREADS: ArcThreadGroupVM[] = [
   {
     group: "Today",
     items: [
-      { id: "storm", title: "Storm-damage homeowners", when: "9:38 AM", active: true, pinned: true },
-      { id: "past", title: "Past-customer outreach", when: "8:12 AM", active: false, pinned: false },
+      { id: "storm", title: "Storm-damage homeowners", when: "9:38 AM", active: true, pinned: true, running: false },
+      { id: "past", title: "Past-customer outreach", when: "8:12 AM", active: false, pinned: false, running: true },
     ],
   },
   {
     group: "Yesterday",
     items: [
-      { id: "property", title: "Property-manager list", when: "4:46 PM", active: false, pinned: false },
-      { id: "noaa", title: "NOAA hail report read", when: "2:10 PM", active: false, pinned: false },
+      { id: "property", title: "Property-manager list", when: "4:46 PM", active: false, pinned: false, running: false },
+      { id: "noaa", title: "NOAA hail report read", when: "2:10 PM", active: false, pinned: false, running: false },
     ],
   },
   {
     group: "Previous 7 days",
     items: [
-      { id: "inspection", title: "Inspection page rewrite", when: "Jul 10", active: false, pinned: false },
-      { id: "adjuster", title: "Adjuster follow-ups", when: "Jul 8", active: false, pinned: false },
+      { id: "inspection", title: "Inspection page rewrite", when: "Jul 10", active: false, pinned: false, running: false },
+      { id: "adjuster", title: "Adjuster follow-ups", when: "Jul 8", active: false, pinned: false, running: false },
     ],
   },
-] satisfies ArcThreadGroupVM[];
+];
 
 const DEMO_STEPS: ArcStep[] = [
   { label: "Read the Naperville storm brief", status: "done", at: "9:38 AM", kind: "think" },
@@ -1386,7 +1386,7 @@ function DemoConversation({
   );
 }
 
-type ThreadItem = { id: string; title: string; when: string; pinned?: boolean };
+type ThreadItem = { id: string; title: string; when: string; pinned?: boolean; running?: boolean };
 
 /** One conversation row with an inline options menu (pin / rename / archive /
  *  delete). The row itself opens the conversation; the ⋯ button reveals the menu. */
@@ -1442,7 +1442,14 @@ function ThreadRow({ thread, active, live, onOpen, onRename, onPin, onArchive, o
     );
   }
 
-  const label = <span><b>{thread.title}</b><small>{thread.when}</small></span>;
+  const label = (
+    <span>
+      <b>{thread.title}</b>
+      {thread.running
+        ? <small className="arc-thread-working"><span className="arc-thread-dots" aria-hidden="true"><i /><i /><i /></span>Working…</small>
+        : <small>{thread.when}</small>}
+    </span>
+  );
 
   return (
     <div className={`arc-history-item${active ? " is-active" : ""}`} data-thread={thread.id}>

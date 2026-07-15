@@ -7,14 +7,14 @@ const groups: ArcThreadGroupVM[] = [
   {
     group: "Today",
     items: [
-      { id: "storm", title: "Storm-damage homeowners", when: "9:38 AM", active: true, pinned: true },
-      { id: "past", title: "Past-customer outreach", when: "8:12 AM", active: false, pinned: false },
+      { id: "storm", title: "Storm-damage homeowners", when: "9:38 AM", active: true, pinned: true, running: false },
+      { id: "past", title: "Past-customer outreach", when: "8:12 AM", active: false, pinned: false, running: false },
     ],
   },
   {
     group: "Yesterday",
     items: [
-      { id: "noaa", title: "NOAA hail report read", when: "2:10 PM", active: false, pinned: false },
+      { id: "noaa", title: "NOAA hail report read", when: "2:10 PM", active: false, pinned: false, running: false },
     ],
   },
 ];
