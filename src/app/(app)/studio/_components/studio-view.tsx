@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, useMemo, useRef, useState, useTransition } from "react";
 
-import { sendArcMessageAction } from "../../arc/actions";
+import { decideArcDraftAction, requestArcDraftRevisionAction, sendArcMessageAction } from "../../arc/actions";
 import { uploadLibraryAsset } from "../../library/actions";
+import { generateStudioAsset } from "../actions";
 
 const HOUSE = '<svg viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4654"/><stop offset="1" stop-color="#27303a"/></linearGradient></defs><rect width="600" height="300" fill="url(#sky)"/><path d="M0 210 L150 120 L300 200 L450 110 L600 190 V300 H0 Z" fill="#2b343d"/><path d="M120 230 L300 130 L480 230 Z" fill="#4a5663"/><path d="M120 230 L300 130 L300 250 L120 250 Z" fill="#3d4854"/><rect x="180" y="230" width="240" height="70" fill="#323b45"/><rect x="210" y="248" width="34" height="34" fill="#566270"/><rect x="356" y="248" width="34" height="34" fill="#566270"/></svg>';
 const SC: Record<string, string> = {
@@ -78,7 +79,10 @@ const SESSION: { id: string; tag: string; item: Item }[] = [
   { id: "v4", tag: "9:16", item: { s: SC.video, l: "Crew 9:16", p: "real" } },
 ];
 
-export function StudioView({ brandName, libraryItems, live = false }: { brandName: string; libraryItems?: Item[]; live?: boolean }) {
+type CampaignRef = { id: string; name: string; href: string };
+type StudioDraft = { campaignId: string; assetId: string; url: string; source: string; format: string; title: string; status: string };
+
+export function StudioView({ brandName, libraryItems, live = false, campaigns = [], mediaEnabled = false }: { brandName: string; libraryItems?: Item[]; live?: boolean; campaigns?: CampaignRef[]; mediaEnabled?: boolean }) {
   const initial = "Storm season";
   // The "Approved media" source shows the workspace's real media_assets when
   // present (Studio composes over your real backgrounds); it falls back to the
@@ -192,6 +196,77 @@ export function StudioView({ brandName, libraryItems, live = false }: { brandNam
     }
   };
 
+  const [campaignId, setCampaignId] = useState<string>(campaigns[0]?.id ?? "");
+  const [drafts, setDrafts] = useState<StudioDraft[]>([]);
+  const [gen, startGen] = useTransition();
+  const [genErr, setGenErr] = useState<string | null>(null);
+  const [draftBusy, setDraftBusy] = useState<string | null>(null);
+
+  // Why generation is unavailable (honest gating), or null when it's ready.
+  const genGate = !mediaEnabled
+    ? "Media generation is off — set ARC_MEDIA_ENABLED + GEMINI_API_KEY"
+    : !live
+      ? "Connect a backend to generate"
+      : !campaignId
+        ? "Pick a campaign above first"
+        : !bg.url
+          ? "Select an approved photo as the background"
+          : null;
+
+  // Compose the current canvas (selected background + Brand Kit + copy) into one
+  // approval-gated draft per format. The action lands pending_approval + dispatch_
+  // locked — never outbound.
+  const runGenerate = (formats: string[]) => {
+    if (genGate || gen) return;
+    setGenErr(null);
+    startGen(async () => {
+      for (const f of formats) {
+        const res = await generateStudioAsset({
+          engine: "compose",
+          format: f,
+          title: headline || "Studio creative",
+          backgroundUrl: bg.url,
+          headline,
+          kicker,
+          ctaLabel: cta,
+          campaignId,
+        });
+        if (res.ok && res.assetId && res.media) {
+          const media = res.media;
+          setDrafts((prev) => [
+            { campaignId: res.campaignId ?? campaignId, assetId: res.assetId!, url: media.url, source: media.source, format: media.format, title: headline || "Studio creative", status: "pending_approval" },
+            ...prev,
+          ]);
+        } else if (!res.ok) {
+          setGenErr(res.error);
+          break;
+        }
+      }
+    });
+  };
+
+  // Approve / decline reuse the wired campaign approval action; revise reuses the
+  // wired revision request. Outbound stays locked through all of them.
+  const decideDraft = async (d: StudioDraft, decision: "approved" | "declined") => {
+    if (draftBusy) return;
+    setDraftBusy(d.assetId);
+    const res = await decideArcDraftAction({ campaignId: d.campaignId, assetId: d.assetId, decision });
+    setDraftBusy(null);
+    if (res.ok) setDrafts((prev) => prev.map((x) => (x.assetId === d.assetId ? { ...x, status: decision } : x)));
+    else setGenErr(res.error);
+  };
+
+  const reviseDraft = async (d: StudioDraft) => {
+    if (draftBusy) return;
+    const instruction = typeof window !== "undefined" ? window.prompt("What should Arc change about this draft?")?.trim() : "";
+    if (!instruction) return;
+    setDraftBusy(d.assetId);
+    const res = await requestArcDraftRevisionAction({ campaignId: d.campaignId, assetId: d.assetId, instruction });
+    setDraftBusy(null);
+    if (res.ok) setDrafts((prev) => prev.map((x) => (x.assetId === d.assetId ? { ...x, status: "revision_requested" } : x)));
+    else setGenErr(res.error);
+  };
+
   const pickTool = (t: (typeof TOOLS)[keyof typeof TOOLS][number]) => {
     setTool(t.t);
     setTab(t.target === "arc" ? "arc" : "design");
@@ -208,10 +283,19 @@ export function StudioView({ brandName, libraryItems, live = false }: { brandNam
   return (
     <div className="arc-studio">
       <div className="studiobar">
-        <div className="cxt" title="Pick the campaign this asset belongs to">
+        <div className="cxt" title="The campaign a generated draft attaches to">
           <span className="ci"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg></span>
-          <div><div className="cl">Campaign</div><div className="cn">Storm-Season Reactivation</div><div className="cmeta">social_ad · attaches on approve</div></div>
-          <span className="cv">▾</span>
+          <div style={{ minWidth: 0 }}>
+            <div className="cl">Campaign</div>
+            {campaigns.length ? (
+              <select className="cn" value={campaignId} onChange={(e) => setCampaignId(e.target.value)} style={{ maxWidth: 220, background: "transparent", border: 0, color: "inherit", font: "inherit", cursor: "pointer" }}>
+                {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            ) : (
+              <div className="cn">No campaigns yet</div>
+            )}
+            <div className="cmeta">{campaigns.length ? "attaches on generate · approval-gated" : "create one in Campaigns first"}</div>
+          </div>
         </div>
         <span className="proj"><span className="dot" />Untitled creative · autosaved</span>
         <div className="right">
@@ -340,8 +424,8 @@ export function StudioView({ brandName, libraryItems, live = false }: { brandNam
               <div className="dwrap">
                 <div className="brief">
                   <div className="bh"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Campaign context</div>
-                  <div className="bn">Storm-Season Reactivation</div>
-                  <div className="bmeta">social_ad → pending approval on add</div>
+                  <div className="bn">{campaigns.find((c) => c.id === campaignId)?.name ?? "No campaign selected"}</div>
+                  <div className="bmeta">generated drafts attach here → pending approval</div>
                   <div className="brow"><b>Angle:</b> Act before the next storm — protect the home you&rsquo;ve already invested in.</div>
                   <div className="bchips"><span className="bchip per">Homeowners · storm-exposed</span><span className="bchip">Proof: before/after</span><span className="bchip">Proof: 4.9★ reviews</span><span className="bchip">Same-week scheduling</span></div>
                 </div>
@@ -406,10 +490,42 @@ export function StudioView({ brandName, libraryItems, live = false }: { brandNam
                 </div>
 
                 <div className="psec">
+                  <h3 className="ph2">Generate</h3>
+                  {genErr ? <div role="alert" style={{ margin: "0 2px 8px", fontSize: 11, color: "#cc6666", lineHeight: 1.4 }}>{genErr}</div> : null}
+                  <div className="exrow gold" onClick={() => runGenerate([FORMATS[fmt].r])} style={!genGate && !gen ? { cursor: "pointer" } : { opacity: 0.55 }} {...(genGate ? { "data-soon": genGate } : {})}><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10z" /></svg>{gen ? "Generating…" : `Generate creative · ${FORMATS[fmt].r}`}</div>
+                  <div className="exrow" onClick={() => runGenerate(FORMATS.map((f) => f.r))} style={!genGate && !gen ? { cursor: "pointer" } : { opacity: 0.55 }} {...(genGate ? { "data-soon": genGate } : {})}><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="5" /><circle cx="12" cy="12" r="3.6" /></svg>Resize for all platforms <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted)" }}>1:1 4:5 9:16 16:9</span></div>
+                </div>
+
+                {drafts.length > 0 && (
+                  <div className="psec">
+                    <h3 className="ph2">Drafts · {drafts.length}</h3>
+                    {drafts.map((d) => (
+                      <div className="grow" key={d.assetId} style={{ alignItems: "center", gap: 9 }}>
+                        <span style={{ width: 42, height: 42, borderRadius: 6, overflow: "hidden", flexShrink: 0, background: "var(--line)" }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element -- generated media URL */}
+                          <img src={d.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        </span>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div className="gt">{d.title} · {d.format}</div>
+                          <div className="gd">{d.status === "pending_approval" ? "Draft · awaiting your approval" : d.status === "approved" ? "Approved · outbound still locked" : d.status === "declined" ? "Declined" : "Revision requested — Arc will re-draft"}</div>
+                        </div>
+                        {d.status === "pending_approval" ? (
+                          <div className="actl" style={{ flexShrink: 0 }}>
+                            <button className="abtn ap" disabled={draftBusy === d.assetId} onClick={() => decideDraft(d, "approved")}><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg>Approve</button>
+                            <button className="abtn" disabled={draftBusy === d.assetId} onClick={() => reviseDraft(d)}>Revise</button>
+                            <button className="abtn" disabled={draftBusy === d.assetId} onClick={() => decideDraft(d, "declined")}>Decline</button>
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                    <div className="clock" style={{ marginTop: 7 }}><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 018 0v3" /></svg>Approving unlocks the next step — nothing sends without an explicit send.</div>
+                  </div>
+                )}
+
+                <div className="psec">
                   <h3 className="ph2">Export</h3>
-                  <div className="exrow" data-soon="Auto-resizing for all platforms is coming soon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="5" /><circle cx="12" cy="12" r="3.6" /></svg>Resize for all platforms <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted)" }}>1:1 4:5 9:16 16:9</span></div>
                   <a className="exrow" href="/library"><svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z" /></svg>Save to Library</a>
-                  <Link className="exrow gold" href="/campaigns"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to Storm-Season Reactivation</Link>
+                  <Link className="exrow gold" href={campaignId ? `/campaigns/${campaignId}` : "/campaigns"}><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Open campaign</Link>
                   <div className="exrow" onClick={downloadCurrent} style={bg.url ? { cursor: "pointer" } : undefined} {...(!bg.url ? { "data-soon": "Select an approved photo or video to download its file" } : {})}><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg>{bg.url ? "Download asset" : "Download (PNG / MP4)"}</div>
                 </div>
               </div>

@@ -1,4 +1,6 @@
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { listCampaignNames } from "@/lib/campaigns/read-model";
+import { isMediaGenEnabled } from "@/lib/media";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
 import type { MediaAssetView } from "@/lib/media-library/types";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -42,5 +44,18 @@ export default async function StudioPage() {
   // conversation. Offline (backend-less preview) it stays inert with a note.
   const live = Boolean(ctx?.orgId) && isSupabaseAdminConfigured();
 
-  return <StudioView brandName={brandName} libraryItems={libraryItems} live={live} />;
+  // Campaign picker options (a generated draft must attach to a campaign for the
+  // approval gate) and the media-generation master flag, threaded into StudioView.
+  const campaigns = ctx?.orgId && isSupabaseAdminConfigured() ? await listCampaignNames(ctx.orgId).catch(() => []) : [];
+  const mediaEnabled = isMediaGenEnabled();
+
+  return (
+    <StudioView
+      brandName={brandName}
+      libraryItems={libraryItems}
+      live={live}
+      campaigns={campaigns}
+      mediaEnabled={mediaEnabled}
+    />
+  );
 }
