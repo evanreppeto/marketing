@@ -85,6 +85,94 @@ export async function getCampaignEconomics(
   }
 }
 
+/** Raw rows for per-channel and per-asset attribution — the dimension the
+ *  campaign-level economics collapses away. Kept separate from getCampaignEconomics
+ *  so that path stays a single round of queries and its contract is unchanged.
+ *
+ *  Two honest sources, merged by the pure builders (see campaign-panel.ts):
+ *   • CRM attribution — leads carry `attribution_channel`; won/paid outcomes roll
+ *     up to their lead's channel. This is the ground truth for leads/booked/revenue.
+ *   • campaign_results — self-reported delivery per channel/asset (impressions,
+ *     clicks, spend). The only source of spend and ad-delivery metrics. */
+export type CampaignAttributionRows =
+  | {
+      status: "live";
+      leadChannels: { id: string; channel: string | null }[];
+      outcomes: { lead_id: string | null; status: string | null; gross_revenue_cents: number | null }[];
+      results: {
+        channel: string | null;
+        campaign_asset_id: string | null;
+        impressions: number | null;
+        clicks: number | null;
+        leads: number | null;
+        jobs: number | null;
+        won_revenue_cents: number | null;
+        spend_cents: number | null;
+      }[];
+      assets: {
+        id: string;
+        title: string | null;
+        channel: string | null;
+        asset_type: string | null;
+        source_system: string | null;
+        tool_source: string | null;
+        status: string | null;
+      }[];
+    }
+  | { status: "unavailable"; message: string };
+
+type LeadChannelRow = { id: string; attribution_channel: string | null };
+
+export async function getCampaignAttributionRows(
+  campaignId: string,
+  client?: SupabaseClient,
+): Promise<CampaignAttributionRows> {
+  if (!client && !isSupabaseAdminConfigured()) {
+    return { status: "unavailable", message: "Supabase env vars are not configured." };
+  }
+
+  try {
+    const supabase = client ?? getSupabaseAdminClient();
+
+    const leadsRes = await supabase
+      .from("leads")
+      .select("id,attribution_channel")
+      .eq("attributed_campaign_id", campaignId)
+      .limit(MAX_LEADS);
+    if (leadsRes.error) throw new Error(`leads lookup: ${leadsRes.error.message}`);
+    const leadRows = (leadsRes.data ?? []) as LeadChannelRow[];
+    const leadIds = leadRows.map((row) => row.id);
+
+    const [outcomesRes, resultsRes, assetsRes] = await Promise.all([
+      supabase.from("outcomes").select("lead_id,status,gross_revenue_cents").in("lead_id", leadIds).limit(MAX_FANOUT_ROWS),
+      supabase
+        .from("campaign_results")
+        .select("channel,campaign_asset_id,impressions,clicks,leads,jobs,won_revenue_cents,spend_cents")
+        .eq("campaign_id", campaignId)
+        .limit(MAX_RESULT_ROWS),
+      supabase
+        .from("campaign_assets")
+        .select("id,title,channel,asset_type,source_system,tool_source,status")
+        .eq("campaign_id", campaignId)
+        .limit(MAX_RESULT_ROWS),
+    ]);
+    if (outcomesRes.error) throw new Error(`outcomes lookup: ${outcomesRes.error.message}`);
+    if (resultsRes.error) throw new Error(`campaign_results lookup: ${resultsRes.error.message}`);
+    if (assetsRes.error) throw new Error(`campaign_assets lookup: ${assetsRes.error.message}`);
+
+    type LiveRows = Extract<CampaignAttributionRows, { status: "live" }>;
+    return {
+      status: "live",
+      leadChannels: leadRows.map((row) => ({ id: row.id, channel: row.attribution_channel })),
+      outcomes: (outcomesRes.data ?? []) as LiveRows["outcomes"],
+      results: (resultsRes.data ?? []) as LiveRows["results"],
+      assets: (assetsRes.data ?? []) as LiveRows["assets"],
+    };
+  } catch (error) {
+    return { status: "unavailable", message: error instanceof Error ? error.message : "Campaign attribution unavailable." };
+  }
+}
+
 /** Dated rows for a campaign's per-week trend: attributed-lead created dates and
  *  won/paid revenue events. Kept separate from getCampaignEconomics so the
  *  economics path stays a single round of queries. */
