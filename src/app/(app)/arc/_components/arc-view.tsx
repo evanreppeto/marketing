@@ -85,6 +85,7 @@ import type {
 import type { MentionGroup } from "@/lib/arc-chat/mention-search";
 import type { ArcThreadGroupVM } from "@/lib/arc-chat/read-model";
 import { filterThreadGroups } from "@/lib/arc-chat/thread-filter";
+import type { ArcWaitingOpp } from "@/lib/arc-chat/waiting-opps";
 import { buildArcRunContract, type ArcRunContract } from "@/lib/arc-chat/run-contract";
 import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
 
@@ -1157,8 +1158,37 @@ function operatorMessageBefore(messages: ArcMessage[], index: number): ArcMessag
   return null;
 }
 
-/** Counts of work waiting on the operator, surfaced in the launcher. */
-type ArcWaiting = { approvals: number; opportunities: number };
+/** Work waiting on the operator, surfaced in the launcher: approval + opportunity
+ *  counts, plus the top opportunity nudges to greet them with. */
+type ArcWaiting = { approvals: number; opportunities: number; items?: ArcWaitingOpp[] };
+
+/** Offline preview: mirrors the demo opportunity inbox so the launcher's "waiting
+ *  on you" nudges render without a backend. */
+const DEMO_WAITING: ArcWaiting = {
+  approvals: 3,
+  opportunities: 6,
+  items: [
+    {
+      id: "demo-opp-next-iteration-storm-prep",
+      title: "Spring Storm Prep is converting — draft the next iteration",
+      urgency: "high",
+      prompt:
+        "Draft the next iteration of the Spring Storm Prep campaign based on what worked: For the next iteration, lead with Email, reuse “Storm-watch SMS nudge”. Keep it approval-gated.",
+    },
+    {
+      id: "demo-opp-storm-riverside",
+      title: "Flash-flood warning — Riverside basements at risk",
+      urgency: "high",
+      prompt: "Help me act on this opportunity: “Flash-flood warning — Riverside basements at risk”. What should we draft? Keep it approval-gated.",
+    },
+    {
+      id: "demo-opp-partner-northside",
+      title: "Northside Plumbing Co. sent 3 referrals — no co-marketing in place",
+      urgency: "medium",
+      prompt: "Help me act on this opportunity: “Northside Plumbing Co. sent 3 referrals — no co-marketing in place”. What should we draft? Keep it approval-gated.",
+    },
+  ],
+};
 
 const LAUNCHER_SHORTCUTS: Array<{ icon: typeof Target; label: string; prompt: string }> = [
   { icon: Target, label: "Find priority leads", prompt: "Which homeowners should we reach first right now, and why?" },
@@ -1200,19 +1230,36 @@ function ArcLauncher({ brandName, waiting, onPick }: { brandName: string; waitin
       {waiting && (waiting.approvals > 0 || waiting.opportunities > 0) ? (
         <div className="arc-launcher-waiting">
           <span className="arc-launcher-waiting-label">Waiting on you</span>
-          {waiting.approvals > 0 ? (
-            <Link href="/campaigns" className="arc-launcher-waiting-item is-warn">
-              <ClipboardCheck size={14} />
-              <b>{waiting.approvals}</b> {waiting.approvals === 1 ? "approval" : "approvals"}
-              <ArrowRight size={13} />
-            </Link>
-          ) : null}
-          {waiting.opportunities > 0 ? (
+          <div className="arc-launcher-waiting-row">
+            {waiting.approvals > 0 ? (
+              <Link href="/campaigns" className="arc-launcher-waiting-item is-warn">
+                <ClipboardCheck size={14} />
+                <b>{waiting.approvals}</b> {waiting.approvals === 1 ? "approval" : "approvals"}
+                <ArrowRight size={13} />
+              </Link>
+            ) : null}
             <Link href="/opportunities" className="arc-launcher-waiting-item">
               <Zap size={14} />
               <b>{waiting.opportunities}</b> {waiting.opportunities === 1 ? "opportunity" : "opportunities"}
               <ArrowRight size={13} />
             </Link>
+          </div>
+          {waiting.items && waiting.items.length > 0 ? (
+            <div className="arc-launcher-nudges">
+              {waiting.items.map((item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  className="arc-launcher-nudge"
+                  onClick={() => pick(item.prompt)}
+                  title={item.prompt}
+                >
+                  <span className={`arc-nudge-dot is-${item.urgency}`} aria-hidden />
+                  <span className="arc-nudge-title">{item.title}</span>
+                  <ArrowRight size={13} className="arc-nudge-go" />
+                </button>
+              ))}
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -2086,7 +2133,7 @@ export function ArcView({
 
       <main className="arc-conversation-scroll" ref={scrollRef}>
         <div className="arc-conversation-column">
-          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={setDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <ArcLauncher brandName={brandName} waiting={{ approvals: 3, opportunities: 6 }} onPick={setDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
+          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={setDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <ArcLauncher brandName={brandName} waiting={DEMO_WAITING} onPick={setDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
           <div ref={endRef} />
         </div>
       </main>
