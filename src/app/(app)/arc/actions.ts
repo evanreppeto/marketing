@@ -22,13 +22,17 @@ import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
 import { cancelChatTask } from "@/lib/arc-chat/inbox";
 import {
   createConversation,
+  deleteMessagesAfter,
   getArcMessage,
   getMessageConversationId,
+  getPrecedingOperatorMessage,
   insertOperatorMessage,
   parseArcAttachmentsJson,
   setArcMessageFeedback,
   touchConversation,
+  updateOperatorMessageBody,
   type ArcAttachment,
+  type ArcMessage,
 } from "@/lib/arc-chat/persistence";
 import { saveItem } from "@/lib/arc-chat/saved";
 import { assertConversationAccess } from "@/lib/arc-chat/sharing";
@@ -150,6 +154,88 @@ export async function sendArcMessageAction(input: {
       ok: false,
       error: error instanceof Error ? error.message : "Couldn't send that message.",
     };
+  }
+}
+
+/**
+ * Re-queue an operator turn for Arc using an existing operator message's settings
+ * (mode/route/mentions/attachments/command/scope) but a given body — the shared
+ * spine of Regenerate and Edit-and-resend. Inserts a fresh pending reply bubble
+ * (via enqueueArcChatTask) and wakes the runner. Outbound stays locked.
+ */
+async function reEnqueueTurn(operatorMessage: ArcMessage, body: string): Promise<void> {
+  await enqueueArcChatTask({
+    conversationId: operatorMessage.conversationId,
+    messageId: operatorMessage.id,
+    message: body,
+    mentions: operatorMessage.mentions,
+    attachments: operatorMessage.attachments,
+    operator: await getOperatorActor(),
+    mode: operatorMessage.mode,
+    route: operatorMessage.route,
+    command: operatorMessage.command,
+    skillId: operatorMessage.skillId,
+    contextScopes: operatorMessage.contextScopes,
+    agentName: await getArcDisplayName(),
+  });
+  await touchConversation(operatorMessage.conversationId);
+}
+
+/**
+ * Regenerate an Arc reply: re-run the operator turn that produced it. Truncates
+ * everything after that operator message (the reply and anything later) and
+ * re-queues the turn, so a fresh reply streams in. Gated + org-scoped; outbound
+ * stays locked.
+ */
+export async function regenerateArcReplyAction(replyMessageId: string): Promise<ArcInteractionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Regenerating needs a connected backend." };
+  try {
+    const reply = await getArcMessage(replyMessageId);
+    if (!reply || reply.role !== "arc") return { ok: false, error: "That response can't be regenerated." };
+    await assertConversationAccess(reply.conversationId, "collaborate");
+    const gate = await checkUsageAllowed(await getCurrentOrgId());
+    if (!gate.allowed) {
+      return { ok: false, error: `You've reached this month's plan limit (${formatCentsUsd(gate.capCents)} on the ${gate.tier} plan). It resets next cycle — or upgrade to keep going.` };
+    }
+    const operatorMessage = await getPrecedingOperatorMessage(reply.conversationId, reply.createdAt);
+    if (!operatorMessage) return { ok: false, error: "Couldn't find the message to regenerate from." };
+    await deleteMessagesAfter(reply.conversationId, operatorMessage.id);
+    await reEnqueueTurn(operatorMessage, operatorMessage.body);
+    revalidatePath("/arc");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't regenerate that response." };
+  }
+}
+
+/**
+ * Edit an operator message and resend it: update the body, truncate everything
+ * after it, and re-run the turn (Arc replies fresh to the edited message). This
+ * is the standard chat edit-forks-the-branch behavior. Gated + org-scoped.
+ */
+export async function editAndResendArcMessageAction(input: { messageId: string; body: string }): Promise<ArcInteractionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Editing needs a connected backend." };
+  const body = input.body.trim();
+  if (!body) return { ok: false, error: "Type a message first." };
+  if (body.length > MAX_MESSAGE_LENGTH) return { ok: false, error: "That message is too long — trim it down a bit." };
+  try {
+    const message = await getArcMessage(input.messageId);
+    if (!message || message.role !== "operator") return { ok: false, error: "That message can't be edited." };
+    await assertConversationAccess(message.conversationId, "collaborate");
+    const gate = await checkUsageAllowed(await getCurrentOrgId());
+    if (!gate.allowed) {
+      return { ok: false, error: `You've reached this month's plan limit (${formatCentsUsd(gate.capCents)} on the ${gate.tier} plan). It resets next cycle — or upgrade to keep going.` };
+    }
+    const updated = await updateOperatorMessageBody(input.messageId, body);
+    if (!updated) return { ok: false, error: "That message can't be edited." };
+    await deleteMessagesAfter(message.conversationId, message.id);
+    await reEnqueueTurn(message, body);
+    revalidatePath("/arc");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't resend that message." };
   }
 }
 

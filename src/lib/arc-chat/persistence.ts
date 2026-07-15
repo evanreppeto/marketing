@@ -690,6 +690,58 @@ export async function listProjectAssetMessages(
   return ((data ?? []) as MessageRow[]).map(toMessage).filter((m) => m.actions.length > 0);
 }
 
+/**
+ * The latest operator message strictly before `beforeCreatedAt` in a conversation
+ * — i.e. the turn that prompted a given reply. Used by Regenerate to find the
+ * message to re-run. Null when there's none.
+ */
+export async function getPrecedingOperatorMessage(
+  conversationId: string,
+  beforeCreatedAt: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<ArcMessage | null> {
+  const { data, error } = await client
+    .from("arc_messages")
+    .select(MESSAGE_COLUMNS)
+    .eq("conversation_id", conversationId)
+    .eq("role", "operator")
+    .lt("created_at", beforeCreatedAt)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<MessageRow>();
+  assertOk("arc_messages preceding operator", error);
+  return data ? toMessage(data) : null;
+}
+
+/**
+ * Delete every message in a conversation created after `anchorMessageId` — the
+ * branch-truncation behind Edit-and-resend and Regenerate (re-running a turn
+ * replaces everything that followed it). Scoped to the one conversation; returns
+ * the number removed. No-op (0) when the anchor no longer exists.
+ */
+export async function deleteMessagesAfter(
+  conversationId: string,
+  anchorMessageId: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<number> {
+  const { data: anchor, error: anchorErr } = await client
+    .from("arc_messages")
+    .select("created_at")
+    .eq("id", anchorMessageId)
+    .eq("conversation_id", conversationId)
+    .maybeSingle<{ created_at: string }>();
+  assertOk("arc_messages truncate anchor", anchorErr);
+  if (!anchor) return 0;
+  const { data, error } = await client
+    .from("arc_messages")
+    .delete()
+    .eq("conversation_id", conversationId)
+    .gt("created_at", anchor.created_at)
+    .select("id");
+  assertOk("arc_messages truncate delete", error);
+  return (data ?? []).length;
+}
+
 export async function insertOperatorMessage(
   input: {
     conversationId: string;
