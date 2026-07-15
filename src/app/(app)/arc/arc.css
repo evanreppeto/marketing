@@ -1079,6 +1079,30 @@
 .arc-artifact-status span.is-approved { color: var(--ok); }
 .arc-artifact-status span.is-revising { color: var(--accent-contrast); }
 .arc-artifact-view { padding-top: 17px; }
+
+/* Card-driven asset review panel (asset tabs + draft content). */
+.arc-artifact-tabs button { position: relative; }
+.arc-artifact-dot { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+.arc-artifact-dot.is-ok { background: var(--ok); }
+.arc-artifact-dot.is-red { background: var(--priority); }
+.arc-artifact-dot.is-accent { background: var(--accent); }
+.arc-artifact-status span.is-ok { color: var(--ok-text); }
+.arc-artifact-status span.is-red { color: var(--red-text); }
+.arc-artifact-status span.is-accent { color: var(--accent-contrast); }
+.arc-asset-preview { margin-top: 15px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel); color: var(--text-2); padding: 13px 14px; font-size: 12px; line-height: 1.65; white-space: pre-wrap; }
+.arc-asset-row { display: flex; align-items: baseline; gap: 10px; min-height: 34px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.arc-asset-row:last-child { border-bottom: 0; }
+.arc-asset-row b { flex: none; min-width: 88px; color: var(--muted); font-size: 9.5px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; }
+.arc-asset-row span { min-width: 0; color: var(--text-2); font-size: 11.5px; line-height: 1.5; }
+.arc-check-grid span.is-warn svg { color: var(--warn); }
+.arc-check-grid span.is-risk svg { color: var(--priority); }
+.arc-artifact-footer button:not(.is-primary):disabled { opacity: .5; cursor: default; }
+.arc-package-channels span[data-tone="ok"] i { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 12%, transparent); }
+.arc-package-channels span[data-tone="ok"] small { color: var(--ok-text); }
+.arc-package-channels span[data-tone="red"] i { background: var(--priority); }
+.arc-package-channels span[data-tone="red"] small { color: var(--red-text); }
+.arc-package-channels span[data-tone="accent"] i { background: var(--accent); }
+.arc-package-channels span[data-tone="accent"] small { color: var(--accent-contrast); }
 .arc-artifact-title h3 { margin: 5px 0 0; color: var(--text); font-family: var(--serif); font-size: 21px; font-weight: 540; letter-spacing: -.015em; }
 .arc-artifact-title p { margin: 7px 0 0; color: var(--muted); font-size: 10.5px; line-height: 1.55; }
 .arc-audience-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 16px; }
