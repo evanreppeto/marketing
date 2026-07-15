@@ -27,6 +27,14 @@ type OpportunityEvidence = {
   creativeCount?: number;
   keywords?: string[];
   capturedAt?: string;
+  // Next-iteration evidence (kind='next_iteration').
+  campaignName?: string;
+  topChannel?: string;
+  bookedJobs?: number;
+  leads?: number;
+  topAsset?: string;
+  /** Ready-to-send Arc prompt for the follow-up draft. */
+  arcPrompt?: string;
 };
 
 type OpportunityRecord = {
