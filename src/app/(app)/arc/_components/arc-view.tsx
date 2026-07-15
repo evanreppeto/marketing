@@ -14,6 +14,7 @@ import {
   useTransition,
 } from "react";
 import {
+  Archive,
   ArrowRight,
   ArrowUp,
   AtSign,
@@ -36,6 +37,7 @@ import {
   Menu,
   Megaphone,
   MessageSquareText,
+  MoreHorizontal,
   PanelRightClose,
   PanelRightOpen,
   Paperclip,
@@ -52,6 +54,7 @@ import {
   Target,
   ThumbsDown,
   ThumbsUp,
+  Trash2,
   Users,
   Wrench,
   X,
@@ -86,10 +89,14 @@ import { buildArcRunContract, type ArcRunContract } from "@/lib/arc-chat/run-con
 import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
 
 import {
+  archiveArcConversationAction,
   cancelArcRunAction,
   decideArcDraftAction,
+  deleteArcConversationAction,
   editAndResendArcMessageAction,
+  pinArcConversationAction,
   regenerateArcReplyAction,
+  renameArcConversationAction,
   requestArcDraftRevisionAction,
   saveArcMessageAction,
   sendArcMessageAction,
@@ -1379,6 +1386,97 @@ function DemoConversation({
   );
 }
 
+type ThreadItem = { id: string; title: string; when: string; pinned?: boolean };
+
+/** One conversation row with an inline options menu (pin / rename / archive /
+ *  delete). The row itself opens the conversation; the ⋯ button reveals the menu. */
+function ThreadRow({ thread, active, live, onOpen, onRename, onPin, onArchive, onDelete }: {
+  thread: ThreadItem;
+  active: boolean;
+  live: boolean;
+  onOpen: () => void;
+  onRename: (title: string) => void;
+  onPin: (pinned: boolean) => void;
+  onArchive: () => void;
+  onDelete: () => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState(thread.title);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const dismiss = (event: PointerEvent) => {
+      if (event.target instanceof Element && !event.target.closest(`[data-thread="${thread.id}"]`)) {
+        setMenuOpen(false);
+        setConfirmDelete(false);
+      }
+    };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [menuOpen, thread.id]);
+
+  const commitRename = () => {
+    const next = name.trim();
+    setRenaming(false);
+    if (next && next !== thread.title) onRename(next);
+    else setName(thread.title);
+  };
+
+  if (renaming) {
+    return (
+      <div className="arc-history-item is-renaming" data-thread={thread.id}>
+        <input
+          autoFocus
+          value={name}
+          aria-label="Rename conversation"
+          onChange={(event) => setName(event.target.value)}
+          onBlur={commitRename}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") { event.preventDefault(); commitRename(); }
+            if (event.key === "Escape") { setName(thread.title); setRenaming(false); }
+          }}
+        />
+      </div>
+    );
+  }
+
+  const label = <span><b>{thread.title}</b><small>{thread.when}</small></span>;
+
+  return (
+    <div className={`arc-history-item${active ? " is-active" : ""}`} data-thread={thread.id}>
+      {live
+        ? <Link href={`/arc?c=${thread.id}`} className="arc-history-open" onClick={onOpen}>{label}</Link>
+        : <button type="button" className="arc-history-open" onClick={onOpen}>{label}</button>}
+      {thread.pinned ? <Pin size={12} className="arc-history-pin" aria-label="Pinned" /> : null}
+      <button type="button" className="arc-history-menu-btn" aria-label="Conversation options" aria-haspopup="menu" aria-expanded={menuOpen} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setConfirmDelete(false); setMenuOpen((open) => !open); }}>
+        <MoreHorizontal size={15} />
+      </button>
+      {menuOpen ? (
+        <div className="arc-history-menu" role="menu">
+          {confirmDelete ? (
+            <div className="arc-history-menu-confirm">
+              <span>Delete this conversation?</span>
+              <div>
+                <button type="button" onClick={() => setConfirmDelete(false)}>Cancel</button>
+                <button type="button" className="is-danger" onClick={() => { setMenuOpen(false); onDelete(); }}>Delete</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onPin(!thread.pinned); }}><Pin size={14} />{thread.pinned ? "Unpin" : "Pin"}</button>
+              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setName(thread.title); setRenaming(true); }}><PencilLine size={14} />Rename</button>
+              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onArchive(); }}><Archive size={14} />Archive</button>
+              <button type="button" role="menuitem" className="is-danger" onClick={() => setConfirmDelete(true)}><Trash2 size={14} />Delete</button>
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ThreadDrawer({
   live,
   groups,
@@ -1394,10 +1492,44 @@ function ThreadDrawer({
   onSelectDemo: (id: string) => void;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
+  const [demoGroups, setDemoGroups] = useState<ArcThreadGroupVM[]>(DEMO_THREADS);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const sourceGroups = live ? groups : DEMO_THREADS;
+  const sourceGroups = live ? groups : demoGroups;
   const visibleGroups = filterThreadGroups(sourceGroups, query);
+
+  // Demo mutations are local; live mutations hit the real actions then refresh.
+  const applyDemo = (id: string, transform: (item: ThreadItem) => ThreadItem | null) => {
+    setDemoGroups((prev) => prev
+      .map((group) => ({ ...group, items: group.items.flatMap((item) => {
+        if (item.id !== id) return [item];
+        const next = transform(item as ThreadItem);
+        return next ? [next as (typeof group.items)[number]] : [];
+      }) }))
+      .filter((group) => group.items.length > 0));
+  };
+
+  const doRename = (id: string, title: string) => {
+    if (!live) return applyDemo(id, (item) => ({ ...item, title }));
+    renameArcConversationAction({ conversationId: id, title }).then((result) => { if (result.ok) router.refresh(); });
+  };
+  const doPin = (id: string, pinned: boolean) => {
+    if (!live) return applyDemo(id, (item) => ({ ...item, pinned }));
+    pinArcConversationAction({ conversationId: id, pinned }).then((result) => { if (result.ok) router.refresh(); });
+  };
+  const doArchive = (id: string) => {
+    if (!live) return applyDemo(id, () => null);
+    archiveArcConversationAction(id).then((result) => { if (result.ok) router.refresh(); });
+  };
+  const doDelete = (id: string) => {
+    if (!live) return applyDemo(id, () => null);
+    deleteArcConversationAction(id).then((result) => {
+      if (!result.ok) return;
+      if (id === activeConversationId) router.push("/arc?new=1");
+      else router.refresh();
+    });
+  };
 
   useEffect(() => {
     const focusSearch = (event: KeyboardEvent) => {
@@ -1421,8 +1553,19 @@ function ThreadDrawer({
             <h3>{group.group}</h3>
             {group.items.map((thread) => {
               const active = live ? thread.id === activeConversationId : thread.id === selectedDemoId;
-              const content = <><span><b>{thread.title}</b><small>{thread.when}</small></span>{thread.pinned ? <Pin size={13} /> : null}</>;
-              return live ? <Link href={`/arc?c=${thread.id}`} className={active ? "is-active" : ""} key={thread.id} onClick={onClose}>{content}</Link> : <button type="button" className={active ? "is-active" : ""} key={thread.id} onClick={() => onSelectDemo(thread.id)}>{content}</button>;
+              return (
+                <ThreadRow
+                  key={thread.id}
+                  thread={thread}
+                  active={active}
+                  live={live}
+                  onOpen={live ? onClose : () => onSelectDemo(thread.id)}
+                  onRename={(title) => doRename(thread.id, title)}
+                  onPin={(pinned) => doPin(thread.id, pinned)}
+                  onArchive={() => doArchive(thread.id)}
+                  onDelete={() => doDelete(thread.id)}
+                />
+              );
             })}
           </div>
         ))}

@@ -21,14 +21,18 @@ import { isAcceptedAttachment } from "@/lib/arc-chat/attachment-types";
 import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
 import { cancelChatTask } from "@/lib/arc-chat/inbox";
 import {
+  archiveConversation,
   createConversation,
+  deleteConversation,
   deleteMessagesAfter,
   getArcMessage,
   getMessageConversationId,
   getPrecedingOperatorMessage,
   insertOperatorMessage,
   parseArcAttachmentsJson,
+  renameConversation,
   setArcMessageFeedback,
+  setConversationPinned,
   touchConversation,
   updateOperatorMessageBody,
   type ArcAttachment,
@@ -236,6 +240,69 @@ export async function editAndResendArcMessageAction(input: { messageId: string; 
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Couldn't resend that message." };
+  }
+}
+
+/**
+ * Rename a conversation. Gated by requireOperator + collaborate access; org-scoped
+ * via the access check. Best-effort revalidate so the thread list + header update.
+ */
+export async function renameArcConversationAction(input: { conversationId: string; title: string }): Promise<ArcInteractionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Renaming needs a connected backend." };
+  const title = input.title.trim();
+  if (!title) return { ok: false, error: "Give the conversation a name." };
+  if (title.length > 120) return { ok: false, error: "That title is too long — keep it under 120 characters." };
+  try {
+    await assertConversationAccess(input.conversationId, "collaborate");
+    await renameConversation(input.conversationId, title);
+    revalidatePath("/arc");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't rename that conversation." };
+  }
+}
+
+/** Pin or unpin a conversation (pinned threads sort to the top of the list). */
+export async function pinArcConversationAction(input: { conversationId: string; pinned: boolean }): Promise<ArcInteractionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Pinning needs a connected backend." };
+  try {
+    await assertConversationAccess(input.conversationId, "collaborate");
+    await setConversationPinned(input.conversationId, input.pinned);
+    revalidatePath("/arc");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't update that conversation." };
+  }
+}
+
+/** Archive a conversation — removes it from the active list without deleting it. */
+export async function archiveArcConversationAction(conversationId: string): Promise<ArcInteractionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Archiving needs a connected backend." };
+  try {
+    await assertConversationAccess(conversationId, "collaborate");
+    await archiveConversation(conversationId);
+    revalidatePath("/arc");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't archive that conversation." };
+  }
+}
+
+/** Permanently delete a conversation and its messages (cascade). Destructive — the
+ *  UI confirms first. Gated by requireOperator + collaborate access. */
+export async function deleteArcConversationAction(conversationId: string): Promise<ArcInteractionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Deleting needs a connected backend." };
+  try {
+    await assertConversationAccess(conversationId, "collaborate");
+    await deleteConversation(conversationId);
+    revalidatePath("/arc");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't delete that conversation." };
   }
 }
 
