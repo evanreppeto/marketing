@@ -11,9 +11,12 @@ export const metadata = { title: "Arc" };
 export default async function ArcPage({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string; new?: string }>;
+  searchParams: Promise<{ c?: string; new?: string; prompt?: string }>;
 }) {
   const sp = await searchParams;
+  // Deep-link support: `?prompt=` prefills the composer (e.g. the campaign
+  // "Ask Arc to draft it" CTA). Capped so a crafted URL can't stuff the box.
+  const initialDraft = typeof sp.prompt === "string" && sp.prompt.trim() ? sp.prompt.slice(0, 4000) : undefined;
   const ctx = await getCurrentWorkspaceContext().catch(() => null);
   const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
 
@@ -41,6 +44,7 @@ export default async function ArcPage({
       activeConversationId={chat.status === "live" ? chat.activeConversationId : null}
       mentionGroups={mentionGroups}
       waiting={waiting}
+      initialDraft={initialDraft}
     />
   );
 }

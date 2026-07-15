@@ -238,3 +238,17 @@
   .arc-campaign .pchead, .arc-campaign .pcrow { min-width: 420px; }
   .arc-campaign .pahead, .arc-campaign .parow { min-width: 520px; }
 }
+
+/* ── Performance learning loop: "What Arc learned / Next move" ───────────── */
+.arc-campaign .perflearn { border: 1px solid var(--accent-border); border-radius: 14px; background: var(--accent-soft); padding: 16px 18px; }
+.arc-campaign .perflearn .csh { margin-top: 0; }
+.arc-campaign .perflearn .csh svg { width: 16px; height: 16px; flex: none; stroke: var(--accent); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.arc-campaign .perflearn-wins { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.arc-campaign .perflearn-wins li { position: relative; padding-left: 18px; color: var(--text-2); font-size: 12.5px; line-height: 1.55; }
+.arc-campaign .perflearn-wins li::before { content: ""; position: absolute; left: 3px; top: 0.62em; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.arc-campaign .perflearn-move { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--accent-border); }
+.arc-campaign .perflearn-rec { flex: 1; min-width: 240px; color: var(--text); font-size: 13px; font-weight: 550; line-height: 1.5; }
+.arc-campaign .perflearn-cta { flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 15px; border: 1px solid var(--accent-border-strong); border-radius: 9px; background: var(--accent); color: var(--on-accent); font-size: 12.5px; font-weight: 600; text-decoration: none; transition: background 0.15s var(--ease), transform 0.15s var(--ease); }
+.arc-campaign .perflearn-cta:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.arc-campaign .perflearn-cta svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.arc-campaign .perflearn-lock { margin: 12px 0 0; color: var(--muted); font-size: 10.5px; }
