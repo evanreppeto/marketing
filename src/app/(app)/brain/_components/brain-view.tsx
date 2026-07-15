@@ -58,7 +58,7 @@ function Confidence({ value }: { value: number | null }) {
   );
 }
 
-export function BrainView({ data }: { data: BrainData }) {
+export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?: string | null }) {
   const [tab, setTab] = useState("facts");
   const [rebuilding, startRebuild] = useTransition();
   const [rebuildMsg, setRebuildMsg] = useState<string | null>(null);
@@ -155,7 +155,7 @@ export function BrainView({ data }: { data: BrainData }) {
           data.graphNodes.length === 0 ? (
             <div className="scroll"><div className="inner"><div className="empty">No knowledge graph yet. Arc maps what it learns — facts and their connections — here.</div></div></div>
           ) : (
-            <KnowledgeGraph nodes={data.graphNodes} edges={data.graphEdges} />
+            <KnowledgeGraph nodes={data.graphNodes} edges={data.graphEdges} focusNodeId={focusNodeId} />
           )
         ) : (
           <div className="scroll">

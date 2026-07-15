@@ -30,6 +30,7 @@ import {
   FileText,
   LoaderCircle,
   LayoutTemplate,
+  Link2,
   LockKeyhole,
   Mail,
   Menu,
@@ -65,6 +66,7 @@ import type {
   ArcMention,
   ArcMode,
   ArcQuestion,
+  ArcRecall,
   ArcRoute,
   SharePermission,
   ShareVisibility,
@@ -169,6 +171,17 @@ const DEMO_DRAFT_CARD: ArcActionCard = {
   ],
   approval: { kind: "campaign", campaignId: "demo-campaign", assetId: "demo-asset-email" },
 };
+
+const DEMO_SOURCES: ArcMention[] = [
+  { type: "property", id: "demo-prop", label: "142 storm-zone properties", href: "/crm/properties" },
+  { type: "campaign", id: "demo-camp", label: "Storm Rapid Response", href: "/campaigns" },
+  { type: "company", id: "demo-co", label: "Naperville homeowners", href: "/crm/companies" },
+];
+
+const DEMO_RECALL: ArcRecall[] = [
+  { label: "Inspection-first beats discount-led", confidence: 0.86, nodeId: "demo-node-inspection" },
+  { label: "Insured segment books fastest", confidence: 0.72, nodeId: "demo-node-insured" },
+];
 
 type DemoTurn = { id: string; role: "operator" | "arc"; body: string; outcome?: "complete" | "canceled"; mode?: ArcMode; command?: string | null };
 type ComposerMenu = "tools" | "model" | "mode" | "context" | "mentions" | "commands" | null;
@@ -915,6 +928,49 @@ function ArcDraftCard({ card }: { card: ArcActionCard }) {
   );
 }
 
+/** A source/citation icon keyed to the mentioned record's type. */
+function MentionIcon({ type }: { type: ArcMention["type"] }) {
+  const size = 12;
+  if (type === "campaign") return <Megaphone size={size} />;
+  if (type === "vault") return <Bookmark size={size} />;
+  if (type === "property" || type === "job" || type === "outcome") return <Database size={size} />;
+  if (type === "company" || type === "contact" || type === "lead" || type === "persona") return <Users size={size} />;
+  return <FileText size={size} />;
+}
+
+/** "Sources Arc used" — the records Arc referenced for this reply, each a clickable
+ *  deep-link to the record. Makes the evidence behind an answer navigable. */
+function SourcesRow({ mentions }: { mentions: ArcMention[] }) {
+  if (mentions.length === 0) return null;
+  return (
+    <div className="arc-sources">
+      <span><Link2 size={13} /> Sources</span>
+      {mentions.slice(0, 8).map((mention, index) => (
+        mention.href?.startsWith("/")
+          ? <Link key={`${mention.type}-${mention.id}-${index}`} href={mention.href} className="arc-source"><MentionIcon type={mention.type} />{mention.label}</Link>
+          : <span key={`${mention.type}-${mention.id}-${index}`} className="arc-source is-static"><MentionIcon type={mention.type} />{mention.label}</span>
+      ))}
+    </div>
+  );
+}
+
+/** Recalled Brain memory used for this reply — each chip links to its node in the
+ *  Brain (via `?node=`), so a citation lands on the exact fact. */
+function RecallRow({ recall }: { recall: ArcRecall[] }) {
+  if (recall.length === 0) return null;
+  return (
+    <div className="arc-recall">
+      <span><Brain size={14} /> Recalled</span>
+      {recall.map((item, index) => {
+        const inner = <>{item.label}{item.confidence != null ? <small>{Math.round(item.confidence * 100)}%</small> : null}</>;
+        return item.nodeId
+          ? <Link key={`${item.label}-${index}`} href={`/brain?node=${encodeURIComponent(item.nodeId)}`} className="arc-recall-chip">{inner}</Link>
+          : <span key={`${item.label}-${index}`} className="arc-recall-chip is-static">{inner}</span>;
+      })}
+    </div>
+  );
+}
+
 function QuestionPrompt({ question, onChoose, onDismiss }: { question: ArcQuestion; onChoose: (value: string) => void; onDismiss: () => void }) {
   return (
     <div className="arc-question">
@@ -1030,9 +1086,8 @@ function LiveConversation({
           <AssistantMessage key={message.id} time={formatMessageTime(message.createdAt)}>
             <RunTrace pending={pending} liveText={pending ? message.body : null} reasoning={message.reasoning} steps={message.steps} toolCalls={message.toolCalls} contract={contract} thoughtSeconds={thoughtSeconds} onStop={pending && message.agentTaskId ? () => onCancelRun(message.agentTaskId as string, message.conversationId) : undefined} stopping={stoppingTaskId === message.agentTaskId} outcome={message.status === "failed" ? (message.body.startsWith("Stopped by you") ? "canceled" : "failed") : "complete"} />
             {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div> : null}
-            {!pending && message.recall?.length ? (
-              <div className="arc-recall"><span><Brain size={14} /> Recalled</span>{message.recall.map((item, index) => <button type="button" key={`${item.label}-${index}`}>{item.label}{item.confidence != null ? <small>{Math.round(item.confidence * 100)}%</small> : null}</button>)}</div>
-            ) : null}
+            {!pending && message.mentions.length ? <SourcesRow mentions={message.mentions} /> : null}
+            {!pending && message.recall?.length ? <RecallRow recall={message.recall} /> : null}
             {!pending && message.actions.length ? <div className="arc-action-list">{message.actions.map((card, index) => <ArcDraftCard card={card} key={`${card.title}-${index}`} />)}</div> : null}
             {!pending && message.suggestions.length ? <div className="arc-suggestions">{message.suggestions.map((suggestion, index) => <button type="button" key={`${suggestion}-${index}`} onClick={() => onSuggestion(suggestion)}>{suggestion}</button>)}</div> : null}
             {!pending ? <MessageActions message={message} /> : null}
@@ -1072,6 +1127,8 @@ function DemoConversation({
           <ul><li>Sit in the <b>worst-hit hail swath</b>, with no inspection on file — <b>3.1× more likely</b> to have hidden damage</li><li>No inspection booked in the six days since the storm</li><li>Roof age 8+ years or prior claim history</li></ul>
         </div>
         <RunTrace pending={false} thoughtSeconds={8} reasoning="I combined the storm footprint with property condition and recent CRM activity, then favored an inspection-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "ask", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
+        <SourcesRow mentions={DEMO_SOURCES} />
+        <RecallRow recall={DEMO_RECALL} />
       </AssistantMessage>
       <AssistantMessage time="9:40 AM">
         <div className="arc-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{DEMO_BREAKDOWN_MD}</ReactMarkdown></div>
