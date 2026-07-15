@@ -1,6 +1,7 @@
 import { getArcChatModel } from "@/lib/arc-chat/read-model";
 import { getMentionables } from "@/lib/arc-chat/mention-search";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { getWorkspaceSummary } from "@/lib/workspace-summary/read-model";
 
 import { ArcView } from "./_components/arc-view";
 import "./arc.css";
@@ -16,15 +17,20 @@ export default async function ArcPage({
   const ctx = await getCurrentWorkspaceContext().catch(() => null);
   const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
 
-  const [chat, mentionGroups] = await Promise.all([
+  const [chat, mentionGroups, summary] = await Promise.all([
     getArcChatModel(sp.c ?? null, { startBlank: Boolean(sp.new) }),
     getMentionables(),
+    // Cheap here: getWorkspaceSummary is request-cached and the nav rail already
+    // computes it, so this is a cache hit. Best-effort — no summary just hides the
+    // launcher's "waiting on you" strip.
+    ctx?.orgId ? getWorkspaceSummary(ctx.orgId).catch(() => null) : Promise.resolve(null),
   ]);
 
   // `live` = a real backend is present (conversations may still be empty on a
   // fresh workspace — the composer works either way). Only "unavailable" (no
   // Supabase, e.g. the local backend-less preview) falls back to the mock.
   const live = chat.status !== "unavailable";
+  const waiting = summary ? { approvals: summary.approvals.length, opportunities: summary.opportunities.length } : null;
 
   return (
     <ArcView
@@ -34,6 +40,7 @@ export default async function ArcPage({
       messages={chat.status === "live" ? chat.messages : []}
       activeConversationId={chat.status === "live" ? chat.activeConversationId : null}
       mentionGroups={mentionGroups}
+      waiting={waiting}
     />
   );
 }
