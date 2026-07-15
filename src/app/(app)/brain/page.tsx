@@ -104,7 +104,9 @@ function toGraphNode(n: BrainNode): GraphNode {
   };
 }
 
-export default async function BrainPage() {
+export default async function BrainPage({ searchParams }: { searchParams: Promise<{ node?: string }> }) {
+  const sp = await searchParams;
+  const focusNodeId = typeof sp.node === "string" && sp.node.trim() ? sp.node.trim() : null;
   const [result, edgeResult] = await Promise.all([
     listNodes({}).catch(() => ({ status: "unavailable" }) as const),
     listGraphEdges().catch(() => ({ status: "unavailable" }) as const),
@@ -145,5 +147,5 @@ export default async function BrainPage() {
       : "";
 
   const data: BrainData = { stats, coverageNote, facts, review, learned, graphNodes, graphEdges };
-  return <BrainView data={data} />;
+  return <BrainView data={data} focusNodeId={focusNodeId} />;
 }

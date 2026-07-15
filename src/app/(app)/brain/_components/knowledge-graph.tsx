@@ -28,10 +28,13 @@ function tierClass(t: string): string {
   return s === "trusted" || s === "core" ? "trusted" : s === "proposed" ? "proposed" : "observed";
 }
 
-export function KnowledgeGraph({ nodes, edges }: { nodes: GraphNode[]; edges: GraphEdge[] }) {
+export function KnowledgeGraph({ nodes, edges, focusNodeId }: { nodes: GraphNode[]; edges: GraphEdge[]; focusNodeId?: string | null }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const api = useRef<{ select: (id: string) => void; filter: (k: string) => void; search: (q: string) => void; zoom: (z: string) => void } | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Deep-linked citation (?node=…): open with that node selected so an Arc chat
+  // "Recalled" chip lands on the exact fact. A missing id simply shows the empty
+  // detail panel — harmless.
+  const [selectedId, setSelectedId] = useState<string | null>(focusNodeId ?? null);
   const [activeKind, setActiveKind] = useState("all");
 
   const nmap = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
@@ -55,6 +58,15 @@ export function KnowledgeGraph({ nodes, edges }: { nodes: GraphNode[]; edges: Gr
     for (const n of nodes) if (!seen.has(n.kind)) seen.set(n.kind, { color: n.kindColor, label: n.kindLabel });
     return [...seen.values()];
   }, [nodes]);
+
+  // Center/highlight a deep-linked node once the canvas API is wired (rAF defers
+  // past the graph-setup effect and first paint). Best-effort — the selected-node
+  // detail panel already reflects the focus even if the canvas can't.
+  useEffect(() => {
+    if (!focusNodeId || !nmap.has(focusNodeId)) return;
+    const frame = window.requestAnimationFrame(() => api.current?.select(focusNodeId));
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusNodeId, nmap]);
 
   useEffect(() => {
     const svgEl = svgRef.current;
