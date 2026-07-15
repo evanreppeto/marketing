@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { type ChangeEvent, useMemo, useRef, useState, useTransition } from "react";
 
 import { sendArcMessageAction } from "../../arc/actions";
+import { uploadLibraryAsset } from "../../library/actions";
 
 const HOUSE = '<svg viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4654"/><stop offset="1" stop-color="#27303a"/></linearGradient></defs><rect width="600" height="300" fill="url(#sky)"/><path d="M0 210 L150 120 L300 200 L450 110 L600 190 V300 H0 Z" fill="#2b343d"/><path d="M120 230 L300 130 L480 230 Z" fill="#4a5663"/><path d="M120 230 L300 130 L300 250 L120 250 Z" fill="#3d4854"/><rect x="180" y="230" width="240" height="70" fill="#323b45"/><rect x="210" y="248" width="34" height="34" fill="#566270"/><rect x="356" y="248" width="34" height="34" fill="#566270"/></svg>';
 const SC: Record<string, string> = {
@@ -82,12 +83,15 @@ export function StudioView({ brandName, libraryItems, live = false }: { brandNam
   // The "Approved media" source shows the workspace's real media_assets when
   // present (Studio composes over your real backgrounds); it falls back to the
   // built-in samples offline / when the library is empty so the tool stays usable.
+  const [uploaded, setUploaded] = useState<Item[]>([]);
   const sources = useMemo<Record<string, { title: string; items: Item[] }>>(
     () => ({
       ...SRC,
       library: libraryItems && libraryItems.length ? { title: "Approved media", items: libraryItems } : SRC.library,
+      // Imported art: real uploads live-first (empty until you add some); demo samples offline.
+      uploads: uploaded.length || live ? { title: "Imported", items: [...uploaded, ...(live ? [] : SRC.uploads.items)] } : SRC.uploads,
     }),
-    [libraryItems],
+    [libraryItems, uploaded, live],
   );
   const [srcTab, setSrcTab] = useState("library");
   const [bg, setBg] = useState<Item>(sources.library.items[0]);
@@ -110,6 +114,9 @@ export function StudioView({ brandName, libraryItems, live = false }: { brandNam
   const [sendErr, setSendErr] = useState<string | null>(null);
   const [sending, startSend] = useTransition();
   const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadNote, setUploadNote] = useState<string | null>(null);
 
   // The composer hands the operator's creative request to Arc: it starts a real
   // Arc conversation (outbound-locked like every Arc turn), seeded with the
@@ -130,6 +137,59 @@ export function StudioView({ brandName, libraryItems, live = false }: { brandNam
         setSendErr(result.error);
       }
     });
+  };
+
+  // Import art: reuse the wired Library upload (real media_assets rows, provenance-
+  // tagged, held for review before Arc may reuse). New assets appear under Imported.
+  const onUploadFiles = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length || !live) return;
+    setSrcTab("uploads");
+    setUploading(true);
+    setUploadNote(`Uploading ${files.length} file${files.length === 1 ? "" : "s"}…`);
+    let done = 0;
+    let failed = 0;
+    files.forEach((file) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      uploadLibraryAsset(fd)
+        .then((res) => {
+          if (res.ok && res.asset) setUploaded((prev) => [{ s: "", l: res.asset!.nm, p: "upload", url: res.asset!.img }, ...prev]);
+          else failed++;
+        })
+        .catch(() => { failed++; })
+        .finally(() => {
+          done++;
+          if (done === files.length) {
+            setUploading(false);
+            setUploadNote(failed
+              ? `${files.length - failed} imported · ${failed} failed`
+              : `${files.length} imported — held for review before Arc may reuse.`);
+          }
+        });
+    });
+  };
+
+  // Download the selected source asset's real file (approved / generated / imported
+  // media). Composed-overlay export is a separate feature; this pulls the underlying file.
+  const downloadCurrent = async () => {
+    if (!bg.url) return;
+    try {
+      const res = await fetch(bg.url);
+      if (!res.ok) throw new Error("fetch failed");
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = bg.l || "creative";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objUrl);
+    } catch {
+      window.open(bg.url, "_blank", "noopener");
+    }
   };
 
   const pickTool = (t: (typeof TOOLS)[keyof typeof TOOLS][number]) => {
@@ -174,7 +234,8 @@ export function StudioView({ brandName, libraryItems, live = false }: { brandNam
               </span>
             ))}
           </div>
-          <div className="drop" data-soon="Uploading & importing art is coming soon"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg><div className="dt">Upload or import a URL</div><div className="dd">Bring in art from Canva, Midjourney, DALL·E — anything</div></div>
+          <input ref={fileRef} type="file" multiple accept="image/*,video/*" onChange={onUploadFiles} style={{ display: "none" }} />
+          <div className="drop" onClick={() => { if (live) fileRef.current?.click(); }} style={live ? { cursor: "pointer" } : undefined} {...(!live ? { "data-soon": "Connect a backend to import art" } : {})}><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg><div className="dt">{uploading ? "Uploading…" : "Upload or import art"}</div><div className="dd">{uploadNote ?? "Bring in art from Canva, Midjourney, DALL·E — anything"}</div></div>
           <div className="srchead"><span className="st">{sources[srcTab].title}</span><span className="sc">{sources[srcTab].items.length} items</span></div>
           <div className="mgrid2">{sources[srcTab].items.map((it, i) => <Tile key={i} item={it} i={i} />)}</div>
           {srcTab === "ai" && (
@@ -349,7 +410,7 @@ export function StudioView({ brandName, libraryItems, live = false }: { brandNam
                   <div className="exrow" data-soon="Auto-resizing for all platforms is coming soon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="5" /><circle cx="12" cy="12" r="3.6" /></svg>Resize for all platforms <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted)" }}>1:1 4:5 9:16 16:9</span></div>
                   <a className="exrow" href="/library"><svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z" /></svg>Save to Library</a>
                   <Link className="exrow gold" href="/campaigns"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to Storm-Season Reactivation</Link>
-                  <div className="exrow" data-soon="Download is coming soon"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg>Download (PNG / MP4)</div>
+                  <div className="exrow" onClick={downloadCurrent} style={bg.url ? { cursor: "pointer" } : undefined} {...(!bg.url ? { "data-soon": "Select an approved photo or video to download its file" } : {})}><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg>{bg.url ? "Download asset" : "Download (PNG / MP4)"}</div>
                 </div>
               </div>
             </div>

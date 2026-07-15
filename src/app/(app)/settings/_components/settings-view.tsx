@@ -11,6 +11,7 @@ import type { ConnectorSpendView } from "@/lib/connectors/spend-summary";
 import { connectorMatchesIndustry, describeConnectorCost, findConnector, type ConnectorCostTier, type ConnectorStatus } from "@/domain";
 import type { ConnectorView } from "@/lib/connectors/read-model";
 import type { SettingsConnectorsView } from "@/lib/connectors/settings-connectors";
+import type { EffectiveAgentConnection } from "@/lib/agent/connection";
 import type { SettingsBillingView } from "@/lib/billing/settings-billing";
 import { IMAGE_MODELS, VIDEO_MODELS, type AppSettings } from "@/lib/settings/store";
 
@@ -331,7 +332,7 @@ const DENSITY_LABEL: Record<AppSettings["appearanceDensity"], string> = { comfor
 const MOTION_LABEL: Record<AppSettings["appearanceMotion"], string> = { standard: "Standard", reduced: "Reduced" };
 const PROFILE_LABEL: Record<AppSettings["workspaceProfile"], string> = { individual: "Individual", company: "Company", agency: "Agency" };
 
-export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, billing = null, settings, connectors, workspaces, emailConnection = null }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; billing?: SettingsBillingView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null }) {
+export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, billing = null, settings, connectors, workspaces, emailConnection = null, agentConnection = null }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; billing?: SettingsBillingView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null; agentConnection?: EffectiveAgentConnection | null }) {
   const [cur, setCur] = useState("overview");
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
@@ -444,22 +445,33 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
     ? connectors.connectors.filter((v) => connectorMatchesIndustry(findConnector(v.key)?.verticals ?? [], workspaceIndustry))
     : [];
 
+  // Overview cards read from live workspace data — never hardcoded. Connections active counts
+  // enabled connectors + email; runner status reflects the agent_connections heartbeat.
+  const activeConnections = connectors.connectors.filter((c) => c.enabled).length + (emailConnection?.enabled ? 1 : 0);
+  const runnerValue = !agentConnection?.enabled
+    ? "Off"
+    : agentConnection.health.lastStatus === "ok"
+      ? "OK"
+      : agentConnection.health.lastStatus
+        ? "Down"
+        : "Idle";
+
   const sections: Record<string, ReactNode> = {
     overview: (
       <>
         <Head t="Overview" d="Your workspace at a glance — health, what needs you, and quick links." />
         <div className="ovgrid">
-          {[["connections", "3", "Connections active"], ["team", String(memberCount), "Team members"], ["agent", "OK", "Runner connected"], ["usage", `${usageView.pctOfCap}%`, "Of monthly cap"]].map(([ic, v, l]) => (
+          {[["connections", String(activeConnections), "Connections active"], ["team", String(memberCount), "Team members"], ["agent", runnerValue, "Runner status"], ["usage", `${usageView.pctOfCap}%`, "Of monthly cap"]].map(([ic, v, l]) => (
             <div className="ovcard" key={l} onClick={() => navTo(ic)}><div className="ovi"><Ic d={ICON[ic]} /></div><div className="ovv">{v}</div><div className="ovl">{l}</div></div>
           ))}
         </div>
         <Panel title="Needs attention" tag={TGOK}>
-          {[["warn", "2 sign-in methods unconfigured", "— add a passkey or Google for recovery.", "account"], ["warn", "Notifications aren’t wired yet", "— event delivery is still scaffold.", "notifications"], ["ok", "Outbound is locked", "— Arc can’t send, post, or spend without you.", "behavior"]].map(([k, t, d, sec]) => (
+          {[["warn", "Add a recovery sign-in method", "— connect Google SSO in Account.", "account"], ["warn", "Notifications aren’t wired yet", "— event delivery is still scaffold.", "notifications"], ["ok", "Outbound is locked", "— Arc can’t send, post, or spend without you.", "behavior"]].map(([k, t, d, sec]) => (
             <div className="attn" key={t} onClick={() => navTo(sec)}><span className={`ai ${k}`}><Ic d={k === "ok" ? CHECK : '<path d="M12 9v4M12 17h.01M10.3 4l-7 12a2 2 0 001.7 3h14a2 2 0 001.7-3l-7-12a2 2 0 00-3.4 0z"/>'} /></span><div className="at"><b>{t}</b> {d}</div><span className="ago">→</span></div>
           ))}
         </Panel>
         <Panel title="Workspace" tag={TGOK}>
-          <Row label="Plan"><span className="pillrow"><Pill kind="ok">Premium</Pill><button className="btn sm">Manage plan</button></span></Row>
+          <Row label="Plan"><span className="pillrow"><Pill kind="ok">{billing?.planLabel ?? "—"}</Pill><button className="btn sm" onClick={() => navTo("usage")}>Manage plan</button></span></Row>
           <Row label="Business type"><span className="pillrow"><span className="ptxt">Company · Restoration &amp; home services</span><button className="btn sm" onClick={() => navTo("general")}>Change</button></span></Row>
           <Row label="Team"><span className="pillrow"><span className="ptxt">{memberCount} {memberCount === 1 ? "member" : "members"}{pendingCount > 0 ? ` · ${pendingCount} pending` : ""}</span><button className="btn sm" onClick={() => navTo("team")}>Manage</button></span></Row>
         </Panel>
@@ -611,9 +623,9 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
         {activeSub === "Sign-in" ? (
           <Panel title="Sign-in methods" tag={TGEST} foot="operator gate + /api/auth · ARC_AUTH_MODE (controls not yet wired)">
             <Row label="Password" desc="Email + password operator sign-in."><span className="pillrow"><Pill kind="ok">Configured</Pill><button className="btn sm">Change</button></span></Row>
-            <Row label="Passkey" desc="Hardware / biometric sign-in."><span className="pillrow"><Pill kind="off">Not configured</Pill><button className="btn sm gold">Set up</button></span></Row>
+            <Row label="Passkey" desc="Hardware / biometric sign-in."><span className="pillrow"><Pill kind="off">Planned</Pill></span></Row>
             <Row label="Google" desc="SSO via Google."><span className="pillrow"><Pill kind="warn">Available</Pill><button className="btn sm">Connect</button></span></Row>
-            <div style={{ padding: "13px 0 4px", display: "flex", gap: 9 }}><button className="btn">Reset access token</button><button className="btn danger">Sign out</button></div>
+            <div style={{ padding: "13px 0 4px", display: "flex", gap: 9 }}><button className="btn">Reset access token</button><form action="/api/auth/sign-out" method="post" style={{ display: "inline" }}><button type="submit" className="btn danger">Sign out</button></form></div>
           </Panel>
         ) : (
           <Panel title="Operator" tag={TGEST}>

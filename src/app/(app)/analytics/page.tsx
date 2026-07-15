@@ -35,7 +35,7 @@ export default async function AnalyticsPage() {
   const [overview, activity, performance, conversion] = await Promise.all([
     getAnalyticsOverview(ctx.orgId).catch(() => null),
     getRecentActivity({}, undefined, ctx.orgId).catch(() => ({ status: "unavailable" }) as const),
-    getPerformanceReadModel().catch(() => ({ status: "unavailable" }) as const),
+    getPerformanceReadModel(undefined, undefined, ctx.orgId).catch(() => ({ status: "unavailable" }) as const),
     getOpportunityConversion(ctx.orgId).catch(() => ({ status: "unavailable" }) as const),
   ]);
 

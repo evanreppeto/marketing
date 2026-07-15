@@ -1,12 +1,9 @@
-import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { redirect } from "next/navigation";
 
-import { BuilderView } from "./_components/builder-view";
-import "./builder.css";
-
-export const metadata = { title: "New campaign — Arc" };
-
-export default async function CampaignBuilderPage() {
-  const ctx = await getCurrentWorkspaceContext().catch(() => null);
-  const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
-  return <BuilderView brandName={brandName} />;
+// The static campaign builder that used to live here was a hardcoded mockup with fabricated
+// "intelligence" and dead buttons, and is no longer linked from anywhere in the app. The real
+// campaign-creation flow is the NewCampaignModal on /campaigns. Redirect so the old URL (and its
+// breadcrumb) can never surface the fake screen again.
+export default function CampaignBuilderPage() {
+  redirect("/campaigns");
 }
