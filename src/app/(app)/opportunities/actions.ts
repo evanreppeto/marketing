@@ -12,13 +12,7 @@ import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { createCampaignFromOpportunity } from "@/lib/campaigns/create";
 import { getOrgPersonaKeys } from "@/lib/personas/read-model";
-import { runSignalSourceDetection } from "@/lib/connectors/detection";
-import {
-  runColdLeadDetection,
-  runCompetitorSignalDetection,
-  runNextIterationDetection,
-  runWeatherEventDetection,
-} from "@/lib/opportunities/detector";
+import { runDeterministicOpportunityScan } from "@/lib/opportunities/scan";
 import { executeOpportunityDraftTask } from "@/lib/opportunities/draft-package";
 import { enqueueArcOpportunityTask } from "@/lib/opportunities/enqueue";
 import { markOpportunityDrafted, markOpportunityDrafting } from "@/lib/opportunities/persistence";
@@ -38,23 +32,10 @@ import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 export async function scanForOpportunitiesAction(): Promise<void> {
   if (!isSupabaseAdminConfigured()) return;
   // Ensures the caller is authenticated + establishes the org scope the detectors read.
-  const ctx = await getCurrentWorkspaceContext();
-  const swallow = () => {
-    // Detection is best-effort; a failing source just leaves the inbox unchanged.
-  };
-  await Promise.all([
-    runColdLeadDetection().catch(swallow),
-    runWeatherEventDetection().catch(swallow),
-    runCompetitorSignalDetection().catch(swallow),
-    // Campaigns whose real results warrant a follow-up — the proactive close of
-    // the performance learning loop, surfaced in the same inbox.
-    runNextIterationDetection().catch(swallow),
-    // Enabled signal_source connectors (live NWS weather, etc). Requires a
-    // workspace to scope + read the per-workspace connector config.
-    ctx.workspaceId
-      ? runSignalSourceDetection({ workspaceId: ctx.workspaceId, orgId: ctx.orgId }).catch(swallow)
-      : Promise.resolve(),
-  ]);
+  await getCurrentWorkspaceContext();
+  // Same deterministic detectors the scheduled cron runs — one shared path so the
+  // manual scan and the daily scan can never surface different opportunities.
+  await runDeterministicOpportunityScan();
   revalidatePath("/opportunities");
 }
 
