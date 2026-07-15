@@ -1115,6 +1115,9 @@ function operatorMessageBefore(messages: ArcMessage[], index: number): ArcMessag
   return null;
 }
 
+/** Counts of work waiting on the operator, surfaced in the launcher. */
+type ArcWaiting = { approvals: number; opportunities: number };
+
 const LAUNCHER_SHORTCUTS: Array<{ icon: typeof Target; label: string; prompt: string }> = [
   { icon: Target, label: "Find priority leads", prompt: "Which homeowners should we reach first right now, and why?" },
   { icon: MessageSquareText, label: "Draft a campaign", prompt: "Draft a multi-channel campaign for our highest-priority segment." },
@@ -1125,7 +1128,7 @@ const LAUNCHER_SHORTCUTS: Array<{ icon: typeof Target; label: string; prompt: st
 /** The new-conversation "work launcher": a time-of-day greeting and tappable
  *  workflow starters that prefill the composer, so a blank chat proposes work
  *  instead of a bare prompt. */
-function ArcLauncher({ brandName, onPick }: { brandName: string; onPick: (prompt: string) => void }) {
+function ArcLauncher({ brandName, waiting, onPick }: { brandName: string; waiting?: ArcWaiting | null; onPick: (prompt: string) => void }) {
   // Neutral on the server, resolved to the local time-of-day after mount — keeps
   // SSR/client markup identical (no hydration mismatch) and greets by the reader's
   // own clock, not the server's.
@@ -1152,6 +1155,25 @@ function ArcLauncher({ brandName, onPick }: { brandName: string; onPick: (prompt
       <ArcAvatar />
       <h2>{greeting}, {brandName}</h2>
       <p>Ask me to find an audience, draft a campaign, or check a signal. I’ll show the work — and nothing goes out until you approve it.</p>
+      {waiting && (waiting.approvals > 0 || waiting.opportunities > 0) ? (
+        <div className="arc-launcher-waiting">
+          <span className="arc-launcher-waiting-label">Waiting on you</span>
+          {waiting.approvals > 0 ? (
+            <Link href="/campaigns" className="arc-launcher-waiting-item is-warn">
+              <ClipboardCheck size={14} />
+              <b>{waiting.approvals}</b> {waiting.approvals === 1 ? "approval" : "approvals"}
+              <ArrowRight size={13} />
+            </Link>
+          ) : null}
+          {waiting.opportunities > 0 ? (
+            <Link href="/opportunities" className="arc-launcher-waiting-item">
+              <Zap size={14} />
+              <b>{waiting.opportunities}</b> {waiting.opportunities === 1 ? "opportunity" : "opportunities"}
+              <ArrowRight size={13} />
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
       <div className="arc-launcher-grid">
         {LAUNCHER_SHORTCUTS.map((shortcut) => {
           const Icon = shortcut.icon;
@@ -1172,6 +1194,7 @@ function ArcLauncher({ brandName, onPick }: { brandName: string; onPick: (prompt
 function LiveConversation({
   messages,
   brandName,
+  waiting,
   assetStatuses,
   onSuggestion,
   onReview,
@@ -1182,6 +1205,7 @@ function LiveConversation({
 }: {
   messages: ArcMessage[];
   brandName: string;
+  waiting?: ArcWaiting | null;
   assetStatuses: Record<string, ArcAssetStatus>;
   onSuggestion: (value: string) => void;
   onReview: (cards: ArcActionCard[]) => void;
@@ -1191,7 +1215,7 @@ function LiveConversation({
   stoppingTaskId: string | null;
 }) {
   if (messages.length === 0) {
-    return <ArcLauncher brandName={brandName} onPick={onSuggestion} />;
+    return <ArcLauncher brandName={brandName} waiting={waiting} onPick={onSuggestion} />;
   }
 
   // While a reply is in flight, hide edit/regenerate — the turn is already running.
@@ -1423,6 +1447,7 @@ export function ArcView({
   messages = [],
   activeConversationId = null,
   mentionGroups = [],
+  waiting = null,
 }: {
   brandName: string;
   live?: boolean;
@@ -1430,6 +1455,7 @@ export function ArcView({
   messages?: ArcMessage[];
   activeConversationId?: string | null;
   mentionGroups?: MentionGroup[];
+  waiting?: ArcWaiting | null;
 }) {
   const router = useRouter();
   const [isSending, startSend] = useTransition();
@@ -1872,7 +1898,7 @@ export function ArcView({
 
       <main className="arc-conversation-scroll" ref={scrollRef}>
         <div className="arc-conversation-column">
-          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} assetStatuses={assetStatuses} onSuggestion={setDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <ArcLauncher brandName={brandName} onPick={setDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
+          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={setDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <ArcLauncher brandName={brandName} waiting={{ approvals: 3, opportunities: 6 }} onPick={setDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
           <div ref={endRef} />
         </div>
       </main>
