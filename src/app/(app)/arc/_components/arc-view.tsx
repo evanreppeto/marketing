@@ -1634,6 +1634,7 @@ export function ArcView({
   activeConversationId = null,
   mentionGroups = [],
   waiting = null,
+  initialDraft,
 }: {
   brandName: string;
   live?: boolean;
@@ -1642,10 +1643,11 @@ export function ArcView({
   activeConversationId?: string | null;
   mentionGroups?: MentionGroup[];
   waiting?: ArcWaiting | null;
+  initialDraft?: string;
 }) {
   const router = useRouter();
   const [isSending, startSend] = useTransition();
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(initialDraft ?? "");
   const [mode, setMode] = useState<ArcMode>("ask");
   const [route, setRoute] = useState<ArcRoute>("fast");
   const [composerMenu, setComposerMenu] = useState<ComposerMenu>(null);

@@ -11,7 +11,7 @@ import {
   type LiveCampaignWorkspace,
 } from "@/lib/campaigns/read-model";
 import { LOCKED_CLAIMS, MEASUREMENT_PLAN } from "@/lib/performance/measurement-copy";
-import { type CampaignPerformancePanel, type PerformanceTrendPoint } from "@/lib/performance/campaign-panel";
+import { buildPerformanceLearning, type CampaignPerformancePanel, type PerformanceTrendPoint } from "@/lib/performance/campaign-panel";
 
 import { ShareDialog } from "../../../_components/share-dialog";
 import { decideCampaignAsset, launchCampaignAction, requestCampaignRevision } from "../actions";
@@ -123,7 +123,8 @@ function TrendChart({ points }: { points: PerformanceTrendPoint[] }) {
   );
 }
 
-function PerformancePanel({ panel, lifecycle }: { panel: CampaignPerformancePanel; lifecycle: string }) {
+function PerformancePanel({ panel, lifecycle, campaignName }: { panel: CampaignPerformancePanel; lifecycle: string; campaignName?: string }) {
+  const learning = buildPerformanceLearning(panel, campaignName);
   if (panel.status === "measuring") {
     return (
       <div>
@@ -188,6 +189,26 @@ function PerformancePanel({ panel, lifecycle }: { panel: CampaignPerformancePane
         </div>
         <p className="perfnote">{panel.note}</p>
       </div>
+
+      {learning && (
+        <div className="csec perflearn">
+          <h3 className="csh">
+            {svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/>')}
+            What Arc learned <span className="est">Next move</span>
+          </h3>
+          <ul className="perflearn-wins">
+            {learning.wins.map((win, index) => <li key={index}>{win}</li>)}
+          </ul>
+          <div className="perflearn-move">
+            <div className="perflearn-rec">{learning.recommendation}</div>
+            <Link className="perflearn-cta" href={`/arc?new=1&prompt=${encodeURIComponent(learning.arcPrompt)}`}>
+              Ask Arc to draft it
+              {svg('<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>')}
+            </Link>
+          </div>
+          <p className="perflearn-lock">Outbound stays locked — Arc drafts the next iteration for your approval.</p>
+        </div>
+      )}
 
       {panel.trend.length > 1 && (
         <div className="csec">
@@ -561,7 +582,7 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
             </div>
           )}
 
-          {tab === "performance" && <PerformancePanel panel={performance} lifecycle={launchState.lifecycle} />}
+          {tab === "performance" && <PerformancePanel panel={performance} lifecycle={launchState.lifecycle} campaignName={detail.campaign.name} />}
 
           {tab === "sources" && (
             <div className="csec">

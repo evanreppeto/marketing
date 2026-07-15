@@ -200,6 +200,55 @@ function hasAttributionSignal(econ: Extract<CampaignEconomicsReadModel, { status
   return econ.attributedLeads > 0 || econ.spendCents > 0 || econ.realizedRevenueCents > 0 || econ.pipelineRevenueCents > 0;
 }
 
+/**
+ * What Arc learned from a campaign's results, and the next move — the closing
+ * step of the performance loop. Purely derived from the panel's real numbers
+ * (no fabrication): the best channel by booked jobs, the best asset by CTR, and a
+ * grounded recommendation for the next iteration. Null while measuring or when
+ * there isn't enough signal to say anything honest yet.
+ */
+export type PerformanceLearning = {
+  /** What worked, each a full sentence citing the real figure. */
+  wins: string[];
+  /** The recommended next iteration, grounded in the same numbers. */
+  recommendation: string;
+  /** A ready-to-send prompt for Arc to draft that next iteration. */
+  arcPrompt: string;
+};
+
+export function buildPerformanceLearning(
+  panel: CampaignPerformancePanel,
+  campaignName?: string,
+): PerformanceLearning | null {
+  if (panel.status !== "live" || panel.channels.length === 0) return null;
+
+  const byBooked = [...panel.channels].sort((a, b) => b.booked - a.booked || b.leads - a.leads);
+  const top = byBooked[0];
+  if (top.booked === 0 && top.leads === 0) return null; // no delivered signal yet
+
+  const wins: string[] = [];
+  wins.push(
+    top.booked > 0
+      ? `${top.channel} led on outcomes — ${top.booked} booked ${top.booked === 1 ? "job" : "jobs"} from ${top.leads} ${top.leads === 1 ? "lead" : "leads"}.`
+      : `${top.channel} drove the most interest — ${top.leads} ${top.leads === 1 ? "lead" : "leads"}.`,
+  );
+
+  const topAsset = [...panel.assets].filter((asset) => asset.impressions > 0 && asset.ctr > 0).sort((a, b) => b.ctr - a.ctr)[0];
+  if (topAsset) wins.push(`“${topAsset.title}” pulled hardest — ${topAsset.ctr.toFixed(1)}% CTR on ${topAsset.channel}.`);
+
+  const weak = byBooked.slice(1).find((channel) => channel.leads > 0 && channel.booked === 0);
+
+  const moves: string[] = [`lead with ${top.channel}`];
+  if (topAsset) moves.push(`reuse “${topAsset.title}”`);
+  if (weak) moves.push(`and rework ${weak.channel}, which drew ${weak.leads} ${weak.leads === 1 ? "lead" : "leads"} but no bookings`);
+  const recommendation = `For the next iteration, ${moves.join(", ")}.`;
+
+  const label = campaignName?.trim() ? `the ${campaignName.trim()} campaign` : "this campaign";
+  const arcPrompt = `Draft the next iteration of ${label} based on what worked: ${recommendation} Keep it approval-gated.`;
+
+  return { wins, recommendation, arcPrompt };
+}
+
 export async function getCampaignPerformancePanel(campaignId: string): Promise<CampaignPerformancePanel> {
   // Live attribution first when Supabase is configured and the campaign has signal.
   if (isSupabaseAdminConfigured()) {
