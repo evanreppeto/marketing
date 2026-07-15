@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCampaignLink, computeCampaignEconomics, resolveAttribution } from "../attribution";
+import { buildCampaignLink, computeCampaignEconomics, resolveAttribution, stampCampaignLinks } from "../attribution";
 
 const CAMPAIGN = "11111111-1111-1111-1111-111111111111";
 const ASSET = "22222222-2222-2222-2222-222222222222";
@@ -78,5 +78,50 @@ describe("computeCampaignEconomics", () => {
     expect(noWins.cac).toBeNull();
     const noLeads = computeCampaignEconomics({ attributedLeads: 0, wonRevenueCents: 0, wonCount: 0, openPipelineCents: 0, spendCents: 50000 });
     expect(noLeads.cpl).toBeNull();
+  });
+});
+
+describe("stampCampaignLinks", () => {
+  const at = { campaignId: CAMPAIGN, assetId: ASSET, channel: "email" };
+
+  it("tags a first-party href in html and round-trips through resolveAttribution", () => {
+    const out = stampCampaignLinks({ html: '<a href="https://bigshoulders.com/quote">Book now</a>' }, at);
+    const href = out.html!.match(/href="([^"]+)"/)![1];
+    const url = new URL(href);
+    expect(url.searchParams.get("utm_campaign")).toBe(CAMPAIGN);
+    const resolved = resolveAttribution({ token: url.searchParams.get("bsg_at")! });
+    expect(resolved).toMatchObject({ campaignId: CAMPAIGN, assetId: ASSET, channel: "email", method: "token" });
+  });
+
+  it("tags a bare url in text and peels trailing punctuation", () => {
+    const out = stampCampaignLinks({ text: "Visit https://bigshoulders.com/quote. Thanks!" }, at);
+    expect(out.text).toMatch(/bsg_at=/);
+    expect(out.text).toMatch(/quote\?[^ ]*\. Thanks!$/); // period stayed outside the link
+  });
+
+  it("never tags social, unsubscribe, mailto, or non-http links", () => {
+    const html =
+      '<a href="https://facebook.com/bsr">fb</a>' +
+      '<a href="https://bigshoulders.com/unsubscribe?e=1">unsub</a>' +
+      '<a href="mailto:hi@bsr.com">mail</a>' +
+      '<a href="tel:+13125551234">call</a>';
+    const out = stampCampaignLinks({ html }, at);
+    expect(out.html).toBe(html); // unchanged
+  });
+
+  it("is idempotent — already-tagged links are left alone", () => {
+    const once = stampCampaignLinks({ html: '<a href="https://bigshoulders.com/quote">x</a>' }, at);
+    const twice = stampCampaignLinks({ html: once.html }, at);
+    expect(twice.html).toBe(once.html);
+  });
+
+  it("returns the body unchanged when the campaignId is not a UUID", () => {
+    const html = '<a href="https://bigshoulders.com/quote">x</a>';
+    expect(stampCampaignLinks({ html }, { campaignId: "not-a-uuid" }).html).toBe(html);
+  });
+
+  it("respects extra skipHosts", () => {
+    const html = '<a href="https://reviews.example.com/leave">review</a>';
+    expect(stampCampaignLinks({ html }, { ...at, skipHosts: ["reviews.example.com"] }).html).toBe(html);
   });
 });

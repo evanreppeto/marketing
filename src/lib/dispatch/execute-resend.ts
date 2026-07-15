@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { buildResendEmailPayload, type ResendEmailPayload } from "@/domain";
+import { buildResendEmailPayload, stampCampaignLinks, type ResendEmailPayload } from "@/domain";
 
 import { recordConnectionUse } from "@/lib/connections/persistence";
 import { sendResendEmail } from "@/lib/connections/resend-client";
@@ -42,6 +42,8 @@ type DispatchRow = {
   approval_item_id: string | null;
   channel: string | null;
   campaign_id: string | null;
+  campaign_asset_id: string | null;
+  contact_id: string | null;
   provider_message_id: string | null;
   payload: { to?: string | string[]; subject?: string; html?: string; text?: string } | null;
 };
@@ -81,7 +83,7 @@ export async function executeResendDispatch(
 
   const { data: dispatch, error: dispatchError } = await client
     .from("campaign_dispatches")
-    .select("id,org_id,status,approval_item_id,channel,campaign_id,provider_message_id,payload")
+    .select("id,org_id,status,approval_item_id,channel,campaign_id,campaign_asset_id,contact_id,provider_message_id,payload")
     .eq("id", dispatchId)
     .maybeSingle<DispatchRow>();
   assertOk("campaign_dispatches lookup", dispatchError);
@@ -146,14 +148,25 @@ export async function executeResendDispatch(
     return { ok: false, message: "No from-address configured for Resend (set config.fromEmail or RESEND_FROM)." };
   }
 
+  // Attribution capture: tag first-party links in the body so a recipient's
+  // click-through carries this campaign's identity (utm + bsg_at token), which
+  // resolveAttribution reads back when the resulting lead is ingested. No-op when
+  // the dispatch has no campaign (bare send) or the body has no taggable links.
+  const stamped = dispatch.campaign_id
+    ? stampCampaignLinks(
+        { html: dispatch.payload?.html, text: dispatch.payload?.text },
+        { campaignId: dispatch.campaign_id, assetId: dispatch.campaign_asset_id, channel: dispatch.channel },
+      )
+    : { html: dispatch.payload?.html ?? null, text: dispatch.payload?.text ?? null };
+
   let payload: ResendEmailPayload;
   try {
     payload = buildResendEmailPayload({
       from,
       to: dispatch.payload?.to ?? [],
       subject: dispatch.payload?.subject ?? "",
-      html: dispatch.payload?.html,
-      text: dispatch.payload?.text,
+      html: stamped.html ?? undefined,
+      text: stamped.text ?? undefined,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Invalid email payload.";
@@ -185,8 +198,37 @@ export async function executeResendDispatch(
 
   await recordConnectionUse(client, dispatch.org_id, "resend");
   await logCampaignEvent(client, dispatch.campaign_id, "dispatch_sent", operator, `Sent via Resend (${providerMessageId}).`);
+  await recordOutboundTouch(client, dispatch, providerMessageId);
 
   return { ok: true, message: "Sent via Resend.", providerMessageId };
+}
+
+/**
+ * Record the send as a durable attribution touch in engagement_events — the
+ * "we contacted contact X for campaign Y on channel Z" signal the performance
+ * read-models already read (campaign traffic, persona intelligence) and the raw
+ * material for last-touch attribution on inbound leads. Best-effort: the send has
+ * already succeeded, so a logging failure must never surface as a send failure,
+ * and engagement_events is a tolerated-optional table.
+ */
+async function recordOutboundTouch(client: SupabaseClient, dispatch: DispatchRow, providerMessageId: string) {
+  try {
+    await client.from("engagement_events").insert({
+      org_id: dispatch.org_id,
+      event_type: "outbound_send",
+      direction: "outbound",
+      channel: dispatch.channel ?? "email",
+      source_system: "resend",
+      external_event_id: providerMessageId,
+      campaign_id: dispatch.campaign_id,
+      campaign_asset_id: dispatch.campaign_asset_id,
+      contact_id: dispatch.contact_id,
+      summary: "Campaign email dispatched via Resend.",
+      metadata: { provider: "resend" },
+    });
+  } catch {
+    // swallowed — see doc comment
+  }
 }
 
 async function markFailed(
