@@ -1078,6 +1078,60 @@ function operatorMessageBefore(messages: ArcMessage[], index: number): ArcMessag
   return null;
 }
 
+const LAUNCHER_SHORTCUTS: Array<{ icon: typeof Target; label: string; prompt: string }> = [
+  { icon: Target, label: "Find priority leads", prompt: "Which homeowners should we reach first right now, and why?" },
+  { icon: MessageSquareText, label: "Draft a campaign", prompt: "Draft a multi-channel campaign for our highest-priority segment." },
+  { icon: Zap, label: "Check today's signals", prompt: "What new signals or opportunities should I know about today?" },
+  { icon: ShieldCheck, label: "Review approvals", prompt: "What's waiting for my approval right now?" },
+];
+
+/** The new-conversation "work launcher": a time-of-day greeting and tappable
+ *  workflow starters that prefill the composer, so a blank chat proposes work
+ *  instead of a bare prompt. */
+function ArcLauncher({ brandName, onPick }: { brandName: string; onPick: (prompt: string) => void }) {
+  // Neutral on the server, resolved to the local time-of-day after mount — keeps
+  // SSR/client markup identical (no hydration mismatch) and greets by the reader's
+  // own clock, not the server's.
+  const [greeting, setGreeting] = useState("Hello");
+  useEffect(() => {
+    const hour = new Date().getHours();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing to the browser clock is exactly what this effect is for
+    setGreeting(hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening");
+  }, []);
+
+  const pick = (prompt: string) => {
+    onPick(prompt);
+    requestAnimationFrame(() => {
+      const textarea = document.querySelector<HTMLTextAreaElement>(".arc-composer textarea");
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(prompt.length, prompt.length);
+      }
+    });
+  };
+
+  return (
+    <div className="arc-launcher">
+      <ArcAvatar />
+      <h2>{greeting}, {brandName}</h2>
+      <p>Ask me to find an audience, draft a campaign, or check a signal. I’ll show the work — and nothing goes out until you approve it.</p>
+      <div className="arc-launcher-grid">
+        {LAUNCHER_SHORTCUTS.map((shortcut) => {
+          const Icon = shortcut.icon;
+          return (
+            <button type="button" key={shortcut.label} onClick={() => pick(shortcut.prompt)}>
+              <span className="arc-launcher-icon"><Icon size={16} /></span>
+              <b>{shortcut.label}</b>
+              <small>{shortcut.prompt}</small>
+            </button>
+          );
+        })}
+      </div>
+      <span className="arc-launcher-lock"><LockKeyhole size={12} /> Outbound stays locked</span>
+    </div>
+  );
+}
+
 function LiveConversation({
   messages,
   brandName,
@@ -1096,13 +1150,7 @@ function LiveConversation({
   stoppingTaskId: string | null;
 }) {
   if (messages.length === 0) {
-    return (
-      <div className="arc-empty-chat">
-        <ArcAvatar />
-        <h2>How can I help, {brandName}?</h2>
-        <p>Ask me to find an audience, draft a campaign, or check a signal. I’ll show the work that matters, and nothing goes out until you approve it.</p>
-      </div>
-    );
+    return <ArcLauncher brandName={brandName} onPick={onSuggestion} />;
   }
 
   return (
@@ -1746,7 +1794,7 @@ export function ArcView({
 
       <main className="arc-conversation-scroll" ref={scrollRef}>
         <div className="arc-conversation-column">
-          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} assetStatuses={assetStatuses} onSuggestion={setDraft} onReview={openReview} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <div className="arc-empty-chat"><ArcAvatar /><h2>What should we work on?</h2><p>Start with an audience, a signal, or a draft. Arc will keep the work visible and the send path locked.</p></div> : <DemoConversation turns={demoTurns} pending={demoPending} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onStop={stopDemoRun} />}
+          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} assetStatuses={assetStatuses} onSuggestion={setDraft} onReview={openReview} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <ArcLauncher brandName={brandName} onPick={setDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onStop={stopDemoRun} />}
           <div ref={endRef} />
         </div>
       </main>

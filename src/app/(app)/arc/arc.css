@@ -771,6 +771,61 @@
 .arc-empty-chat h2 { margin: 0; font-family: var(--serif); font-size: 28px; font-weight: 520; color: var(--text); }
 .arc-empty-chat p { max-width: 55ch; color: var(--muted); font-size: 13px; line-height: 1.6; margin: 10px 0 0; }
 
+/* New-conversation work launcher — greeting + tappable workflow starters. */
+.arc-launcher {
+  min-height: 460px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 24px;
+}
+.arc-launcher .arc-avatar { width: 40px; height: 40px; border-radius: 10px; margin-bottom: 18px; }
+.arc-launcher h2 { margin: 0; font-family: var(--serif); font-size: clamp(26px, 3vw, 32px); font-weight: 540; letter-spacing: -.02em; color: var(--text); }
+.arc-launcher > p { max-width: 54ch; margin: 11px 0 0; color: var(--muted); font-size: 13px; line-height: 1.62; }
+.arc-launcher-grid {
+  width: min(560px, 100%);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 28px 0 0;
+}
+.arc-launcher-grid button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 2px 11px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 55%, transparent);
+  padding: 13px 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--arc-fast), background var(--arc-fast), transform var(--arc-fast);
+}
+.arc-launcher-grid button:hover { border-color: var(--accent-border); background: var(--accent-soft); transform: translateY(-1px); }
+.arc-launcher-grid button:active { transform: translateY(0); }
+.arc-launcher-icon {
+  grid-row: 1 / 3;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--accent-border);
+  border-radius: 9px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.arc-launcher-grid b { color: var(--text); font-size: 12.5px; font-weight: 600; }
+.arc-launcher-grid small { min-width: 0; color: var(--muted); font-size: 10.5px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.arc-launcher-lock { display: inline-flex; align-items: center; gap: 5px; margin-top: 20px; color: var(--ok-text); font-size: 10.5px; }
+.arc-launcher-lock svg { color: var(--ok); }
+@media (max-width: 640px) {
+  .arc-launcher-grid { grid-template-columns: 1fr; }
+}
+
 /* ── Composer ───────────────────────────────────────────────────────────── */
 .arc-composer-dock {
   position: relative;
