@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import CircularProgress from "@mui/material/CircularProgress";
 import {
   Fragment,
+  isValidElement,
   useCallback,
   useEffect,
   useRef,
@@ -54,7 +55,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import type {
@@ -130,6 +131,21 @@ const DEMO_TOOLS: ArcToolCall[] = [
   { name: "crm.search", status: "complete", output: "142 matched properties" },
   { name: "audience.score", status: "complete", output: "$1.4M estimated opportunity" },
 ];
+
+const DEMO_BREAKDOWN_MD = `Here's how the 142 homes break down, and the tracking I'd attach so we can attribute booked jobs back to this run:
+
+| Segment | Homes | Est. value | Top signal |
+| --- | --: | --: | --- |
+| Insured · fresh damage | 64 | $612K | No inspection booked |
+| Aging roof · out-of-pocket | 41 | $455K | Roof age 8y+ |
+| Property manager · multi-unit | 37 | $333K | Prior claim activity |
+
+Every link gets tagged so attribution is clean:
+
+\`\`\`text
+?utm_source=arc&utm_medium=email&utm_campaign=naperville_storm&segment={persona}
+\`\`\`
+`;
 
 type DemoTurn = { id: string; role: "operator" | "arc"; body: string; outcome?: "complete" | "canceled"; mode?: ArcMode; command?: string | null };
 type ComposerMenu = "tools" | "model" | "mode" | "context" | "mentions" | "commands" | null;
@@ -295,13 +311,88 @@ function useSmoothStream(target: string, streaming: boolean): string {
   return target.slice(0, revealed);
 }
 
+/** Flatten a rendered markdown node back to its raw text (for the copy button). */
+function nodeText(node: React.ReactNode): string {
+  if (typeof node === "string") return node;
+  if (typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(nodeText).join("");
+  if (isValidElement(node)) return nodeText((node.props as { children?: React.ReactNode }).children);
+  return "";
+}
+
+/** A fenced code block with a language label and a copy button — the premium
+ *  code affordance. Intentionally no multi-hue syntax highlighting (off-brand for
+ *  the calm obsidian/gold system); clean mono on an inset surface instead. */
+function CodeBlock({ children }: { children?: React.ReactNode }) {
+  const [copied, setCopied] = useState(false);
+  const codeChild = Array.isArray(children) ? children.find((child) => isValidElement(child)) : children;
+  const className = isValidElement(codeChild) ? String((codeChild.props as { className?: string }).className ?? "") : "";
+  const language = /language-([\w+-]+)/.exec(className)?.[1] ?? "";
+  const raw = nodeText(children).replace(/\n$/, "");
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(raw);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked — no-op */
+    }
+  };
+  return (
+    <div className="arc-code">
+      <div className="arc-code-head">
+        <span>{language || "code"}</span>
+        <button type="button" onClick={copy} aria-label={copied ? "Copied" : "Copy code"}>
+          {copied ? <Check size={13} /> : <Copy size={13} />}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <pre>{children}</pre>
+    </div>
+  );
+}
+
+/** Shared markdown component overrides — rich code blocks and scroll-safe tables.
+ *  Used by every Arc markdown surface so answers, streaming text, and reasoning
+ *  all render the same way. */
+const MARKDOWN_COMPONENTS: Components = {
+  pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
+  table: ({ children }) => (
+    <div className="arc-table-wrap">
+      <table>{children}</table>
+    </div>
+  ),
+};
+
 /** Markdown that types itself out while `streaming`, with a trailing caret (the
  *  caret is a CSS `::after` on the last rendered block — see `.arc-stream`). */
 function StreamingMarkdown({ text, streaming, className }: { text: string; streaming: boolean; className?: string }) {
   const shown = useSmoothStream(text, streaming);
   return (
     <div className={`arc-stream${streaming ? " is-streaming" : ""}${className ? ` ${className}` : ""}`}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{shown}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{shown}</ReactMarkdown>
+    </div>
+  );
+}
+
+/** The live "Thinking" stream — reasoning as it forms, kept in a calm fixed-height
+ *  window that auto-scrolls to the newest line so a long transcript never sprawls.
+ *  Snaps to full (no caret) once the answer starts. */
+function LiveReasoning({ text, streaming }: { text: string; streaming: boolean }) {
+  const shown = useSmoothStream(text, streaming);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [shown]);
+  return (
+    <div className="arc-live-reasoning">
+      <span className="arc-live-reasoning-label"><Brain size={12} /> Thinking</span>
+      <div className="arc-live-reasoning-scroll" ref={scrollRef}>
+        <div className={`arc-stream${streaming ? " is-streaming" : ""} arc-markdown`}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{shown}</ReactMarkdown>
+        </div>
+      </div>
     </div>
   );
 }
@@ -476,9 +567,8 @@ function RunTrace({
       <div className="arc-run-divider" />
       <div className="arc-live-worklog">
         {reasoning?.trim() ? (
-          <motion.div className="arc-live-reasoning" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
-            <span className="arc-live-reasoning-label"><Brain size={12} /> Thinking</span>
-            <StreamingMarkdown className="arc-markdown" text={reasoning} streaming={!liveText?.trim()} />
+          <motion.div initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+            <LiveReasoning text={reasoning} streaming={!liveText?.trim()} />
           </motion.div>
         ) : null}
         {liveText?.trim() ? (
@@ -833,7 +923,7 @@ function LiveConversation({
         return (
           <AssistantMessage key={message.id} time={formatMessageTime(message.createdAt)}>
             <RunTrace pending={pending} liveText={pending ? message.body : null} reasoning={message.reasoning} steps={message.steps} toolCalls={message.toolCalls} contract={contract} thoughtSeconds={thoughtSeconds} onStop={pending && message.agentTaskId ? () => onCancelRun(message.agentTaskId as string, message.conversationId) : undefined} stopping={stoppingTaskId === message.agentTaskId} outcome={message.status === "failed" ? (message.body.startsWith("Stopped by you") ? "canceled" : "failed") : "complete"} />
-            {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{message.body}</ReactMarkdown></div> : null}
+            {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div> : null}
             {!pending && message.recall?.length ? (
               <div className="arc-recall"><span><Brain size={14} /> Recalled</span>{message.recall.map((item, index) => <button type="button" key={`${item.label}-${index}`}>{item.label}{item.confidence != null ? <small>{Math.round(item.confidence * 100)}%</small> : null}</button>)}</div>
             ) : null}
@@ -876,6 +966,9 @@ function DemoConversation({
           <ul><li>Sit in the <b>worst-hit hail swath</b>, with no inspection on file — <b>3.1× more likely</b> to have hidden damage</li><li>No inspection booked in the six days since the storm</li><li>Roof age 8+ years or prior claim history</li></ul>
         </div>
         <RunTrace pending={false} thoughtSeconds={8} reasoning="I combined the storm footprint with property condition and recent CRM activity, then favored an inspection-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "ask", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
+      </AssistantMessage>
+      <AssistantMessage time="9:40 AM">
+        <div className="arc-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{DEMO_BREAKDOWN_MD}</ReactMarkdown></div>
       </AssistantMessage>
       <AssistantMessage time="9:42 AM">
         <div className="arc-answer"><p>I built the Storm Rapid Response package for the 142 highest-urgency homes.</p></div>
