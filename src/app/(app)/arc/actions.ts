@@ -8,10 +8,14 @@ import {
   parseArcMode,
   parseArcRoute,
   parseMentions,
+  validateRevisionInstruction,
   type ArcMention,
   type ArcMode,
   type ArcRoute,
 } from "@/domain";
+import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
+import { decideAsset, type ApprovalDecision } from "@/lib/campaigns/decisions";
+import { requestAssetRevision } from "@/lib/campaigns/revisions";
 import { getArcDisplayName } from "@/lib/arc-chat/agent-config";
 import { isAcceptedAttachment } from "@/lib/arc-chat/attachment-types";
 import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
@@ -213,6 +217,70 @@ export async function setArcMessageFeedbackAction(input: {
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Couldn't save that feedback." };
+  }
+}
+
+export type ArcDraftDecisionResult =
+  | { ok: true; persisted: boolean; status?: string }
+  | { ok: false; error: string };
+
+const DRAFT_DECISIONS: ReadonlySet<string> = new Set(["approved", "declined"]);
+
+/**
+ * Approve or decline an Arc-drafted campaign deliverable straight from the chat —
+ * the "human approves decisions" gate, in-flow. A real backend state transition
+ * (via decideAsset) that NEVER unlocks outbound dispatch; gated by requireOperator
+ * and org-scoped. `persisted: false` is the honest offline/demo signal so the card
+ * can reflect the decision without saving.
+ */
+export async function decideArcDraftAction(input: {
+  campaignId: string;
+  assetId: string;
+  decision: string;
+}): Promise<ArcDraftDecisionResult> {
+  await requireOperator();
+  if (!DRAFT_DECISIONS.has(input.decision)) return { ok: false, error: "Unknown decision." };
+  if (!input.campaignId.trim() || !input.assetId.trim()) return { ok: false, error: "This draft is missing its campaign reference." };
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false, status: input.decision };
+
+  try {
+    const operator = await getOperatorActor();
+    const tenant = await getCurrentAgentTaskTenantFields();
+    const result = await decideAsset({ assetId: input.assetId, campaignId: input.campaignId, decision: input.decision as ApprovalDecision, operator, tenant });
+    revalidatePath("/arc");
+    return { ok: true, persisted: true, status: result.status };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't record that decision." };
+  }
+}
+
+/**
+ * Ask Arc to revise a drafted deliverable from the chat — reuses the wired
+ * campaign revision flow (requestAssetRevision), so Arc re-drafts behind approval.
+ * Gated by requireOperator; outbound stays locked.
+ */
+export async function requestArcDraftRevisionAction(input: {
+  campaignId: string;
+  assetId: string;
+  instruction: string;
+}): Promise<ArcDraftDecisionResult> {
+  await requireOperator();
+  let cleaned: string;
+  try {
+    cleaned = validateRevisionInstruction(input.instruction);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Tell Arc what to change." };
+  }
+  if (!input.campaignId.trim() || !input.assetId.trim()) return { ok: false, error: "This draft is missing its campaign reference." };
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false, status: "revision_requested" };
+
+  try {
+    const operator = await getOperatorActor();
+    await requestAssetRevision({ campaignId: input.campaignId, assetId: input.assetId, instruction: cleaned, operator });
+    revalidatePath("/arc");
+    return { ok: true, persisted: true, status: "revision_requested" };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't request that revision." };
   }
 }
 
