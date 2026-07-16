@@ -16,6 +16,23 @@ const nextConfig: NextConfig = {
   devIndicators: {
     position: "bottom-right",
   },
+  // Hand the browser the deploy's environment and release.
+  //
+  // Next only inlines NEXT_PUBLIC_*, and Vercel's VERCEL_ENV / VERCEL_GIT_COMMIT_SHA
+  // carry no such prefix — so client-side Sentry saw neither and tagged production
+  // errors `environment: "development"` with no release, while the server tagged the
+  // same errors correctly. Sentry's own SDK concedes the split (getVercelEnv reads
+  // NEXT_PUBLIC_VERCEL_ENV on the client, VERCEL_ENV on the server).
+  //
+  // This config is evaluated at build time on the server, where the real values
+  // exist, so it is the one place that can bridge them. Empty string means "unset"
+  // downstream; an explicitly-set NEXT_PUBLIC_* still wins.
+  env: {
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT:
+      process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || process.env.VERCEL_ENV || "",
+    NEXT_PUBLIC_SENTRY_RELEASE:
+      process.env.NEXT_PUBLIC_SENTRY_RELEASE || process.env.VERCEL_GIT_COMMIT_SHA || "",
+  },
   async redirects() {
     return [
       { source: "/persona-intelligence", destination: "/personas", permanent: true },
