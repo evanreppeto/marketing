@@ -10,6 +10,12 @@ import { KpiStrip, type KpiCell } from "../../_components/kpi-strip";
 
 type FilterOption = { value: string; label: string; count: number };
 
+/** "Status" → "statuses", "Persona" → "personas". Sibilant endings take -es. */
+function pluralize(label: string): string {
+  const lower = label.toLowerCase();
+  return /(s|x|z|ch|sh)$/.test(lower) ? `${lower}es` : `${lower}s`;
+}
+
 // A working dropdown filter for the CRM toolbar. Previously the Persona/Status/
 // Owner buttons were dead <span>s; this makes each a real menu that filters the
 // table. Open/Escape/click-outside behavior mirrors account-menu.tsx.
@@ -57,7 +63,7 @@ function FilterMenu({
       {open && (
         <div className="fmenu" role="menu">
           <button type="button" className={`fmenu-item${value ? "" : " on"}`} role="menuitemradio" aria-checked={!value} onClick={() => { onChange(""); setOpen(false); }}>
-            <span>All {label.toLowerCase()}s</span>
+            <span>All {pluralize(label)}</span>
           </button>
           {options.map((o) => (
             <button
