@@ -661,3 +661,97 @@ describe("getCampaignWorkspaceDetail guardrail + recommendation", () => {
     expect(asset?.recommendation).toBeNull();
   });
 });
+
+describe("getCampaignWorkspaceDetail claims-review state", () => {
+  /** A recommendation row from a given agent, minimal but shaped like the real one. */
+  function rec(agent: string) {
+    return {
+      id: `rec-${agent}`,
+      approval_item_id: "appr-1",
+      agent,
+      recommendation: "request revision",
+      rationale: "…",
+      risk_flags: [],
+      suggested_edits: null,
+      created_at: "2026-07-16T12:05:00.000Z",
+    };
+  }
+
+  function detailWith(recommendations: MockResponse) {
+    return createSupabaseQueryMock({
+      campaigns: {
+        data: {
+          id: "camp-1", name: "Storm push", persona: "persona_landlord", restoration_focus: "flood",
+          status: "pending_approval", company_id: null, contact_id: null, lead_id: null, owner: "Arc",
+          objective: null, audience_summary: null, offer_summary: null, compliance_notes: null,
+          launch_locked: true, source_signal: {}, reasoning_payload: {}, audit_payload: {},
+          created_at: "2026-07-16T12:00:00.000Z", updated_at: "2026-07-16T12:00:00.000Z",
+        },
+        error: null,
+      },
+      campaign_assets: {
+        data: [
+          {
+            id: "asset-1", campaign_id: "camp-1", asset_type: "email", channel: "email",
+            title: "Storm email", status: "pending_approval", tool_source: "arc_saved",
+            prompt_input: null, prompt_inputs: {}, draft_body: "We respond in 60 minutes.",
+            edited_body: null, approved_body: null, dispatch_locked: true, compliance_notes: null,
+            reasoning_payload: {}, audit_payload: { outbound_locked: true },
+            created_at: "2026-07-16T12:00:00.000Z", updated_at: "2026-07-16T12:00:00.000Z",
+          },
+        ],
+        error: null,
+      },
+      approval_items: {
+        data: [
+          {
+            id: "appr-1", campaign_id: "camp-1", campaign_asset_id: "asset-1",
+            item_type: "campaign_asset", status: "pending_approval", locked_until_approved: true,
+            prompt_inputs: {}, draft_output: null, edited_output: null, requested_by: "Arc",
+            submitted_at: "2026-07-16T12:00:00.000Z", risk_level: "medium", compliance_notes: null,
+            decision_notes: null, reasoning_payload: {}, audit_payload: {},
+            created_at: "2026-07-16T12:00:00.000Z", updated_at: "2026-07-16T12:00:00.000Z",
+          },
+        ],
+        error: null,
+      },
+      approval_recommendations: recommendations,
+    });
+  }
+
+  async function assetFrom(recommendations: MockResponse) {
+    const detail = await getCampaignWorkspaceDetail("camp-1", detailWith(recommendations), "Arc", "org-1");
+    if (detail.status !== "live") throw new Error("expected a live detail");
+    return detail.assets.find((a) => a.id === "asset-1")!;
+  }
+
+  it("is unreviewed until the critic has actually run", async () => {
+    const asset = await assetFrom({ data: [], error: null });
+    expect(asset.claimsReviewed).toBe(false);
+  });
+
+  it("is reviewed once draft-critic has weighed in", async () => {
+    const asset = await assetFrom({ data: [rec("draft-critic")], error: null });
+    expect(asset.claimsReviewed).toBe(true);
+  });
+
+  it("does NOT count Arc advising on its own work as an independent review", async () => {
+    // recommend_on_approval writes as `arc`. Letting that flip the flag would mean
+    // the drafting agent vouching for itself reads as a review it never got.
+    const asset = await assetFrom({ data: [rec("arc")], error: null });
+    expect(asset.claimsReviewed).toBe(false);
+    expect(asset.recommendation?.agent).toBe("arc");
+  });
+
+  it("stays reviewed when Arc adds a newer note on top of the critic's", async () => {
+    // pickRecommendation shows the newest row; claimsReviewed must not depend on
+    // which one happens to be at the head.
+    const asset = await assetFrom({ data: [rec("arc"), rec("draft-critic")], error: null });
+    expect(asset.claimsReviewed).toBe(true);
+  });
+
+  it("stays unreviewed when the recommendations read fails, rather than claiming a review", async () => {
+    const asset = await assetFrom({ data: null, error: { message: "boom" } });
+    expect(asset.claimsReviewed).toBe(false);
+  });
+});

@@ -65,6 +65,19 @@ function isActionable(status: string): boolean {
   return !/approved|archived|live|sent|deployed/i.test(status || "");
 }
 
+/**
+ * Whether to tell the operator this copy's claims are unchecked.
+ *
+ * The chat path critiques a draft AFTER the reply lands, so for about a minute a
+ * card offers Approve with no critique on it — and a card with no critique looks
+ * exactly like a card that passed one. That silence is the whole problem: it
+ * reads as reassurance. Only worth saying while a decision is still open, and
+ * only for copy that actually makes claims (an image has none).
+ */
+function awaitingClaimsReview(asset: CampaignWorkspaceAsset): boolean {
+  return !asset.claimsReviewed && Boolean(asset.body.trim()) && isActionable(asset.status);
+}
+
 function lifecycleTone(lifecycle: string): Tone {
   if (lifecycle === "Live") return "blue";
   if (lifecycle === "Ready") return "ok";
@@ -498,6 +511,13 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
                           </div>
                         )}
                         {asset.complianceNotes && <div className="dcompliance">Guardrail: {asset.complianceNotes}</div>}
+                        {awaitingClaimsReview(asset) && (
+                          <div className="dunrev">
+                            <b>Not yet reviewed</b> — nothing has checked these claims against your evidence.
+                            On a fresh draft the review usually lands within a minute; until then, an empty
+                            review is not a clean one.
+                          </div>
+                        )}
                         {asset.recommendation && (
                           <div className="drec">
                             <div className="drh">

@@ -146,9 +146,18 @@ export type CampaignWorkspaceAsset = {
    *  would do and why. Null when the agent hasn't weighed in. */
   recommendation: CampaignAssetRecommendation | null;
   /** Open claims the critic could not ground in workspace evidence. Empty when
-   *  the copy is clean OR when nothing has reviewed it yet — `recommendation`
+   *  the copy is clean OR when nothing has reviewed it yet — `claimsReviewed`
    *  is what distinguishes those two. */
   findings: CampaignAssetFinding[];
+  /** Whether the independent claims reviewer has actually run on this copy.
+   *
+   *  NOT the same as "a recommendation exists": recommend_on_approval writes as
+   *  `arc`, so Arc's own advisory note would otherwise read as an independent
+   *  review of Arc's own work. Only a `draft-critic` row counts.
+   *
+   *  False + no findings is the dangerous state the card has to name — it looks
+   *  exactly like "checked and clean" unless we say otherwise. */
+  claimsReviewed: boolean;
 };
 
 export type CampaignAssetRecommendation = {
@@ -796,6 +805,7 @@ function demoDetailAsset(piece: DemoPiece): CampaignWorkspaceAsset {
     blockedPhrases: [],
     recommendation: null,
     findings: [],
+    claimsReviewed: false,
     // Approved demo pieces in a Live campaign are deployable; everything else
     // stays dispatch-locked so the gold "outbound locked" gate shows.
     dispatchLocked: !/approved/i.test(piece.rawStatus),
@@ -2007,6 +2017,7 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
     // attachApproval fills this in once the gating approval is known.
     recommendation: null,
     findings: [],
+    claimsReviewed: false,
     dispatchLocked: asset.dispatch_locked,
     toolSource: getString(asset.tool_source),
     updatedAt: formatDate(asset.updated_at),
@@ -2065,6 +2076,7 @@ function buildWorkspaceAssets(
     .map((approval) => ({
       ...mapApprovalAsAsset(approval, agentName),
       recommendation: pickRecommendation(recommendations?.get(approval.id)),
+      claimsReviewed: reviewedByCritic(recommendations?.get(approval.id)),
     }));
 
   // Real campaign_assets come first, so when an output/approval describes the
@@ -2099,6 +2111,7 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       blockedPhrases: [],
       recommendation: null,
     findings: [],
+    claimsReviewed: false,
             dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
@@ -2120,6 +2133,7 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       blockedPhrases: [],
       recommendation: null,
     findings: [],
+    claimsReviewed: false,
             dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
@@ -2154,6 +2168,7 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       blockedPhrases: [],
       recommendation: null,
     findings: [],
+    claimsReviewed: false,
             dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
@@ -2175,6 +2190,7 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       blockedPhrases: [],
       recommendation: null,
     findings: [],
+    claimsReviewed: false,
             dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
@@ -2244,16 +2260,27 @@ function pickRecommendation(rows: ApprovalRecommendationRow[] | undefined): Camp
   };
 }
 
+/** The claims reviewer is `draft-critic` specifically. Any other agent leaving a
+ *  recommendation (recommend_on_approval writes as `arc`) is Arc advising on its
+ *  own work — that is not an independent review and must not read as one. */
+const CLAIMS_REVIEWER = "draft-critic";
+
+function reviewedByCritic(rows: ApprovalRecommendationRow[] | undefined): boolean {
+  return (rows ?? []).some((row) => row.agent === CLAIMS_REVIEWER);
+}
+
 function attachApproval(
   view: CampaignWorkspaceAsset,
   approval: ApprovalItemRow | undefined,
   recommendations?: Map<string, ApprovalRecommendationRow[]>,
 ): CampaignWorkspaceAsset {
   if (!approval) return view;
+  const rows = recommendations?.get(approval.id);
   return {
     ...view,
     approval: { id: approval.id, status: statusLabel(approval.status) },
-    recommendation: pickRecommendation(recommendations?.get(approval.id)),
+    recommendation: pickRecommendation(rows),
+    claimsReviewed: reviewedByCritic(rows),
   };
 }
 
@@ -2283,6 +2310,7 @@ function mapOutputAsAsset(output: AgentOutputRow, agentName: string): CampaignWo
     blockedPhrases: [],
     recommendation: null,
     findings: [],
+    claimsReviewed: false,
     dispatchLocked: true,
     toolSource: `${agentName} output`,
     updatedAt: formatDate(output.updated_at),
@@ -2317,6 +2345,7 @@ function mapApprovalAsAsset(approval: ApprovalItemRow, agentName: string): Campa
     // buildWorkspaceAssets overlays the recommendation for these.
     recommendation: null,
     findings: [],
+    claimsReviewed: false,
     dispatchLocked: approval.locked_until_approved,
     toolSource: approval.requested_by ?? agentName,
     updatedAt: formatDate(approval.updated_at),
