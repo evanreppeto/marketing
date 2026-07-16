@@ -160,6 +160,7 @@ type CampaignAssetRow = {
   approved_body: string | null;
   compliance_notes: string | null;
   reasoning_payload: JsonObject | null;
+  audit_payload: JsonObject | null;
 };
 
 type CompanyRow = {
@@ -320,7 +321,7 @@ export async function listApprovalCards(
     fetchByIds<CampaignAssetRow>(
       client,
       "campaign_assets",
-      "id,title,asset_type,channel,status,prompt_input,prompt_inputs,draft_body,edited_body,approved_body,compliance_notes,reasoning_payload",
+      "id,title,asset_type,channel,status,prompt_input,prompt_inputs,draft_body,edited_body,approved_body,compliance_notes,reasoning_payload,audit_payload",
       collectIds(approvalItems, "campaign_asset_id"),
       filter.orgId,
     ),
@@ -520,7 +521,22 @@ function formatPromptInput(promptInputs: JsonObject, fallback?: string | null) {
   return fallback ?? "No structured prompt input was captured.";
 }
 
+/**
+ * Compliance flags for the queue card.
+ *
+ * The copy screen writes real, structured flags onto the asset when it runs, so
+ * prefer those — they name what was actually found (e.g. a banned phrase). The
+ * inference below is the fallback for rows written before the screen existed, or
+ * by paths it doesn't cover: it guesses flags by regexing the prose of the
+ * compliance note, which by construction cannot see a banned phrase at all.
+ */
 function buildComplianceFlags(item: ApprovalItemRow, asset?: CampaignAssetRow, campaign?: CampaignRow) {
+  const screened = getArray(isObject(asset?.audit_payload) && isObject(asset.audit_payload.guardrail)
+    ? asset.audit_payload.guardrail.flags
+    : null,
+  ).filter((flag): flag is string => typeof flag === "string" && flag.trim().length > 0);
+  if (screened.length > 0) return screened;
+
   const flags = new Set<string>();
   for (const note of [item.compliance_notes, asset?.compliance_notes, campaign?.compliance_notes]) {
     if (!note) continue;

@@ -5,7 +5,7 @@ import { toolsForMode, type ArcMode } from "./tools";
 import type { TurnSink } from "./tools/helpers";
 
 const noStep = async () => {};
-const sink: TurnSink = { card: () => {}, suggestion: () => {}, source: () => {}, question: () => {} };
+const sink: TurnSink = { card: () => {}, suggestion: () => {}, source: () => {}, question: () => {}, draft: () => {} };
 
 function allRealToolNames(): Set<string> {
   const names = new Set<string>();

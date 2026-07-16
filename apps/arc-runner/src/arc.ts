@@ -15,6 +15,7 @@ import { fetchConversationContext, persistConversationSummary, type HistoryOverf
 import { summarizeConversation } from "./summarize";
 import { promoteConversationMemory } from "./extract-memory";
 import { resolveArcSkill, type ArcSkill } from "./skills";
+import { reviewTurnDrafts } from "./critic";
 import type {
   ArcActionCard,
   ArcCampaignTaskPayload,
@@ -22,6 +23,7 @@ import type {
   ArcOpportunityDraftPayload,
   ArcOpportunityScanPayload,
   ArcQuestion,
+  DraftForReview,
   MarkChatMessagePayload,
 } from "./types";
 import type { StepFn, TurnSink } from "./tools/helpers";
@@ -34,6 +36,8 @@ export type ArcTurnResult = {
   sources: ArcMention[];
   questions: ArcQuestion[];
   memory: RecallItem[];
+  /** Approval-gated drafts this turn created, with full copy — the critic's work list. */
+  drafts: DraftForReview[];
   /** The model's extended-thinking transcript for this turn, preserved so the
    *  completed reply keeps the "Thought for Ns" trace. Null when none was emitted. */
   reasoning?: string | null;
@@ -59,13 +63,15 @@ function makeSink() {
   const suggestions: string[] = [];
   const sources: ArcMention[] = [];
   const questions: ArcQuestion[] = [];
+  const drafts: DraftForReview[] = [];
   const sink: TurnSink = {
     card: (card) => actions.push(card),
     suggestion: (text) => suggestions.push(text),
     source: (mention) => sources.push(mention),
     question: (question) => questions.push(question),
+    draft: (draft) => drafts.push(draft),
   };
-  return { actions, suggestions, sources, questions, sink };
+  return { actions, suggestions, sources, questions, drafts, sink };
 }
 
 /**
@@ -111,7 +117,7 @@ async function runArcQuery(opts: {
   /** Live partial reasoning, posted as the model thinks (chat-turn only). */
   onThinking?: (text: string) => void | Promise<void>;
 }): Promise<ArcTurnResult> {
-  const { actions, suggestions, sources, questions, sink } = makeSink();
+  const { actions, suggestions, sources, questions, drafts, sink } = makeSink();
 
   const tools = toolsForMode(opts.mode, opts.client, opts.step, sink, { ...(opts.toolContext ?? {}), skill: opts.skill });
   const arcServer = createSdkMcpServer({ name: "arc", version: "1.0.0", tools });
@@ -198,6 +204,7 @@ async function runArcQuery(opts: {
     sources,
     questions: questions.slice(0, 4),
     memory: opts.ctx.memory ?? [],
+    drafts,
     reasoning: thinkBuf.trim() || null,
     usage: { model: opts.inference.model, inputTokens, outputTokens },
   };
@@ -272,6 +279,11 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     ],
     memoryCtx.summary,
   );
+  // Critique any drafts this turn created, after the reply — chat is interactive,
+  // and a claims review is far too slow to hold a reply behind. The asset stays
+  // pending_approval + dispatch_locked meanwhile, so the human gate holds; the
+  // card simply has no critique on it until this lands.
+  void reviewTurnDrafts(result.drafts, client, step, business.businessName);
   return result;
 }
 
@@ -325,7 +337,7 @@ export async function runArcOpportunityDraft(
     skill,
   };
 
-  return runArcQuery({
+  const result = await runArcQuery({
     step,
     mode: "draft",
     ctx,
@@ -335,6 +347,10 @@ export async function runArcOpportunityDraft(
     toolContext: { opportunityId: payload.opportunityId },
     skill,
   });
+  // Background wake — nobody is waiting on a reply, so the critique runs inline
+  // and the drafts reach the queue already reviewed.
+  await reviewTurnDrafts(result.drafts, client, step, business.businessName);
+  return result;
 }
 
 /**
@@ -412,7 +428,7 @@ export async function runArcCampaignTask(
     payload.message,
   ].join("\n");
 
-  return runArcQuery({
+  const result = await runArcQuery({
     step,
     mode: "draft",
     ctx,
@@ -422,4 +438,8 @@ export async function runArcCampaignTask(
     toolContext: { campaignId: payload.campaignId, conversationId: payload.conversationId },
     skill,
   });
+  // Background wake — the critique runs inline, so a "Hand to Arc" package lands
+  // in the queue with its claims already checked.
+  await reviewTurnDrafts(result.drafts, client, step, business.businessName);
+  return result;
 }
