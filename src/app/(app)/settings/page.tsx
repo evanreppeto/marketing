@@ -8,6 +8,7 @@ import { getSettingsBillingView } from "@/lib/billing/settings-billing";
 import { getSettingsConnectorsView } from "@/lib/connectors/settings-connectors";
 import { getEmailConnection } from "@/lib/connections/read-model";
 import { getConnectorSpendView } from "@/lib/connectors/spend-summary";
+import { isLiveSendEnabled } from "@/lib/dispatch/live-send";
 import { getAppSettings } from "@/lib/settings/store";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 
@@ -34,5 +35,9 @@ export default async function SettingsPage() {
   const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
   const email = user?.email || "owner@bsr.test";
   const avatarUrl = await getViewerAvatarUrl(user);
-  return <SettingsView brandName={brandName} email={email} avatarUrl={avatarUrl} team={team} usage={usage} connectorSpend={connectorSpend} billing={billing} settings={settings} connectors={connectors} workspaces={workspaces} emailConnection={emailConnection} agentConnection={agentConnection} />;
+  // The deployment-level send kill-switch. Read here (server-side env) so the
+  // email card can tell the truth: an enabled Resend connection still sends
+  // nothing while this is dark.
+  const liveSendEnabled = isLiveSendEnabled();
+  return <SettingsView brandName={brandName} email={email} avatarUrl={avatarUrl} team={team} usage={usage} connectorSpend={connectorSpend} billing={billing} settings={settings} connectors={connectors} workspaces={workspaces} emailConnection={emailConnection} liveSendEnabled={liveSendEnabled} agentConnection={agentConnection} />;
 }

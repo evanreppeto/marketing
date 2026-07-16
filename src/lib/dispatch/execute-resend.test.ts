@@ -271,4 +271,53 @@ describe("executeResendDispatch", () => {
     expect(updates.some((u) => "last_error" in u)).toBe(true);
     expect(findCalls(supabase, "insert")).toContainEqual(expect.objectContaining({ event_type: "dispatch_failed" }));
   });
+
+  // The engagement_events row is the only fuel the journey/attribution layer gets
+  // from an outbound send, so it's worth asserting the shape — and, more
+  // importantly, that a lost write is audible rather than silent.
+  it("records the send as an outbound attribution touch in engagement_events", async () => {
+    const send = vi.fn().mockResolvedValue({ id: "resend-123" });
+    const supabase = createSupabaseQueryMock({
+      campaign_dispatches: { data: queuedDispatch({ contact_id: "ct-1", campaign_asset_id: "as-1" }), error: null },
+      approval_items: { data: APPROVED, error: null },
+      connections: { data: ENABLED_RESEND, error: null },
+      campaign_events: { data: null, error: null },
+      engagement_events: { data: null, error: null },
+    });
+
+    await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { apiKey: "re_test", send });
+
+    expect(findCalls(supabase, "insert")).toContainEqual(
+      expect.objectContaining({
+        event_type: "outbound_send",
+        direction: "outbound",
+        channel: "email",
+        external_event_id: "resend-123",
+        campaign_id: "c1",
+        contact_id: "ct-1",
+      }),
+    );
+  });
+
+  it("warns (but still reports success) when the engagement_events touch can't be written", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const send = vi.fn().mockResolvedValue({ id: "resend-123" });
+    // postgrest resolves with `{ error }` rather than rejecting — the shape a real
+    // constraint violation takes, and the one the old bare `catch` never saw.
+    const supabase = createSupabaseQueryMock({
+      campaign_dispatches: { data: queuedDispatch(), error: null },
+      approval_items: { data: APPROVED, error: null },
+      connections: { data: ENABLED_RESEND, error: null },
+      campaign_events: { data: null, error: null },
+      engagement_events: { data: null, error: { message: 'violates check constraint "engagement_events_subject_check"' } },
+    });
+
+    const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { apiKey: "re_test", send });
+
+    // The mail is already gone; a lost touch must never retroactively fail the send.
+    expect(result).toMatchObject({ ok: true, providerMessageId: "resend-123" });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("engagement_events insert failed"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("engagement_events_subject_check"));
+    warn.mockRestore();
+  });
 });
