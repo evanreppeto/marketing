@@ -62,6 +62,20 @@ export async function POST(request: Request) {
   }
 }
 
+// CORS: the collector is called cross-origin from first-party landing pages. The
+// visitor id travels in the body (not a credentialed cookie), so a wildcard origin
+// is safe — no credentials are shared.
+const CORS: Record<string, string> = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "POST, OPTIONS",
+  "access-control-allow-headers": "content-type",
+  "access-control-max-age": "86400",
+};
+
+export function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS });
+}
+
 function json(body: Record<string, unknown>, status: number) {
-  return NextResponse.json(body, { status });
+  return NextResponse.json(body, { status, headers: CORS });
 }

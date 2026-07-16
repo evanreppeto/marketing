@@ -19,6 +19,7 @@ export * from "./competitor-intel";
 export * from "./attribution";
 export * from "./journey";
 export * from "./journey-collect";
+export * from "./journey-snippet";
 export * from "./campaign-drafts";
 export * from "./campaign-from-opportunity";
 export * from "./opportunity-package";
