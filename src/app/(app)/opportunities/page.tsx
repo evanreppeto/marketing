@@ -100,6 +100,9 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
   const urgencyLabel = humanize(rec.urgency) || "Medium";
   const sourceLabel = humanize(rec.subject_type) || "Arc";
   const confidence = Math.round(rec.confidence);
+  // Abbreviated for the row: the title already spells it out, and the list is
+  // scanned, not read.
+  const staleLabel = typeof ev.daysCold === "number" ? `quiet ${ev.daysCold}d` : null;
 
   // A next-iteration opportunity points back at the campaign it learned from;
   // CRM subjects resolve to their record route.
@@ -176,6 +179,7 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
     typeLabel,
     icon,
     sourceLabel,
+    staleLabel,
     summary: rec.summary,
     recommendedAction: rec.recommended_action,
     persona,
