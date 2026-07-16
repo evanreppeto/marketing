@@ -21,7 +21,7 @@ Without Supabase env, the app validates/scores but persists nothing.
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client auth |
 | `SUPABASE_SERVICE_ROLE_KEY` | server-side persistence / read-models |
 | `ARC_AUTH_MODE` | `supabase` (real accounts), `operator`, or `open` (local) |
-| `DEFAULT_ORG_SLUG` | `big-shoulders-restoration` |
+| `DEFAULT_ORG_SLUG` | `big-shoulders-restoration` — cosmetic (demo-context naming) only; it does **not** select the tenant |
 
 **Migrations must be applied to the workspace's DB.** As of this writing, the
 three most recent schema migrations (`tier1_isolation_hardening`, `org_plans`,

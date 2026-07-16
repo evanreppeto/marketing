@@ -4,9 +4,12 @@ import { DEFAULT_ORG_SLUG, WorkspaceUnavailableError, getCurrentWorkspaceContext
  * Current-organization resolution: the single chokepoint for tenant isolation.
  *
  * The app still uses a service-role Supabase client in many read models, so
- * every app-layer query must be scoped through this resolver. It now prefers a
- * real authenticated workspace membership and falls back to the seeded internal
- * workspace while the product backend is being rolled forward.
+ * every app-layer query must be scoped through this resolver. It prefers a real
+ * authenticated workspace membership. Without a session it resolves the sole org
+ * when the database has exactly one, and refuses when there are several — it no
+ * longer falls back to a hardcoded "seeded internal workspace" slug, because a
+ * fallback that always names the same tenant is indistinguishable from having no
+ * isolation at all. See fetchDefaultOrg in ./workspace.
  */
 export { DEFAULT_ORG_SLUG };
 
