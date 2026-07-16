@@ -114,11 +114,15 @@ export async function listAgentTasks(
 ): Promise<NormalizedTask[]> {
   let agentId: string | undefined;
   if (filter.assignee) {
-    const { data: agentRow, error: agentErr } = await client
-      .from("agents")
-      .select("id")
-      .eq("key", filter.assignee)
-      .maybeSingle();
+    // Org-filtered by hand rather than via applyAgentTaskScope, which also
+    // filters workspace_id -- a column agents doesn't have. The filter matters:
+    // agent keys are unique per org (20260716150000), so several tenants can
+    // hold the same key and maybeSingle() would see more than one row.
+    const agentQuery = client.from("agents").select("id").eq("key", filter.assignee);
+    const { data: agentRow, error: agentErr } = await (scope
+      ? agentQuery.eq("org_id", scope.orgId)
+      : agentQuery
+    ).maybeSingle();
     if (agentErr) {
       throw new Error(`listAgentTasks agent lookup failed: ${agentErr.message}`);
     }

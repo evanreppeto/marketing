@@ -49,9 +49,15 @@ export async function enqueueArcChatTask(
   input: EnqueueChatTaskInput,
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<string> {
+  // Resolved before the lookup, not after it: agent keys are unique per org
+  // (20260716150000), so an unfiltered lookup can return another tenant's agent
+  // and hand its id to the agent_tasks insert below.
+  const tenant = await getCurrentAgentTaskTenantFields();
+
   const { data: agent, error: agentError } = await client
     .from("agents")
     .select("id")
+    .eq("org_id", tenant.org_id)
     .in("key", await markAgentKeys())
     .limit(1)
     .maybeSingle<{ id: string }>();
@@ -61,8 +67,6 @@ export async function enqueueArcChatTask(
     const agentName = input.agentName?.trim() || "Agent";
     throw new Error(`${agentName} isn't connected to this workspace yet, so the message can't be queued.`);
   }
-
-  const tenant = await getCurrentAgentTaskTenantFields();
 
   const { data: task, error: taskError } = await client
     .from("agent_tasks")
