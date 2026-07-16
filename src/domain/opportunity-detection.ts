@@ -182,6 +182,84 @@ export function detectWeatherEventOpportunities(
 }
 
 // ---------------------------------------------------------------------------
+// Next-iteration opportunities
+// ---------------------------------------------------------------------------
+// A campaign that produced real results is the strongest signal of all: repeat
+// what worked. This turns a live campaign's own attribution (best channel, booked
+// jobs) into a proactive "draft round two" recommendation — the closing move of
+// the performance learning loop, surfaced in the inbox instead of waiting for the
+// operator to open the campaign. Read-only; the draft it recommends stays
+// approval-gated. The learning itself is derived upstream (buildPerformanceLearning
+// over real attribution); this module only scores it into a candidate.
+
+export type NextIterationInput = {
+  campaignId: string;
+  campaignName: string;
+  /** Original campaign persona, carried onto the next-iteration draft when known. */
+  persona?: string;
+  /** Best-performing channel by booked jobs. */
+  topChannel: string;
+  /** Booked jobs on the top channel (the proven-outcome signal). */
+  bookedJobs: number;
+  /** Attributed leads on the top channel. */
+  leads: number;
+  /** Best asset by CTR, when there's delivery data. */
+  topAsset?: string;
+  /** Grounded next-iteration recommendation (from buildPerformanceLearning). */
+  recommendation: string;
+  /** Ready-to-send Arc prompt for the next iteration. */
+  arcPrompt: string;
+};
+
+/**
+ * Next-iteration opportunities: a campaign whose results warrant a follow-up.
+ * A proven winner (booked jobs) is high-confidence and more urgent than one that
+ * only drew interest. Skips campaigns with no delivered signal. Deterministic.
+ */
+export function detectNextIterationOpportunities(inputs: NextIterationInput[]): OpportunityCandidate[] {
+  const out: OpportunityCandidate[] = [];
+  for (const c of inputs) {
+    if (!c.campaignId) continue;
+    if (c.bookedJobs <= 0 && c.leads <= 0) continue; // nothing proven to repeat
+
+    const name = c.campaignName?.trim() || "A campaign";
+    const proven = c.bookedJobs > 0;
+    const confidence = clamp((proven ? 68 : 55) + Math.min(20, c.bookedJobs * 5) + Math.min(10, Math.floor(c.leads / 5)), 0, 100);
+    const urgency: OpportunityCandidate["urgency"] = c.bookedJobs >= 5 ? "high" : c.bookedJobs >= 1 ? "medium" : "low";
+
+    const outcomeClause = proven
+      ? `${c.topChannel} booked ${c.bookedJobs} ${c.bookedJobs === 1 ? "job" : "jobs"} from ${c.leads} ${c.leads === 1 ? "lead" : "leads"}`
+      : `${c.topChannel} drew ${c.leads} ${c.leads === 1 ? "lead" : "leads"}`;
+    const title = proven
+      ? `${name} is converting — draft the next iteration`
+      : `${name} is drawing interest — draft a stronger follow-up`;
+
+    out.push({
+      kind: "next_iteration",
+      subjectType: "campaign",
+      subjectId: c.campaignId,
+      title,
+      summary:
+        `${outcomeClause}. ${c.recommendation} Arc can draft round two now — approval-gated, nothing sends until you approve.`,
+      confidence,
+      urgency,
+      evidence: {
+        ...(c.persona ? { persona: c.persona } : {}),
+        campaignName: name,
+        topChannel: c.topChannel,
+        bookedJobs: c.bookedJobs,
+        leads: c.leads,
+        ...(c.topAsset ? { topAsset: c.topAsset } : {}),
+        arcPrompt: c.arcPrompt,
+      },
+      recommendedAction: `Draft the next iteration — ${c.recommendation}`,
+      recommendedCampaignType: "next_iteration",
+    });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Competitor-activity opportunities
 // ---------------------------------------------------------------------------
 // An active competitor flight in shared territory is a defend-your-share signal.

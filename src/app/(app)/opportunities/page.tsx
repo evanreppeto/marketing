@@ -25,6 +25,7 @@ function classify(text: string, subjectType: string): { icon: OpportunityVM["ico
   const stExact = (subjectType || "").toLowerCase();
   if (stExact === "weather_event") return { icon: "weather", typeLabel: "Weather event" };
   if (stExact === "competitor_signal") return { icon: "comp", typeLabel: "Competitor move" };
+  if (stExact === "campaign") return { icon: "repeat", typeLabel: "Repeat a winner" };
 
   const t = text.toLowerCase();
   // Word-boundaried so company names like "Windy City" don't match "wind".
@@ -100,9 +101,18 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
   const sourceLabel = humanize(rec.subject_type) || "Arc";
   const confidence = Math.round(rec.confidence);
 
-  const recordHref = crmRecordHref(rec.subject_type, rec.subject_id);
+  // A next-iteration opportunity points back at the campaign it learned from;
+  // CRM subjects resolve to their record route.
+  const recordHref =
+    rec.subject_type === "campaign" ? `/campaigns/${encodeURIComponent(rec.subject_id)}` : crmRecordHref(rec.subject_type, rec.subject_id);
   const recordNoun =
-    rec.subject_type === "lead" ? "lead" : rec.subject_type === "contact" ? "contact" : "company";
+    rec.subject_type === "campaign"
+      ? "source campaign"
+      : rec.subject_type === "lead"
+        ? "lead"
+        : rec.subject_type === "contact"
+          ? "contact"
+          : "company";
 
   const evidence: OpportunityVM["evidence"] = [];
   // Weather-event signals (kind='weather_event').
@@ -116,6 +126,16 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
     evidence.push({ label: "Active creatives", value: `${ev.creativeCount}${ev.activityLevel ? ` (${humanize(ev.activityLevel)} activity)` : ""}` });
   }
   if (Array.isArray(ev.keywords) && ev.keywords.length) evidence.push({ label: "Keywords", value: ev.keywords.slice(0, 4).join(", ") });
+  // Next-iteration signals (kind='next_iteration').
+  if (ev.topChannel) {
+    const booked = typeof ev.bookedJobs === "number" ? ev.bookedJobs : 0;
+    const leads = typeof ev.leads === "number" ? ev.leads : 0;
+    evidence.push({
+      label: "Top channel",
+      value: booked > 0 ? `${ev.topChannel} — ${booked} booked from ${leads} leads` : `${ev.topChannel} — ${leads} leads`,
+    });
+  }
+  if (ev.topAsset) evidence.push({ label: "Best asset", value: ev.topAsset });
   // Cold-lead / lifecycle signals.
   if (typeof ev.leadScore === "number") evidence.push({ label: "Lead score", value: `${Math.round(ev.leadScore)} / 100` });
   if (typeof ev.daysCold === "number") evidence.push({ label: "Inactivity", value: `${ev.daysCold} days since last touch` });
@@ -131,6 +151,7 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
   ];
   if (ev.severity) impact.push({ label: "Severity", value: humanize(ev.severity) });
   if (ev.activityLevel) impact.push({ label: "Activity", value: humanize(ev.activityLevel) });
+  if (typeof ev.bookedJobs === "number" && ev.bookedJobs > 0) impact.push({ label: "Booked", value: `${ev.bookedJobs}` });
   if (typeof ev.leadScore === "number") impact.push({ label: "Lead score", value: `${Math.round(ev.leadScore)}` });
   if (typeof ev.daysCold === "number") impact.push({ label: "Days cold", value: `${ev.daysCold}` });
 

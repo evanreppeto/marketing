@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   detectColdLeadOpportunities,
   detectCompetitorOpportunities,
+  detectNextIterationOpportunities,
   detectWeatherEventOpportunities,
   type ColdLeadInput,
   type CompetitorSignalInput,
+  type NextIterationInput,
   type WeatherEventInput,
 } from "../opportunity-detection";
 
@@ -171,5 +173,57 @@ describe("detectCompetitorOpportunities", () => {
     expect(soft.urgency).toBe("low");
     expect(soft.confidence).toBeLessThan(hard.confidence);
     expect(soft.evidence.activityLevel).toBe("low");
+  });
+});
+
+describe("detectNextIterationOpportunities", () => {
+  function input(overrides: Partial<NextIterationInput> = {}): NextIterationInput {
+    return {
+      campaignId: "camp-1",
+      campaignName: "Spring Storm Prep",
+      persona: "persona_homeowner_emergency",
+      topChannel: "Email",
+      bookedJobs: 6,
+      leads: 45,
+      topAsset: "Storm-watch SMS nudge",
+      recommendation: "For the next iteration, lead with Email.",
+      arcPrompt: "Draft the next iteration of the Spring Storm Prep campaign. Keep it approval-gated.",
+      ...overrides,
+    };
+  }
+
+  it("turns a proven winner into a high-urgency draft-round-two opportunity", () => {
+    const [opp] = detectNextIterationOpportunities([input()]);
+    expect(opp).toMatchObject({
+      kind: "next_iteration",
+      subjectType: "campaign",
+      subjectId: "camp-1",
+      urgency: "high",
+      recommendedCampaignType: "next_iteration",
+    });
+    expect(opp.title).toMatch(/converting/i);
+    expect(opp.summary).toContain("Email booked 6 jobs from 45 leads");
+    expect(opp.evidence).toMatchObject({ topChannel: "Email", bookedJobs: 6, leads: 45, topAsset: "Storm-watch SMS nudge" });
+    expect(opp.evidence.arcPrompt).toContain("approval-gated");
+    expect(opp.confidence).toBeGreaterThan(80);
+  });
+
+  it("is lower urgency + confidence for interest-only (leads but no bookings)", () => {
+    const [opp] = detectNextIterationOpportunities([input({ bookedJobs: 0, leads: 12, topAsset: undefined })]);
+    expect(opp.urgency).toBe("low");
+    expect(opp.title).toMatch(/interest/i);
+    expect(opp.summary).toContain("Email drew 12 leads");
+    const proven = detectNextIterationOpportunities([input()])[0];
+    expect(opp.confidence).toBeLessThan(proven.confidence);
+  });
+
+  it("scores mid-tier urgency for a small win", () => {
+    const [opp] = detectNextIterationOpportunities([input({ bookedJobs: 2, leads: 10 })]);
+    expect(opp.urgency).toBe("medium");
+  });
+
+  it("skips campaigns with no delivered signal and rows missing an id", () => {
+    expect(detectNextIterationOpportunities([input({ bookedJobs: 0, leads: 0 })])).toEqual([]);
+    expect(detectNextIterationOpportunities([input({ campaignId: "" })])).toEqual([]);
   });
 });

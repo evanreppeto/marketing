@@ -3,13 +3,16 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import {
   detectColdLeadOpportunities,
   detectCompetitorOpportunities,
+  detectNextIterationOpportunities,
   detectWeatherEventOpportunities,
   normalizeNwsSeverity,
   type ColdLeadInput,
   type CompetitorSignalInput,
+  type NextIterationInput,
   type WeatherEventInput,
 } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { buildPerformanceLearning, getCampaignPerformancePanel } from "@/lib/performance/campaign-panel";
 import { listLeads } from "@/lib/repos/leads";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -187,6 +190,73 @@ export async function runWeatherEventDetection(
   if (events.length === 0) return { ok: true, count: 0 };
 
   const candidates = detectWeatherEventOpportunities(events, { now });
+  return upsertOpportunities(candidates, db, { orgId });
+}
+
+// ---------------------------------------------------------------------------
+// Next-iteration detection
+// ---------------------------------------------------------------------------
+
+// Campaigns that have actually run — the only ones that can carry results worth
+// repeating. (draft/briefing/generating/pending_approval haven't reached anyone.)
+const POST_LAUNCH_CAMPAIGN_STATUSES = ["active", "paused", "approved"];
+// Bound the per-campaign performance fan-out so a large workspace can't turn one
+// scan into hundreds of round-trips. Newest campaigns first.
+const NEXT_ITERATION_SCAN_LIMIT = 40;
+
+type CampaignRow = { id: string; name: string | null; persona: string | null; status: string | null };
+
+/**
+ * Run next-iteration detection over the org's already-launched campaigns and
+ * persist an opportunity for any whose real attribution warrants a follow-up.
+ * For each campaign it reuses the live performance panel + buildPerformanceLearning
+ * (the same analysis the campaign detail shows), so the inbox and the campaign tab
+ * never disagree. Read-only — the draft it recommends stays approval-gated. The
+ * upsert's per-subject dedup keeps one open "draft round two" per campaign.
+ */
+export async function runNextIterationDetection(client?: SupabaseClient): Promise<PersistResult> {
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "not_configured" };
+  const db = client ?? getSupabaseAdminClient();
+  const orgId = await getCurrentOrgId();
+
+  const { data, error } = await db
+    .from("campaigns")
+    .select("id, name, persona, status")
+    .eq("org_id", orgId)
+    .in("status", POST_LAUNCH_CAMPAIGN_STATUSES)
+    .order("created_at", { ascending: false })
+    .limit(NEXT_ITERATION_SCAN_LIMIT);
+  if (error) return { ok: false, error: error.message };
+
+  const campaigns = (data ?? []) as CampaignRow[];
+  const inputs: NextIterationInput[] = [];
+  for (const c of campaigns) {
+    if (!c.id) continue;
+    const name = c.name?.trim() || `Campaign ${c.id.slice(0, 8)}`;
+    // Reuse the exact panel + learning the campaign detail renders.
+    const panel = await getCampaignPerformancePanel(c.id);
+    if (panel.status !== "live" || panel.channels.length === 0) continue;
+    const learning = buildPerformanceLearning(panel, name);
+    if (!learning) continue;
+
+    // channels are sorted best-first (by booked, then leads) in buildChannelRows.
+    const top = panel.channels[0];
+    const topAsset = [...panel.assets].filter((a) => a.impressions > 0 && a.ctr > 0).sort((a, b) => b.ctr - a.ctr)[0];
+    inputs.push({
+      campaignId: c.id,
+      campaignName: name,
+      persona: c.persona ?? undefined,
+      topChannel: top.channel,
+      bookedJobs: top.booked,
+      leads: top.leads,
+      topAsset: topAsset?.title,
+      recommendation: learning.recommendation,
+      arcPrompt: learning.arcPrompt,
+    });
+  }
+  if (inputs.length === 0) return { ok: true, count: 0 };
+
+  const candidates = detectNextIterationOpportunities(inputs);
   return upsertOpportunities(candidates, db, { orgId });
 }
 

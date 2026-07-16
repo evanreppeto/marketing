@@ -18,7 +18,7 @@ export type OpportunityVM = {
   urgencyTone: "red" | "amber" | "info";
   urgencyLabel: string;
   typeLabel: string;
-  icon: "weather" | "comp" | "clock" | "user";
+  icon: "weather" | "comp" | "clock" | "user" | "repeat";
   sourceLabel: string;
   summary: string;
   recommendedAction: string;
@@ -48,6 +48,7 @@ const ICONS: Record<OpportunityVM["icon"], React.ReactNode> = {
   comp: <svg viewBox="0 0 24 24"><path d="M3 11l14-6v14L3 13z" /><path d="M7 13v4a2 2 0 004 0" /></svg>,
   clock: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" /></svg>,
   user: <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4" /><path d="M5 20c0-3.6 3-6 7-6s7 2.4 7 6" /></svg>,
+  repeat: <svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4" /><path d="M3 11V9a4 4 0 014-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a4 4 0 01-4 4H3" /></svg>,
 };
 
 function ConfidenceFill({ pct }: { pct: number }) {

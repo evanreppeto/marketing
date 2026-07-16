@@ -1,5 +1,6 @@
 import { getArcChatModel } from "@/lib/arc-chat/read-model";
 import { getMentionables } from "@/lib/arc-chat/mention-search";
+import { buildArcWaitingOpportunities } from "@/lib/arc-chat/waiting-opps";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getWorkspaceSummary } from "@/lib/workspace-summary/read-model";
 
@@ -33,7 +34,15 @@ export default async function ArcPage({
   // fresh workspace — the composer works either way). Only "unavailable" (no
   // Supabase, e.g. the local backend-less preview) falls back to the mock.
   const live = chat.status !== "unavailable";
-  const waiting = summary ? { approvals: summary.approvals.length, opportunities: summary.opportunities.length } : null;
+  const waiting = summary
+    ? {
+        approvals: summary.approvals.length,
+        opportunities: summary.opportunities.length,
+        // Surface the top waiting opportunities as tappable nudges — the proactive
+        // "draft the next iteration" prompts greet the operator on open.
+        items: buildArcWaitingOpportunities(summary.opportunities),
+      }
+    : null;
 
   return (
     <ArcView
