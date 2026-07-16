@@ -13,9 +13,9 @@ describe("mark projects / archive persistence", () => {
     const supabase = createSupabaseQueryMock({
       arc_projects: { data: { id: "p1", operator: "Evan", name: "Storm Q3", created_at: "t", updated_at: "t" }, error: null },
     });
-    const project = await createProject({ operator: "Evan", name: "Storm Q3" }, supabase);
+    const project = await createProject({ operator: "Evan", name: "Storm Q3", orgId: "org-1" }, supabase);
     expect(project.id).toBe("p1");
-    expect(calls(supabase, "insert")[0]).toMatchObject({ operator: "Evan", name: "Storm Q3" });
+    expect(calls(supabase, "insert")[0]).toMatchObject({ operator: "Evan", name: "Storm Q3", org_id: "org-1" });
   });
 
   it("assignConversationToProject updates the conversation's project_id", async () => {

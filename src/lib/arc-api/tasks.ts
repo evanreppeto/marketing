@@ -30,6 +30,9 @@ type AgentJoin = { key: string | null; name: string | null } | null;
 type TaskRow = {
   id: string;
   agent_id: string;
+  // NOT NULL on agent_tasks, so this is always present on a read row. Child
+  // agent_run_logs rows must carry it explicitly — that column has no default.
+  org_id: string;
   objective: string | null;
   status: string | null;
   priority: string | null;
@@ -290,6 +293,7 @@ export async function blockAgentTask(
   const { error: logError } = await client.from("agent_run_logs").insert({
     task_id: taskId,
     agent_id: row.agent_id,
+    org_id: row.org_id,
     run_status: "failed",
     error_message: reason,
     reasoning_summary: "Arc blocked the task pending human input.",
@@ -367,6 +371,7 @@ export async function moveAgentTask(
   const { error: logError } = await client.from("agent_run_logs").insert({
     task_id: taskId,
     agent_id: row.agent_id,
+    org_id: row.org_id,
     run_status: toStatus === "completed" ? "completed" : toStatus === "blocked" ? "failed" : "running",
     reasoning_summary: `Operator moved task to ${toStatus} from the board.`,
     metadata: { source: "operator_board_move", from_status: row.status, to_status: toStatus },
@@ -402,7 +407,7 @@ export async function appendAgentRunLog(
   const taskQuery = applyAgentTaskScope(
     client
     .from("agent_tasks")
-    .select("agent_id")
+    .select("agent_id, org_id")
       .eq("id", taskId),
     scope,
   );
@@ -415,13 +420,15 @@ export async function appendAgentRunLog(
     return { ok: false, reason: "not_found" };
   }
 
+  const task = taskRow as { agent_id: string; org_id: string };
   const rawSummary = input.reasoningSummary ?? input.message ?? null;
   const reasoningSummary = rawSummary === null ? null : redactSecrets(rawSummary);
   const { data, error } = await client
     .from("agent_run_logs")
     .insert({
       task_id: taskId,
-      agent_id: (taskRow as { agent_id: string }).agent_id,
+      agent_id: task.agent_id,
+      org_id: task.org_id,
       run_status: input.runStatus ?? "running",
       reasoning_summary: reasoningSummary,
       model_provider: input.modelProvider ?? null,

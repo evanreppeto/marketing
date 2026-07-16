@@ -64,6 +64,7 @@ describe("listConversations", () => {
 describe("insertOperatorMessage", () => {
   it("stores command and skill metadata for skill-driven reruns", async () => {
     const supabase = createSupabaseQueryMock({
+      arc_conversations: { data: { org_id: "org-1" }, error: null },
       arc_messages: {
         data: {
           id: "m1",
@@ -95,6 +96,46 @@ describe("insertOperatorMessage", () => {
     expect(insert.metadata).toMatchObject({ command: "find-leads", skill_id: "opportunity-discovery" });
     expect(message.command).toBe("find-leads");
     expect(message.skillId).toBe("opportunity-discovery");
+  });
+
+  // REGRESSION GUARD: arc_messages.org_id has a DEFAULT hardcoded to one org, so an
+  // omitted org_id silently misfiles the message into that tenant rather than failing.
+  // The org must be derived from the parent conversation and passed explicitly.
+  it("writes the parent conversation's org_id explicitly", async () => {
+    const supabase = createSupabaseQueryMock({
+      arc_conversations: { data: { org_id: "org-other" }, error: null },
+      arc_messages: {
+        data: {
+          id: "m1",
+          conversation_id: "c1",
+          role: "operator",
+          body: "Hi",
+          status: "sent",
+          agent_task_id: null,
+          mentions: [],
+          metadata: {},
+          created_at: "2026-06-23T00:00:00.000Z",
+        },
+        error: null,
+      },
+    });
+
+    await insertOperatorMessage({ conversationId: "c1", body: "Hi", mentions: [] }, supabase);
+
+    expect(supabase.calls).toContainEqual(["from", "arc_conversations"]);
+    expect(calls(supabase, "insert")[0]).toMatchObject({ conversation_id: "c1", org_id: "org-other" });
+  });
+
+  it("fails loudly rather than misfiling when the conversation has no org", async () => {
+    const supabase = createSupabaseQueryMock({
+      arc_conversations: { data: null, error: null },
+      arc_messages: { data: null, error: null },
+    });
+
+    await expect(
+      insertOperatorMessage({ conversationId: "c-missing", body: "Hi", mentions: [] }, supabase),
+    ).rejects.toThrow(/no org_id/);
+    expect(calls(supabase, "insert")).toHaveLength(0);
   });
 });
 
@@ -209,6 +250,7 @@ describe("linkConversationToCampaign", () => {
       operator: "evan",
       title: "Test chat",
       status: "active",
+      org_id: "org-conv",
       pinned_at: null,
       project_id: null,
       campaign_id: null,
@@ -234,7 +276,10 @@ describe("linkConversationToCampaign", () => {
 
     // createProject must have been called (arc_projects insert)
     expect(supabase.calls).toContainEqual(["from", "arc_projects"]);
-    expect(supabase.calls).toContainEqual(["insert", { operator: "evan", name: "Fall Campaign" }]);
+    expect(supabase.calls).toContainEqual([
+      "insert",
+      { operator: "evan", name: "Fall Campaign", org_id: "org-conv" },
+    ]);
 
     // Update must set both project_id and campaign_id
     const updateCalls = supabase.calls.filter(([m]) => m === "update").map(([, arg]) => arg as Record<string, unknown>);

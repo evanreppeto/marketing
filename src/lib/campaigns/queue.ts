@@ -53,7 +53,7 @@ export async function queueCampaignDirectiveTask(
 }
 
 async function queueCampaignTask(input: QueueCampaignTaskInput, client: SupabaseClient): Promise<string> {
-  const agentId = await ensureArcAgentId(input.agentName, client);
+  const agentId = await ensureArcAgentId(input.agentName, input.tenant.org_id, client);
   const { data: task, error } = await client
     .from("agent_tasks")
     .insert({
@@ -102,18 +102,23 @@ function taskObjective(input: QueueCampaignTaskInput): string {
   return input.prompt;
 }
 
-async function ensureArcAgentId(agentName: string, client: SupabaseClient): Promise<string> {
+// agents is org-scoped but has no workspace_id column, so the tenant cannot be
+// spread here -- org_id is set explicitly. The conflict target must stay
+// (org_id, key) to match the per-org unique; targeting "key" alone would
+// resolve against another tenant's agent row and overwrite it.
+async function ensureArcAgentId(agentName: string, orgId: string, client: SupabaseClient): Promise<string> {
   const { data, error } = await client
     .from("agents")
     .upsert(
       {
+        org_id: orgId,
         key: "arc",
         name: agentName,
         status: "ready",
         blocked_actions: ["send_email", "send_sms", "publish_social_post", "launch_ads", "change_ad_spend"],
         default_approval_policy: "human_required_before_outbound",
       },
-      { onConflict: "key" },
+      { onConflict: "org_id,key" },
     )
     .select("id")
     .single<{ id: string }>();

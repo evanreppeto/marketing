@@ -1,14 +1,19 @@
 import { NextResponse } from "next/server";
 
 import { CampaignResultsValidationError, parseCampaignResultsPayload } from "@/domain";
-import { checkBearerToken } from "@/lib/auth/api-token";
+import { TOKEN_SCOPE_CAMPAIGN_RESULTS_INGEST } from "@/lib/agent/tokens";
+import { checkWorkspaceBearer } from "@/lib/auth/api-token";
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { syncPerformanceForCampaigns } from "@/lib/brain-ingestion/sync";
 import { persistCampaignResults } from "@/lib/gallery/results-persistence";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
   const persistenceConfigured = isSupabaseAdminConfigured();
-  const auth = checkBearerToken(request, "CAMPAIGN_RESULTS_API_TOKEN", { required: persistenceConfigured });
+  const auth = await checkWorkspaceBearer(request, "CAMPAIGN_RESULTS_API_TOKEN", {
+    required: persistenceConfigured,
+    scope: TOKEN_SCOPE_CAMPAIGN_RESULTS_INGEST,
+  });
   if (!auth.ok) {
     const notConfigured = auth.reason === "not_configured";
     return NextResponse.json(
@@ -54,7 +59,11 @@ export async function POST(request: Request) {
 
   try {
     const client = getSupabaseAdminClient();
-    const summary = await persistCampaignResults(parsed, client);
+    // A per-workspace token carries its own org, so the caller's workspace is a
+    // fact. The legacy shared env token doesn't, so it falls back to the session /
+    // default workspace — which is why a shared token can only ever serve one tenant.
+    const orgId = auth.orgId ?? (await getCurrentOrgId());
+    const summary = await persistCampaignResults(parsed, client, orgId);
     // Mirror the just-ingested results into the Brain so Arc can recall what each
     // campaign did. Best-effort + awaited — a sync hiccup must not fail ingestion.
     await syncPerformanceForCampaigns(parsed.map((r) => r.campaign_id), { client }).catch(() => undefined);

@@ -13,7 +13,14 @@ export async function persistCompetitorIntel(
 ): Promise<CompetitorIntelResult> {
   const req = parseCompetitorIntelPayload(input);
   const runId = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
-  const agentId = await upsertArcAgent(client);
+  // agents.org_id is NOT NULL with no default, so there is no tenant-less way to
+  // reach the agent row. Say so here rather than let it surface as an opaque
+  // constraint violation from Postgres. The only caller (the arc-guarded
+  // competitor-intel route) always supplies a tenant.
+  if (!tenant) {
+    throw new Error("persistCompetitorIntel requires a tenant: agents and competitor_campaigns are org-scoped.");
+  }
+  const agentId = await upsertArcAgent(client, tenant.org_id);
 
   const competitorCampaignId = await insertOne(client, "competitor_campaigns", {
     ...(tenant ? { org_id: tenant.org_id } : {}),
@@ -36,10 +43,14 @@ export async function persistCompetitorIntel(
   return { competitorCampaignId, status: "needs_review", runId };
 }
 
-async function upsertArcAgent(client: SupabaseClient): Promise<string> {
+// agents is org-scoped but has no workspace_id column, so the tenant cannot be
+// spread here -- org_id is set explicitly. The conflict target must stay
+// (org_id, key) to match the per-org unique; targeting "key" alone would
+// resolve against another tenant's agent row and overwrite it.
+async function upsertArcAgent(client: SupabaseClient, orgId: string): Promise<string> {
   const { data, error } = await client
     .from("agents")
-    .upsert({ key: "arc", name: "Arc Orchestrator", status: "ready" }, { onConflict: "key" })
+    .upsert({ org_id: orgId, key: "arc", name: "Arc Orchestrator", status: "ready" }, { onConflict: "org_id,key" })
     .select("id")
     .single<{ id: string }>();
   if (error) {

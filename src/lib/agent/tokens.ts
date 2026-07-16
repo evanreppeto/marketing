@@ -13,6 +13,7 @@ import { DEFAULT_WORKSPACE_ID } from "./connection";
  */
 export const TOKEN_SCOPE_ARC_FULL = "arc:full";
 export const TOKEN_SCOPE_LEADS_INGEST = "leads:ingest";
+export const TOKEN_SCOPE_CAMPAIGN_RESULTS_INGEST = "campaign-results:ingest";
 
 /**
  * Pure: may a token with these scopes perform `required`?
@@ -113,7 +114,12 @@ export async function issueAgentToken(
   let result = await db.from("agent_api_tokens").insert(payload).select(TOKEN_COLUMNS).single<AgentTokenRow>();
 
   if (result.error && scope.orgId) {
+    // Pre-scopes database: `scopes` is the column that doesn't exist yet, so that's
+    // the only thing the retry drops (TOKEN_COLUMNS_LEGACY mirrors it). org_id has
+    // been NOT NULL here since the baseline and must still ride along — dropping it
+    // would file the token under whatever the column default says.
     const legacyPayload = {
+      org_id: scope.orgId,
       workspace_id: payload.workspace_id,
       token_hash: payload.token_hash,
       prefix: payload.prefix,

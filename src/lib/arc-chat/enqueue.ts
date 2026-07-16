@@ -101,6 +101,9 @@ export async function enqueueArcChatTask(
 
   const { error: inputError } = await client.from("agent_task_inputs").insert({
     task_id: task.id,
+    // Only org_id: agent_task_inputs has no workspace_id column, so `tenant`
+    // cannot be spread here the way it is into agent_tasks above.
+    org_id: tenant.org_id,
     input_type: "operator_message",
     source_table: "arc_conversations",
     source_id: input.conversationId,

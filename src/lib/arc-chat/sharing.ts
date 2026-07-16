@@ -12,7 +12,7 @@ import {
 import { getAuthMode } from "../auth/auth-mode";
 import { getCurrentWorkspaceContext } from "../auth/workspace";
 import { getSupabaseAuthenticatedUser } from "../supabase/auth-server";
-import { getSupabaseAdminClient } from "../supabase/server";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 export class ArcAccessError extends Error {
   constructor(message = "You don't have access to this Arc item.") {
@@ -56,20 +56,49 @@ export async function getShareViewer(
   return { userId: user.id, workspaceIds, enforce: true };
 }
 
-/** Owner + tenancy to stamp on newly created Arc rows. Null in open/dev mode. */
+/** Owner + tenancy to stamp on newly created Arc rows. Owner is null in open/dev mode. */
 export async function getCreationTenancy(): Promise<{
   ownerId: string | null;
   workspaceId: string | null;
   orgId: string | null;
 }> {
   const viewer = await getShareViewer();
-  if (!viewer.enforce || !viewer.userId) return { ownerId: null, workspaceId: null, orgId: null };
+  if (!viewer.enforce || !viewer.userId) {
+    return { ownerId: null, workspaceId: null, orgId: await resolveSoleOrgIdForOpenMode() };
+  }
   try {
     const ctx = await getCurrentWorkspaceContext();
     return { ownerId: viewer.userId, workspaceId: ctx.workspaceId, orgId: ctx.orgId };
   } catch {
     return { ownerId: viewer.userId, workspaceId: null, orgId: null };
   }
+}
+
+/**
+ * Open/dev mode has no session, so there is no user to derive an org from. Look
+ * the org up explicitly rather than leaving org_id off the payload: the columns
+ * used to carry `default default_organization_id()` (hardcoded to one slug), so
+ * an omitted org was silently filled in instead of failing. That default is gone,
+ * so an omitted org is now a not-null violation.
+ *
+ * Only answers when the answer is unambiguous. A dev database has exactly one
+ * org; if it somehow has several there is no basis to pick one, so refuse rather
+ * than guess -- guessing is the bug this replaced.
+ */
+async function resolveSoleOrgIdForOpenMode(): Promise<string | null> {
+  if (!isSupabaseAdminConfigured()) return null;
+  const { data, error } = await getSupabaseAdminClient()
+    .from("organizations")
+    .select("id")
+    .limit(2)
+    .returns<Array<{ id: string }>>();
+  if (error || !data?.length) return null;
+  if (data.length > 1) {
+    throw new Error(
+      "Open/dev mode can't choose an org: this database has more than one. Run in supabase auth mode and sign in so the org comes from the session.",
+    );
+  }
+  return data[0].id;
 }
 
 async function getConversationShare(

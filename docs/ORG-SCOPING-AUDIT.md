@@ -4,6 +4,30 @@
 
 > **Nothing here is hurting production today.** There is one tenant, and BSR *is* the correct answer, so every wrong answer is currently indistinguishable from the right one. This document exists because "make it multi-tenant" is exactly the change that converts these from harmless to silent data-mixing — and because the failure is **silent by construction**: there is no error to catch, no crash, no red test.
 
+## STATUS: fixed — the default is gone
+
+This audit has been acted on. `20260716140000_drop_bsr_org_default.sql` drops
+`default default_organization_id()` from all 32 columns and drops the function
+itself, so a missing `org_id` is now a not-null violation instead of a silent
+misfile. Every live writer below was fixed **first** — the drop is the ratchet
+that keeps them fixed, and it could not be the opening move: dropping the default
+against the then-current code would have 500'd every Arc chat turn.
+
+Proven on staging against real Postgres (`BEGIN … ROLLBACK`), which is the only
+thing that actually demonstrates the change — the mock-based unit tests pass
+either way, exactly as they did for months while the persona-intelligence insert
+was misfiling:
+
+| | `org_id` omitted | result |
+|---|---|---|
+| before the drop | insert succeeded | silently filled to `big-shoulders-restoration` |
+| after the drop | raised `23502` | not-null violation — fails loudly |
+| after, explicit `org_id` | insert succeeded | normal writes unaffected |
+
+The sections below are kept as the record of what was wrong and why, since the
+reasoning outlives the fix. Mechanism 3 was fixed by re-scoping the constraints
+(`20260716150000_scope_agent_keys_per_org.sql`), not by threading `org_id`.
+
 ---
 
 ## The root cause
@@ -87,11 +111,31 @@ Unscoped reads with the same root cause: `revisions.ts:35` (`approval_items` by 
 
 ---
 
-## Recommendations
+## Recommendations — and what was done
 
-1. **Don't fix these one by one.** 63 sites, three mechanisms, and the dangerous one is invisible to grep. Piecemeal fixes leave mechanism 2 everywhere.
-2. **Make the failure loud.** The single highest-value change is dropping `DEFAULT default_organization_id()` from those 32 columns. A missing `org_id` should be a not-null violation — caught by the first test that runs — not a silent misfile. Do this *before* a second tenant exists; afterwards it's a data-cleanup problem, not a code one.
-3. **Make `getCurrentWorkspaceContext()` refuse to guess.** A session-less caller should get an error, not BSR. The BSR fallback is a single-tenant convenience that becomes a data-mixing bug the moment it isn't.
-4. **Re-scope the global uniques** — `agents(key)` → `(org_id, key)`; same for `guardrail_rules(rule_key)`. No amount of `org_id` threading fixes a constraint that permits only one row per key database-wide.
-5. **Delete `arc/demo-workflow.ts`** if it's genuinely dead — 11 of the findings evaporate.
-6. **Fix the live list above** in priority order: send path → arc_messages → agent_run_logs → revisions split-brain.
+1. ~~**Don't fix these one by one.**~~ Correct in spirit, wrong as sequencing. The default *is* the fix, but it could not go first: the live writers had to be corrected before the drop, or production would 500 on the first chat turn. Fix the writers → drop the default. The drop is the ratchet, not the opening move.
+2. ✅ **Make the failure loud.** Done — `20260716140000_drop_bsr_org_default.sql`. Dropped from all 32 columns, and `default_organization_id()` itself dropped so it can't be reintroduced by copy-paste. **Deploy code before applying it** — it's breaking for any build still relying on the default.
+3. ⚠️ **Make `getCurrentWorkspaceContext()` refuse to guess.** *Still open* — the `fetchDefaultOrg()` → BSR-slug fallback (`auth/workspace.ts:242`) is untouched. Narrowed, not closed: `getCreationTenancy()` now resolves the **sole** org in open/dev mode and throws when the answer is ambiguous, rather than picking BSR. The bearer-token path is the remaining exposure.
+4. ✅ **Re-scope the global uniques** — done in `20260716150000_scope_agent_keys_per_org.sql`: `agents(key)` → `(org_id, key)`, `guardrail_rules(rule_key)` → `(org_id, rule_key)`, with the upserts' `onConflict` moved in the same change. Threading `org_id` alone would have been *worse than nothing*: with the global constraint still in place, org B's `upsert({key:'arc'}, {onConflict:'key'})` would match and **update org A's row**.
+5. ✅ **Delete `arc/demo-workflow.ts`** — confirmed zero callers, deleted. 446 lines, 11 findings gone.
+6. ✅ **Fix the live list** — send path, `arc_messages` (derived from the parent conversation, not threaded through callers), `agent_run_logs` (from the parent task row, which is provably NOT NULL — *not* from the optional `scope`, which would have been fail-open), and the `revisions.ts` split-brain.
+
+### Mechanism 3, swept exhaustively
+
+Every `UNIQUE` constraint on an org-scoped table whose definition omits `org_id`, from the live catalog:
+
+| constraint | verdict |
+|---|---|
+| `agents_key_key UNIQUE (key)` | ❌ bug — **fixed** → `(org_id, key)` |
+| `guardrail_rules_rule_key_key UNIQUE (rule_key)` | ❌ bug — **fixed** → `(org_id, rule_key)` |
+| `jobs_job_number_key UNIQUE (job_number)` | ❌ **bug, NOT fixed** — see below |
+| `agent_api_tokens_token_hash_key UNIQUE (token_hash)` | ✅ correct — a secret hash *must* be globally unique |
+| `workspace_invites_code_hash_key UNIQUE (code_hash)` | ✅ correct — same reason |
+| `arc_instances (workspace_id, key)`, `workspace_connectors (workspace_id, connector_key)`, `connector_spend_budgets (workspace_id)`, `workspace_media_config (workspace_id)` | ✅ correct — scoped by `workspace_id`, which is itself org-scoped |
+
+**`jobs.job_number` is globally unique.** `job_number` is a per-company business identifier, so two tenants both wanting `JOB-1001` is *expected*, and today the second one is rejected. It does not block the default drop (`jobs.org_id` is not one of the 32 defaulted columns) so it is deliberately out of scope here, but it is a genuine multi-tenant defect and should be re-scoped to `(org_id, job_number)` before tenant #2.
+
+### Known-remaining
+- **`campaign_results` via the shared env token.** The cross-tenant *overwrite* is closed (the natural-key SELECT is now unconditionally org-filtered, and omitting the org is a type error). But `CAMPAIGN_RESULTS_API_TOKEN` is a shared secret with no identity, so that path still resolves the org from a session that isn't there. Closing it means issuing per-workspace tokens scoped `campaign-results:ingest` and retiring the env var — the `.env.example` / go-live docs still describe the shared-token contract.
+- **`listAgentTokens` / `hasActiveAgentTokens`** drop the `org_id` filter on their pre-`scopes` legacy retry. Reads only, so nothing misfiles, but on a pre-scopes DB they can over-return another org's tokens.
+- **`arc_conversations` created by a session-less caller** still has no org to derive.
