@@ -1,8 +1,47 @@
 import { tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 
-import type { ArcClient } from "../arc-client";
+import type { ArcClient, QueryParams } from "../arc-client";
 import { runTool, type StepFn } from "./helpers";
+
+/**
+ * What every CRM list tool hands back, spelled out for the model. `total` is the
+ * whole point: without it a capped page is indistinguishable from a complete
+ * table, which is how Arc read a truncated 10-row fragment as the entire CRM and
+ * answered "at least 64 leads" against 200 — then burned a turn's budget
+ * re-querying per status to make up the difference.
+ */
+function listContract(key: string): string {
+  return (
+    `Returns { ${key}, total, returned, has_more }. \`total\` is the EXACT count of all matching rows, ` +
+    `independent of the page size — answer counting questions from \`total\`, never by counting the rows ` +
+    `returned. Rows are a capped page (default 25, max 100). Pass limit=0 to get \`total\` with no rows, ` +
+    `which is the cheapest way to count. A \`_truncated\` marker means rows were dropped to fit the tool ` +
+    `budget: the list is partial, but \`total\` is still exact.`
+  );
+}
+
+type ListEnvelope = Record<string, unknown> & { total?: number; returned?: number; has_more?: boolean };
+
+/**
+ * Fetch one CRM list page and return the WHOLE envelope. These tools used to
+ * return the bare row array (`r.leads ?? []`), which discarded `total` before
+ * the model could ever see it.
+ */
+async function listPage(
+  client: ArcClient,
+  path: string,
+  key: string,
+  args: QueryParams,
+): Promise<Record<string, unknown>> {
+  const r = await client.apiGet<ListEnvelope>(path, args);
+  return { [key]: r[key] ?? [], total: r.total, returned: r.returned, has_more: r.has_more };
+}
+
+const limitArg = z
+  .number()
+  .optional()
+  .describe("Page size. Default 25, max 100. Use 0 to get `total` with no rows.");
 
 /**
  * Read-only CRM tools. Each maps to a GET /api/v1/arc/crm/* endpoint and reports
@@ -11,41 +50,39 @@ import { runTool, type StepFn } from "./helpers";
 export function crmReadTools(client: ArcClient, step: StepFn) {
   const searchCompanies = tool(
     "search_companies",
-    "Search CRM companies (accounts/partners). Filters optional. Use for partner/account questions.",
+    `Search CRM companies (accounts/partners). Filters optional. Use for partner/account questions. ${listContract("companies")}`,
     {
       status: z.string().optional(),
       persona: z.string().optional(),
       partner_tier: z.string().optional(),
       q: z.string().optional().describe("Free-text search"),
-      limit: z.number().optional(),
+      limit: limitArg,
     },
     async (args) =>
-      runTool(step, "Searching CRM companies", async () => {
-        const r = await client.apiGet<{ companies: unknown[] }>("/api/v1/arc/crm/companies", args);
-        return r.companies ?? [];
-      }),
+      runTool(step, "Searching CRM companies", () =>
+        listPage(client, "/api/v1/arc/crm/companies", "companies", args),
+      ),
   );
 
   const searchContacts = tool(
     "search_contacts",
-    "Search CRM contacts (people). Filters optional.",
+    `Search CRM contacts (people). Filters optional. ${listContract("contacts")}`,
     {
       status: z.string().optional(),
       persona: z.string().optional(),
       company_id: z.string().optional(),
       q: z.string().optional(),
-      limit: z.number().optional(),
+      limit: limitArg,
     },
     async (args) =>
-      runTool(step, "Searching CRM contacts", async () => {
-        const r = await client.apiGet<{ contacts: unknown[] }>("/api/v1/arc/crm/contacts", args);
-        return r.contacts ?? [];
-      }),
+      runTool(step, "Searching CRM contacts", () =>
+        listPage(client, "/api/v1/arc/crm/contacts", "contacts", args),
+      ),
   );
 
   const searchLeads = tool(
     "search_leads",
-    "Search CRM leads/opportunities. Use when the operator asks about leads, opportunities, or who to target. Filters optional.",
+    `Search CRM leads/opportunities. Use when the operator asks about leads, opportunities, or who to target. Filters optional. ${listContract("leads")}`,
     {
       status: z.string().optional(),
       persona: z.string().optional(),
@@ -53,13 +90,10 @@ export function crmReadTools(client: ArcClient, step: StepFn) {
       q: z.string().optional(),
       min_score: z.number().optional(),
       max_score: z.number().optional(),
-      limit: z.number().optional(),
+      limit: limitArg,
     },
     async (args) =>
-      runTool(step, "Searching CRM leads", async () => {
-        const r = await client.apiGet<{ leads: unknown[] }>("/api/v1/arc/crm/leads", args);
-        return r.leads ?? [];
-      }),
+      runTool(step, "Searching CRM leads", () => listPage(client, "/api/v1/arc/crm/leads", "leads", args)),
   );
 
   const getLead = tool(
@@ -75,39 +109,35 @@ export function crmReadTools(client: ArcClient, step: StepFn) {
 
   const searchJobs = tool(
     "search_jobs",
-    "Search CRM jobs (restoration jobs/projects). Filters optional.",
+    `Search CRM jobs (restoration jobs/projects). Filters optional. ${listContract("jobs")}`,
     {
       status: z.string().optional(),
       persona: z.string().optional(),
       company_id: z.string().optional(),
-      limit: z.number().optional(),
+      limit: limitArg,
     },
     async (args) =>
-      runTool(step, "Searching CRM jobs", async () => {
-        const r = await client.apiGet<{ jobs: unknown[] }>("/api/v1/arc/crm/jobs", args);
-        return r.jobs ?? [];
-      }),
+      runTool(step, "Searching CRM jobs", () => listPage(client, "/api/v1/arc/crm/jobs", "jobs", args)),
   );
 
   const searchOutcomes = tool(
     "search_outcomes",
-    "Search CRM outcomes (closed results / attribution). Filters optional.",
+    `Search CRM outcomes (closed results / attribution). Filters optional. ${listContract("outcomes")}`,
     {
       status: z.string().optional(),
       persona: z.string().optional(),
       company_id: z.string().optional(),
-      limit: z.number().optional(),
+      limit: limitArg,
     },
     async (args) =>
-      runTool(step, "Searching CRM outcomes", async () => {
-        const r = await client.apiGet<{ outcomes: unknown[] }>("/api/v1/arc/crm/outcomes", args);
-        return r.outcomes ?? [];
-      }),
+      runTool(step, "Searching CRM outcomes", () =>
+        listPage(client, "/api/v1/arc/crm/outcomes", "outcomes", args),
+      ),
   );
 
   const searchProperties = tool(
     "search_properties",
-    "Search CRM properties (locations/sites). Filters optional.",
+    `Search CRM properties (locations/sites). Filters optional. ${listContract("properties")}`,
     {
       persona: z.string().optional(),
       city: z.string().optional(),
@@ -116,13 +146,12 @@ export function crmReadTools(client: ArcClient, step: StepFn) {
       property_type: z.string().optional(),
       company_id: z.string().optional(),
       q: z.string().optional(),
-      limit: z.number().optional(),
+      limit: limitArg,
     },
     async (args) =>
-      runTool(step, "Searching CRM properties", async () => {
-        const r = await client.apiGet<{ properties: unknown[] }>("/api/v1/arc/crm/properties", args);
-        return r.properties ?? [];
-      }),
+      runTool(step, "Searching CRM properties", () =>
+        listPage(client, "/api/v1/arc/crm/properties", "properties", args),
+      ),
   );
 
   const searchCrm = tool(

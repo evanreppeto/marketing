@@ -1,28 +1,20 @@
 import { arcGuard, fail, INVALID_JSON, ok, readJson } from "@/app/api/v1/arc/_lib/http";
+import { intParam, pageMeta, readLimit } from "@/app/api/v1/arc/_lib/paging";
 import { type LeadStatus } from "@/domain";
 import { createArcLead } from "@/lib/arc/record-writes";
-import { listLeads } from "@/lib/repos";
+import { listLeadsPage } from "@/lib/repos";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
-
-/**
- * Read an integer query param, or undefined when it's absent or not an integer.
- *
- * Read the raw param FIRST. `Number(null)` is 0 and `Number.isInteger(0)` is
- * true, so coercing before the presence check turns an absent filter into a
- * real one — which is how an omitted `max_score` became `lead_score <= 0` and
- * silently hid every lead from Arc.
- */
-function intParam(url: URL, key: string): number | undefined {
-  const raw = url.searchParams.get(key);
-  if (raw === null || raw.trim() === "") return undefined;
-  const value = Number(raw);
-  return Number.isInteger(value) ? value : undefined;
-}
 
 /**
  * Read-only lead search for Arc.
  *
- *   GET /api/v1/arc/crm/leads?status=qualified&persona=...&source=...&limit=50
+ *   GET /api/v1/arc/crm/leads?status=qualified&persona=...&source=...&limit=25
+ *
+ * Returns a bounded page plus `total`, the exact number of leads matching the
+ * filters. `limit=0` asks for that count alone. This route used to return every
+ * matching row: 200 full leads (~833 chars each) overflowed the runner's
+ * 8000-char tool budget, were sliced mid-JSON to 10, and Arc — with no total to
+ * check against — read the fragment as the whole CRM and answered "at least 64".
  */
 export async function GET(request: Request) {
   const allowed = await arcGuard(request);
@@ -35,12 +27,11 @@ export async function GET(request: Request) {
   const q = url.searchParams.get("q") ?? undefined;
   const minScore = intParam(url, "min_score");
   const maxScore = intParam(url, "max_score");
-  const limitValue = intParam(url, "limit");
-  const limit = limitValue !== undefined && limitValue > 0 ? limitValue : undefined;
+  const limit = readLimit(url);
 
   try {
-    const leads = await listLeads({ orgId: allowed.scope.orgId, status: status as LeadStatus | undefined, persona, source, q, minScore, maxScore, limit });
-    return ok({ leads });
+    const { leads, total } = await listLeadsPage({ orgId: allowed.scope.orgId, status: status as LeadStatus | undefined, persona, source, q, minScore, maxScore, limit });
+    return ok({ leads, ...pageMeta(total, leads.length, limit) });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list leads.", 502);
   }
