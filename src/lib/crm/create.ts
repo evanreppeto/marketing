@@ -1,5 +1,6 @@
 import { isAllowedPersona } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { syncRecordToBrain } from "@/lib/brain-ingestion/sync";
 import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -39,6 +40,29 @@ const PARENT_COLUMN: Record<string, string> = {
 export type CreateCrmResult = { ok: true; id: string } | { ok: false; error: string };
 
 const NOT_CONFIGURED = "Supabase is not configured, so nothing was written.";
+
+/**
+ * Mirror an operator's CRM write into the Brain, so what a human types becomes memory
+ * Arc can recall — exactly as Arc's own edits already do (`lib/arc/record-writes.ts`).
+ * Without this the identical edit fed Arc's memory when Arc made it and vanished when
+ * a person made it, until someone happened to press "Refresh memory" on the Brain page.
+ *
+ * Lives here rather than in the server actions so it covers every caller of this layer,
+ * and because a write's consequences belong with the write.
+ *
+ * Awaited, not fire-and-forget: a server action's runtime can freeze once it returns,
+ * which would silently drop the sync — the failure mode this is fixing. It costs the
+ * save an upsert plus (only when the text changed) one embed call. Best-effort: the row
+ * is already committed and a Brain hiccup must never fail it, since a missed node is
+ * recoverable from the next sync or the Brain page's backfill, and a lost CRM write is not.
+ */
+async function mirrorToBrainBestEffort(objectKey: CrmObjectKey, recordId: string, orgId: string): Promise<void> {
+  try {
+    await syncRecordToBrain(objectKey, recordId, { orgId });
+  } catch {
+    /* ignore — the record write already succeeded; see above */
+  }
+}
 
 /**
  * Insert a new operator-created CRM record. Mirrors src/lib/interactions
@@ -83,6 +107,7 @@ export async function insertCrmRecord(input: CreateCrmInput, orgId?: string): Pr
     .select("id")
     .single<{ id: string }>();
   if (error) return { ok: false, error: error.message };
+  await mirrorToBrainBestEffort(input.objectKey, data.id, scopedOrgId);
   return { ok: true, id: data.id };
 }
 
@@ -193,5 +218,6 @@ export async function updateCrmRecordFields(
     .select("id")
     .single<{ id: string }>();
   if (error) return { ok: false, error: error.message };
+  await mirrorToBrainBestEffort(objectKey, data.id, scopedOrgId);
   return { ok: true, id: data.id };
 }
