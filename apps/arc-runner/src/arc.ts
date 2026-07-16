@@ -252,14 +252,26 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     onThinking: (text) => client.postChatThinking(payload.agentTaskId, text),
   });
 
-  // When the conversation has grown past the verbatim window, do two best-effort,
-  // fire-and-forget passes over the overflow turns (never delays/breaks the reply):
-  //   1. Auto-compaction — fold them into the rolling summary (working memory).
-  //   2. Memory promotion — distill durable facts into the Brain (cross-chat memory).
+  // Two best-effort, fire-and-forget passes; neither delays or breaks the reply.
+  //
+  // Compaction stays gated on overflow — folding evicted turns into the rolling
+  // summary is the only reason it exists. Memory promotion deliberately does NOT:
+  // these were coupled, and since overflow needs the conversation to outgrow a
+  // 24k-token budget, promotion never fired on a normal chat (zero `learning` nodes
+  // in prod since seeding). It also meant the only turns ever mined were the oldest
+  // ones. Promotion now reads the exchange that just happened, every turn.
   if (memoryCtx.overflow) {
     void compactConversation(client, payload.conversationId, memoryCtx.summary, memoryCtx.overflow);
-    void promoteConversationMemory(client, memoryCtx.overflow.turns);
   }
+  void promoteConversationMemory(
+    client,
+    [
+      ...memoryCtx.history,
+      { role: "operator", body: payload.message },
+      { role: "arc", body: result.body },
+    ],
+    memoryCtx.summary,
+  );
   return result;
 }
 
