@@ -104,6 +104,7 @@ export async function POST(request: Request) {
       result,
       persisted,
       supabase,
+      orgId,
     });
     // Identity stitch (P1): if this lead carried an anonymous_id from a first-party
     // collector cookie, merge its pre-lead journey onto the now-known contact.

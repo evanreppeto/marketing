@@ -88,6 +88,7 @@ describe("persona intelligence persistence", () => {
       result,
       persisted,
       supabase: client as never,
+      orgId: "org-1",
     });
 
     expect(created).toEqual({
@@ -100,6 +101,15 @@ describe("persona intelligence persistence", () => {
       "engagement_events",
       "next_best_actions",
     ]);
+
+    // EVERY insert must carry org_id explicitly. These tables default org_id to
+    // default_organization_id() — hardcoded to the BSR slug — so a missing org_id
+    // is SILENT: the row is written, just into the wrong tenant. There is no error
+    // to catch and nothing for a mock to reveal, which is why this assertion (not
+    // the DB) is the guard.
+    expect(calls[0].values).toMatchObject({ org_id: "org-1" });
+    expect((calls[1].values as Record<string, unknown>[]).map((row) => row.org_id)).toEqual(["org-1", "org-1", "org-1"]);
+    expect(calls[2].values).toMatchObject({ org_id: "org-1" });
     expect(calls[0].values).toMatchObject({
       persona: "persona_homeowner_emergency",
       lead_id: "lead-1",
@@ -138,6 +148,7 @@ describe("persona intelligence persistence", () => {
       result,
       persisted,
       supabase: client as never,
+      orgId: "org-1",
     });
 
     expect(result.routing).toBe("archived");
