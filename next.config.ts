@@ -1,3 +1,4 @@
+import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -27,4 +28,28 @@ const nextConfig: NextConfig = {
   // links to them anymore.
 };
 
-export default nextConfig;
+// Sentry wraps the build to (a) instrument server code and (b) upload source maps
+// so a prod stack trace points at real lines instead of minified soup.
+//
+// It must stay harmless in the builds that have no Sentry env: CI runs
+// `pnpm build` with nothing configured, and a plugin that errored (or chattered)
+// there would break the required `verify` check for every PR. Source-map upload
+// only happens when SENTRY_AUTH_TOKEN + org/project are present; otherwise this
+// is a pass-through.
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // Don't fail or spam the build when Sentry isn't configured (CI, local, demo).
+  silent: !process.env.SENTRY_AUTH_TOKEN,
+  errorHandler: (err) => {
+    // A source-map upload hiccup must never fail a deploy — the app is fine, the
+    // symbolication just degrades.
+    console.warn("[sentry] build plugin:", err.message);
+  },
+  // Route the browser SDK's requests through our own origin so ad-blockers don't
+  // silently swallow client-side error reports.
+  tunnelRoute: "/monitoring",
+  // Keep uploaded maps out of the public bundle.
+  sourcemaps: { deleteSourcemapsAfterUpload: true },
+});
