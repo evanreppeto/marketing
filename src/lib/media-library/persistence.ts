@@ -117,6 +117,10 @@ export type InsertAssetInput = {
   source?: string;
   provenance?: Record<string, unknown>;
   uploadedBy: string;
+  /** Whether Arc may reuse this asset. Defaults to false: operator-supplied media is
+   *  held for provenance review, and only the Brain mirror below exposes it to Arc.
+   *  Brand-kit images pass true — they're fetched for Arc to use by definition. */
+  availableToArc?: boolean;
   client?: SupabaseClient;
   uploader?: ImageUploader;
 };
@@ -142,6 +146,7 @@ export async function insertAssetWithUrl(input: InsertAssetInput): Promise<Inser
     storage_path: "pending", public_url: "pending", content_type: input.contentType, kind: input.kind,
     width: input.width ?? null, height: input.height ?? null, byte_size: input.byteSize,
     source: input.source ?? "uploaded", provenance: input.provenance ?? {},
+    available_to_arc: input.availableToArc ?? false,
     uploaded_by: input.uploadedBy,
   });
   const path = buildStoragePath(input.orgId, id, input.fileName);
@@ -169,8 +174,23 @@ export async function setAssetTags(id: string, tags: string[], client: SupabaseC
   await updateRow(client, "media_assets", { tags }, id);
 }
 
-export async function setAvailableToArc(id: string, value: boolean, client: SupabaseClient = getSupabaseAdminClient()) {
-  await updateRow(client, "media_assets", { available_to_arc: value }, id);
+/** Mark whether Arc may reuse this asset. Org-scoped on purpose: this runs through the
+ *  RLS-bypassing service-role client, so the org filter is the only thing standing
+ *  between an operator and another tenant's row. Returns false when nothing matched. */
+export async function setAvailableToArc(
+  id: string,
+  value: boolean,
+  orgId: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<boolean> {
+  const { data, error } = await client
+    .from("media_assets" as string)
+    .update({ available_to_arc: value })
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select("id");
+  if (error) throw new Error(`media_assets update failed: ${error.message}`);
+  return (data ?? []).length > 0;
 }
 
 export async function deleteAsset(id: string, client: SupabaseClient = getSupabaseAdminClient()) {

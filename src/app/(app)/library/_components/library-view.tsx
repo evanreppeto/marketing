@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 
 import { formatByteSize } from "@/domain";
 
-import { createLibraryFolder, uploadLibraryAsset } from "../actions";
+import { createLibraryFolder, setLibraryAssetArcAvailability, uploadLibraryAsset } from "../actions";
 import { ImportUrlModal } from "./import-url-modal";
 import { NewFolderModal } from "./new-folder-modal";
 
@@ -362,7 +362,38 @@ export function LibraryView({
   const cycleSort = () => setSortBy((s) => (s === "recent" ? "name" : s === "name" ? "used" : "recent"));
 
   const openDetail = (a: Asset) => setDetail(a);
-  const toggleArc = (a: Asset) => setArcState((p) => ({ ...p, [a.id]: !isArc(a) }));
+
+  /**
+   * Persist the operator's "may Arc reuse this?" decision. Optimistic so the grid
+   * responds instantly, but rolled back if the write fails — a provenance gate that
+   * lies about being saved is worse than one that reports the failure. Session-only
+   * rows (no `rid`) have no DB row yet, so they stay local.
+   */
+  const applyArc = (assets: Asset[], value: boolean) => {
+    setArcState((p) => ({ ...p, ...Object.fromEntries(assets.map((a) => [a.id, value])) }));
+    const real = assets.filter((a) => a.rid);
+    if (!real.length) return;
+    void Promise.all(
+      real.map(async (a) => {
+        const res = await setLibraryAssetArcAvailability(a.rid!, value).catch(() => ({
+          ok: false as const,
+          error: "Could not reach the server.",
+        }));
+        return { a, res };
+      }),
+    ).then((results) => {
+      const failed = results.filter((r) => !r.res.ok);
+      if (!failed.length) return;
+      setArcState((p) => ({ ...p, ...Object.fromEntries(failed.map((r) => [r.a.id, !value])) }));
+      setNotice(
+        failed.length === 1 && !failed[0].res.ok && "error" in failed[0].res
+          ? failed[0].res.error
+          : `${failed.length} asset${failed.length === 1 ? "" : "s"} couldn't be updated.`,
+      );
+    });
+  };
+
+  const toggleArc = (a: Asset) => applyArc([a], !isArc(a));
 
   const CHECK = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><path d="M5 12l4 4 10-10" /></svg>;
 
@@ -470,7 +501,7 @@ export function LibraryView({
 
           <div className={`selbar${selmode ? " show" : ""}`}>
             <span className="sc">{sel.size} selected</span>
-            <span className="sa" onClick={() => { sel.forEach((id) => setArcState((p) => ({ ...p, [id]: true }))); setSel(new Set()); }}><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg>Make available to Arc</span>
+            <span className="sa" onClick={() => { applyArc(allAssets.filter((a) => sel.has(a.id)), true); setSel(new Set()); }}><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg>Make available to Arc</span>
             <a className="sa" href={NEW_CAMPAIGN}><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to campaign</a>
             <span className="sa"><svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z" /></svg>Move to folder</span>
             <span className="sa"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>Download</span>

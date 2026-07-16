@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { buildStoragePath, createFolder, insertAsset, insertAssetWithUrl, sanitizeFileName, DEFAULT_MEDIA_FOLDERS, seedDefaultMediaFolders } from "./persistence";
+import { buildStoragePath, createFolder, insertAsset, insertAssetWithUrl, sanitizeFileName, setAvailableToArc, DEFAULT_MEDIA_FOLDERS, seedDefaultMediaFolders } from "./persistence";
 
 describe("sanitizeFileName", () => {
   it("strips path separators and unsafe chars", () => {
@@ -159,5 +159,75 @@ describe("seedDefaultMediaFolders", () => {
     const created = await seedDefaultMediaFolders({ orgId: "org-1", client });
     expect(created).toBe(0);
     expect(insert).not.toHaveBeenCalled();
+  });
+});
+
+describe("available_to_arc on insert", () => {
+  function assetClient() {
+    return createSupabaseQueryMock({
+      media_assets: [
+        { data: { id: "asset-1" }, error: null },
+        { data: null, error: null },
+      ],
+    });
+  }
+
+  const base = {
+    orgId: "org-1",
+    folderId: null,
+    fileName: "roof.png",
+    bytes: new Uint8Array([1]),
+    contentType: "image/png",
+    kind: "image",
+    byteSize: 1,
+    uploadedBy: "operator",
+    uploader: async (path: string) => `https://cdn.example/${path}`,
+  };
+
+  // Regression: the row used to inherit the DB's `default true`, so operator uploads
+  // were reusable by Arc (and mirrored into the Brain) the moment they landed —
+  // while the Library promised they were held for provenance review.
+  it("holds new uploads from Arc by default", async () => {
+    const supabase = assetClient();
+    await insertAssetWithUrl({ ...base, client: supabase });
+    expect(supabase.calls).toContainEqual(["insert", expect.objectContaining({ available_to_arc: false })]);
+  });
+
+  it("lets brand-kit callers opt an asset in explicitly", async () => {
+    const supabase = assetClient();
+    await insertAssetWithUrl({ ...base, availableToArc: true, client: supabase });
+    expect(supabase.calls).toContainEqual(["insert", expect.objectContaining({ available_to_arc: true })]);
+  });
+});
+
+describe("setAvailableToArc", () => {
+  function updateClient(rows: Array<{ id: string }>) {
+    const calls: Array<[string, unknown]> = [];
+    const builder: Record<string, unknown> = {};
+    for (const method of ["update", "eq"]) {
+      builder[method] = (...args: unknown[]) => {
+        calls.push([method, args.length > 1 ? args : args[0]]);
+        return builder;
+      };
+    }
+    builder.select = () => Promise.resolve({ data: rows, error: null });
+    const client = { from: () => builder } as unknown as import("@supabase/supabase-js").SupabaseClient;
+    return { client, calls };
+  }
+
+  // The service-role client bypasses RLS, so the org filter is the only thing
+  // stopping an operator from flipping another tenant's asset.
+  it("scopes the write to the caller's org", async () => {
+    const { client, calls } = updateClient([{ id: "asset-1" }]);
+    const matched = await setAvailableToArc("asset-1", true, "org-1", client);
+    expect(matched).toBe(true);
+    expect(calls).toContainEqual(["update", { available_to_arc: true }]);
+    expect(calls).toContainEqual(["eq", ["org_id", "org-1"]]);
+    expect(calls).toContainEqual(["eq", ["id", "asset-1"]]);
+  });
+
+  it("reports no match when the asset belongs to another org", async () => {
+    const { client } = updateClient([]);
+    expect(await setAvailableToArc("asset-1", true, "other-org", client)).toBe(false);
   });
 });

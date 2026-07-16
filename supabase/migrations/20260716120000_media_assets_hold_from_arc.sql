@@ -1,0 +1,17 @@
+-- Hold newly-stored media from Arc until an operator opts it in.
+--
+-- The baseline set `media_assets.available_to_arc` to default `true`, which
+-- contradicted the Library UI ("held for provenance review before Arc may
+-- reuse") and the upload action's own docs. Every upload/import landed
+-- immediately reusable by Arc *and* was mirrored into the Brain, so the
+-- operator's provenance gate never actually existed.
+--
+-- App code now passes `available_to_arc` explicitly on insert; this default is
+-- defense-in-depth for any writer that forgets (the original failure mode).
+--
+-- Not backfilling existing rows: `available_to_arc` was never persistable from
+-- the UI, so a stored `true` records the accidental default rather than an
+-- operator decision. Both known deployments have zero media_assets rows, so
+-- there is nothing to reinterpret; revoking on a DB that does have rows is left
+-- as a deliberate operator action.
+alter table public.media_assets alter column available_to_arc set default false;
