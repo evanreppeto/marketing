@@ -107,8 +107,17 @@ export async function editDraftAsset(
   if (typeof body === "string") update.edited_body = body;
   if (typeof title === "string" && title.trim()) update.title = title.trim();
 
-  const { error: assetError } = await client.from("campaign_assets").update(update).eq("id", assetId);
+  // Return the asset's org so the event below can inherit it: campaign_events.org_id
+  // is NOT NULL with no column default, and this caller has no tenant of its own to
+  // pass. Reading it back off the update we already issue avoids a second round-trip.
+  const { data: asset, error: assetError } = await client
+    .from("campaign_assets")
+    .update(update)
+    .eq("id", assetId)
+    .select("org_id")
+    .maybeSingle<{ org_id: string }>();
   assertOk("campaign_assets edit", assetError);
+  if (!asset) throw new Error("campaign_assets edit failed: asset not found");
 
   const editedKeys = Object.keys(cleanFields);
   const parts = [...editedKeys];
@@ -116,6 +125,7 @@ export async function editDraftAsset(
   const detail = `Draft edited by ${operator}${parts.length ? `: ${parts.join(", ")}` : ""}`;
 
   const { error: eventError } = await client.from("campaign_events").insert({
+    org_id: asset.org_id,
     campaign_id: campaignId || null,
     campaign_asset_id: assetId,
     event_type: "asset_edited",

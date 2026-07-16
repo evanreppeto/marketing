@@ -36,7 +36,7 @@ export async function runArcPartnerCampaign(
   const businessContext = context ?? (await getBusinessContext(orgId));
   const runId = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
   const startedAt = new Date().toISOString();
-  const agentId = await upsertArcAgent(client);
+  const agentId = await upsertArcAgent(client, orgId);
   const draft = createPartnerCampaignDraft(request, businessContext);
 
   const companyId = await insertOne(client, "companies", withOrg({
@@ -127,7 +127,7 @@ export async function runArcPartnerCampaign(
     },
   }, tenant));
 
-  const personaSnapshotId = await insertOne(client, "persona_snapshots", {
+  const personaSnapshotId = await insertOne(client, "persona_snapshots", withOrg({
     persona: request.persona,
     company_id: companyId,
     contact_id: contactId,
@@ -152,7 +152,7 @@ export async function runArcPartnerCampaign(
       run_id: runId,
       outbound_locked: true,
     },
-  });
+  }, tenant));
 
   const campaignAssetId = await insertOne(client, "campaign_assets", withOrg({
     campaign_id: campaignId,
@@ -237,7 +237,7 @@ export async function runArcPartnerCampaign(
     },
   });
 
-  await insertOne(client, "agent_task_inputs", {
+  await insertOne(client, "agent_task_inputs", withOrg({
     task_id: agentTaskId,
     input_type: "partner_campaign_request",
     source_table: "leads",
@@ -247,7 +247,7 @@ export async function runArcPartnerCampaign(
       request,
       draft_prompt: draft.promptInput,
     },
-  });
+  }, taskTenant));
 
   const agentOutputId = await insertOne(client, "agent_outputs", withOrg({
     task_id: agentTaskId,
@@ -272,7 +272,7 @@ export async function runArcPartnerCampaign(
     approval_status: draft.guardrails.approvalStatus,
   }, taskTenant));
 
-  await insertOne(client, "agent_run_logs", {
+  await insertOne(client, "agent_run_logs", withOrg({
     task_id: agentTaskId,
     agent_id: agentId,
     run_status: draft.guardrails.riskLevel === "blocked" ? "completed" : "completed",
@@ -291,7 +291,7 @@ export async function runArcPartnerCampaign(
       approval_item_id: approvalItemId,
       guardrail_flags: draft.guardrails.flags,
     },
-  });
+  }, taskTenant));
 
   await insertOne(client, "campaign_events", withOrg({
     campaign_id: campaignId,
@@ -325,11 +325,16 @@ export async function runArcPartnerCampaign(
   };
 }
 
-async function upsertArcAgent(client: SupabaseClient) {
+// agents is org-scoped but has no workspace_id column, so `tenant` cannot be
+// spread here -- org_id is set explicitly. The conflict target must stay
+// (org_id, key) to match the per-org unique; targeting "key" alone would
+// resolve against another tenant's agent row and overwrite it.
+async function upsertArcAgent(client: SupabaseClient, orgId: string) {
   const { data, error } = await client
     .from("agents")
     .upsert(
       {
+        org_id: orgId,
         key: "arc",
         name: "Arc Orchestrator",
         description: "Coordinates Growth Engine sub-workflows and routes outbound-facing work into human approval.",
@@ -352,7 +357,7 @@ async function upsertArcAgent(client: SupabaseClient) {
           openai_adapter: "planned",
         },
       },
-      { onConflict: "key" },
+      { onConflict: "org_id,key" },
     )
     .select("id")
     .single<{ id: string }>();

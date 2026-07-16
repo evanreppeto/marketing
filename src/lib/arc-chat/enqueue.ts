@@ -49,9 +49,15 @@ export async function enqueueArcChatTask(
   input: EnqueueChatTaskInput,
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<string> {
+  // Resolved before the lookup, not after it: agent keys are unique per org
+  // (20260716150000), so an unfiltered lookup can return another tenant's agent
+  // and hand its id to the agent_tasks insert below.
+  const tenant = await getCurrentAgentTaskTenantFields();
+
   const { data: agent, error: agentError } = await client
     .from("agents")
     .select("id")
+    .eq("org_id", tenant.org_id)
     .in("key", await markAgentKeys())
     .limit(1)
     .maybeSingle<{ id: string }>();
@@ -61,8 +67,6 @@ export async function enqueueArcChatTask(
     const agentName = input.agentName?.trim() || "Agent";
     throw new Error(`${agentName} isn't connected to this workspace yet, so the message can't be queued.`);
   }
-
-  const tenant = await getCurrentAgentTaskTenantFields();
 
   const { data: task, error: taskError } = await client
     .from("agent_tasks")
@@ -101,6 +105,9 @@ export async function enqueueArcChatTask(
 
   const { error: inputError } = await client.from("agent_task_inputs").insert({
     task_id: task.id,
+    // Only org_id: agent_task_inputs has no workspace_id column, so `tenant`
+    // cannot be spread here the way it is into agent_tasks above.
+    org_id: tenant.org_id,
     input_type: "operator_message",
     source_table: "arc_conversations",
     source_id: input.conversationId,

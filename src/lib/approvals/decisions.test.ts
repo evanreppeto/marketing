@@ -23,8 +23,11 @@ const approvalItemId = "10000000-0000-4000-8000-000000000001";
 const campaignId = "10000000-0000-4000-8000-000000000002";
 const campaignAssetId = "10000000-0000-4000-8000-000000000003";
 
+const orgId = "10000000-0000-4000-8000-0000000000ff";
+
 const approvalItemRow = {
   id: approvalItemId,
+  org_id: orgId,
   status: "pending_owner_approval",
   campaign_id: campaignId,
   campaign_asset_id: campaignAssetId,
@@ -82,6 +85,7 @@ describe("decideApprovalItem", () => {
     expect(supabase.calls).toContainEqual([
       "insert",
       expect.objectContaining({
+        org_id: orgId,
         approval_item_id: approvalItemId,
         decision: "approved",
         previous_status: "pending_owner_approval",
@@ -102,6 +106,16 @@ describe("decideApprovalItem", () => {
       expect.objectContaining({
         status: "approved",
         launch_locked: true,
+      }),
+    ]);
+    // org_id is NOT NULL with no column default: the event must carry the
+    // approval item's org or the insert fails outright.
+    expect(supabase.calls).toContainEqual([
+      "insert",
+      expect.objectContaining({
+        org_id: orgId,
+        campaign_id: campaignId,
+        event_type: "approval_decided",
       }),
     ]);
   });

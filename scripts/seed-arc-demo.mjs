@@ -47,11 +47,16 @@ async function insertOne(supabase, table, values) {
   return data.id;
 }
 
-async function upsertAgent(supabase) {
+// agents is org-scoped but has no workspace_id column, so org_id is set
+// explicitly. The conflict target must stay (org_id, key) to match the per-org
+// unique; targeting "key" alone would resolve against another tenant's agent
+// row and overwrite it.
+async function upsertAgent(supabase, orgId) {
   const { data, error } = await supabase
     .from("agents")
     .upsert(
       {
+        org_id: orgId,
         key: "arc-demo",
         name: "Arc Demo Orchestrator",
         description: "Seed/demo agent that creates reviewable lead and campaign work before live Arc is connected.",
@@ -71,7 +76,7 @@ async function upsertAgent(supabase) {
           seeded_by: "scripts/seed-arc-demo.mjs",
         },
       },
-      { onConflict: "key" },
+      { onConflict: "org_id,key" },
     )
     .select("id")
     .single();
@@ -119,7 +124,7 @@ async function seedArcDemo() {
   if (wsError || !ws) throw new Error("Seed requires the default workspace for big-shoulders-restoration.");
   const workspaceId = ws.id;
 
-  const agentId = await upsertAgent(supabase);
+  const agentId = await upsertAgent(supabase, orgId);
 
   const companyId = await insertOne(supabase, "companies", {
     name: s.company,

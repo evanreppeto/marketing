@@ -108,7 +108,9 @@ export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
     const supabase = getSupabaseAdminClient();
     const orgId = await getCurrentOrgId();
     const [agentResult, tasksResult, outputsResult, reviewResult] = await Promise.all([
-      supabase.from("agents").select("name,status,metadata").eq("key", "arc").maybeSingle(),
+      // `key` is only unique per-org, so this needs org_id to avoid surfacing
+      // another tenant's Arc status in this tenant's vault signals.
+      supabase.from("agents").select("name,status,metadata").eq("org_id", orgId).eq("key", "arc").maybeSingle(),
       supabase
         .from("agent_tasks")
         .select("objective,task_type,status,updated_at")

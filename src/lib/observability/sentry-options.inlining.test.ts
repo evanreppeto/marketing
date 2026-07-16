@@ -48,3 +48,22 @@ describe("sentry-options client inlining", () => {
     expect(aliased, `process.env must not be aliased: ${aliased?.[0]}`).toBeNull();
   });
 });
+
+/**
+ * The same bug class, one layer out. VERCEL_ENV / VERCEL_GIT_COMMIT_SHA carry no
+ * NEXT_PUBLIC_ prefix, so the browser never sees them: client Sentry tagged
+ * production errors `environment: "development"` with no release, while the server
+ * tagged the same errors correctly. next.config.ts bridges them at build time —
+ * if that mapping is dropped, the client silently goes back to lying.
+ */
+describe("next.config env bridge", () => {
+  const CONFIG = readFileSync(join(__dirname, "..", "..", "..", "next.config.ts"), "utf8");
+
+  it("maps VERCEL_ENV onto a NEXT_PUBLIC_ name the client can actually see", () => {
+    expect(CONFIG).toMatch(/NEXT_PUBLIC_SENTRY_ENVIRONMENT:[\s\S]{0,140}process\.env\.VERCEL_ENV/);
+  });
+
+  it("maps VERCEL_GIT_COMMIT_SHA onto a NEXT_PUBLIC_ name, so traces carry a release", () => {
+    expect(CONFIG).toMatch(/NEXT_PUBLIC_SENTRY_RELEASE:[\s\S]{0,140}process\.env\.VERCEL_GIT_COMMIT_SHA/);
+  });
+});
