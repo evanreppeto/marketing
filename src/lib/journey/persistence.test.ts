@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 import type { NormalizedCollect } from "@/domain";
 
-import { recordCollectedTouch, resolveCollectOrg, stitchAnonymousToContact } from "./persistence";
+import { isIdentitySuppressed, optOutAnonymousId, recordCollectedTouch, resolveCollectOrg, stitchAnonymousToContact } from "./persistence";
 
 const CAMPAIGN = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const NOW = Date.parse("2026-03-11T00:00:00.000Z");
@@ -15,6 +15,7 @@ function collect(over: Partial<NormalizedCollect> = {}): NormalizedCollect {
     assetId: null,
     channel: null,
     anonymousId: null,
+    consent: false,
     kind: "ad_click",
     direction: "inbound",
     occurredAt: null,
@@ -85,6 +86,45 @@ describe("recordCollectedTouch", () => {
     const r = await recordCollectedTouch({ supabase, resolved: RESOLVED, input: collect({ anonymousId: "anon-12345678", externalRef: "beacon-1" }), nowMs: NOW });
     expect(r.deduped).toBe(true);
     expect(r.touchpointId).toBeNull();
+  });
+});
+
+describe("isIdentitySuppressed", () => {
+  it("is true once the identity carries opted_out_at", async () => {
+    const supabase = createSupabaseQueryMock({ journey_identities: { data: { opted_out_at: "2026-03-01T00:00:00Z" }, error: null } });
+    expect(await isIdentitySuppressed(supabase, "org-1", "anon-12345678")).toBe(true);
+  });
+
+  it("is false for a known, non-opted-out identity", async () => {
+    const supabase = createSupabaseQueryMock({ journey_identities: { data: { opted_out_at: null }, error: null } });
+    expect(await isIdentitySuppressed(supabase, "org-1", "anon-12345678")).toBe(false);
+  });
+
+  it("fails CLOSED — an unverifiable lookup suppresses rather than tracks", async () => {
+    const supabase = createSupabaseQueryMock({ journey_identities: { data: null, error: { message: "boom" } } });
+    expect(await isIdentitySuppressed(supabase, "org-1", "anon-12345678")).toBe(true);
+  });
+});
+
+describe("optOutAnonymousId", () => {
+  it("erases the visitor's touchpoints and tombstones their identities", async () => {
+    const supabase = createSupabaseQueryMock({
+      journey_identities: [
+        { data: [{ id: "i1" }, { id: "i2" }], error: null }, // lookup across orgs
+        { data: null, error: null }, // update → opted_out_at
+      ],
+      journey_touchpoints: { data: [{ id: "t1" }, { id: "t2" }, { id: "t3" }], error: null }, // delete ... select
+    });
+    const r = await optOutAnonymousId({ supabase, anonymousId: "anon-12345678", nowMs: NOW });
+    expect(r).toEqual({ identities: 2, touchpointsDeleted: 3 });
+  });
+
+  it("is a no-op for an id that was never seen (and never errors)", async () => {
+    const supabase = createSupabaseQueryMock({ journey_identities: { data: [], error: null } });
+    expect(await optOutAnonymousId({ supabase, anonymousId: "anon-12345678", nowMs: NOW })).toEqual({
+      identities: 0,
+      touchpointsDeleted: 0,
+    });
   });
 });
 

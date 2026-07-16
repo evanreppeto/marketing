@@ -39,6 +39,10 @@ export const JourneyCollectSchema = z
     assetId: z.string().uuid().optional(),
     channel: z.string().min(1).max(64).optional(),
     anonymousId: z.string().min(8).max(128).optional(),
+    // An affirmative consent signal from the page's banner. It can only ever
+    // GRANT — the server still enforces the workspace mode, GPC, and opt-outs,
+    // so a page cannot use this to override a refusal.
+    consent: z.boolean().optional(),
     kind: CollectableKind,
     occurredAt: z.string().datetime({ offset: true }).optional(),
     path: z.string().max(512).optional(),
@@ -64,6 +68,8 @@ export type NormalizedCollect = {
   assetId: string | null;
   channel: string | null;
   anonymousId: string | null;
+  /** True only when the page affirmatively signalled consent. Grants only, never overrides. */
+  consent: boolean;
   kind: string;
   direction: TouchDirection;
   occurredAt: string | null;
@@ -99,6 +105,7 @@ export function parseJourneyCollect(payload: unknown): ParseCollectResult {
       assetId: v.assetId ?? null,
       channel: v.channel ?? null,
       anonymousId: v.anonymousId ?? null,
+      consent: v.consent === true,
       kind: v.kind,
       direction: KIND_DIRECTION[v.kind] ?? "inbound",
       occurredAt: v.occurredAt ?? null,

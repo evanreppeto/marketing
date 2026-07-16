@@ -1,17 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 
 import {
   ATTRIBUTION_MODELS,
+  JOURNEY_CONSENT_MODE_META,
   JOURNEY_STAGES,
   classifyTouchStage,
   stageOrder,
   type AttributionModel,
+  type JourneyConsentMode,
   type JourneyStageKey,
   type JourneyTouch,
 } from "@/domain";
 import type { JourneyWithMeta, JourneysReadModel } from "@/lib/journey/read-model";
+
+import { setJourneyConsentMode } from "../actions";
 
 // Compact labels for the lens picker — the 320px side panel can't fit the full
 // names. The full label + blurb ride along in each button's title.
@@ -183,7 +187,15 @@ function JourneyRow({ journey }: { journey: JourneyWithMeta }) {
   );
 }
 
-export function JourneysView({ model, origin = "" }: { model: JourneysReadModel; origin?: string }) {
+export function JourneysView({
+  model,
+  origin = "",
+  consentMode = "implied",
+}: {
+  model: JourneysReadModel;
+  origin?: string;
+  consentMode?: JourneyConsentMode;
+}) {
   const [stageFilter, setStageFilter] = useState<JourneyStageKey | "all">("all");
   const [lens, setLens] = useState<AttributionModel>("last_touch");
 
@@ -367,7 +379,8 @@ export function JourneysView({ model, origin = "" }: { model: JourneysReadModel;
             </p>
           </section>
 
-          <CollectorInstall origin={origin} />
+          <ConsentPanel mode={consentMode} />
+          <CollectorInstall origin={origin} consentMode={consentMode} />
         </aside>
       </div>
     </div>
@@ -384,10 +397,65 @@ function Kpi({ label, value, hint, tone }: { label: string; value: string; hint:
   );
 }
 
+/**
+ * Workspace consent mode. This is a real state transition — it changes what the
+ * public collector records for every visitor — so it writes through an
+ * operator-gated action. Optimistic with rollback on failure.
+ */
+function ConsentPanel({ mode }: { mode: JourneyConsentMode }) {
+  const [current, setCurrent] = useState<JourneyConsentMode>(mode);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const active = JOURNEY_CONSENT_MODE_META.find((m) => m.key === current);
+
+  const pick = (next: JourneyConsentMode) => {
+    if (next === current || pending) return;
+    const previous = current;
+    setCurrent(next);
+    setError(null);
+    startTransition(async () => {
+      const result = await setJourneyConsentMode(next);
+      if (!result.ok) {
+        setCurrent(previous);
+        setError(result.message ?? "Could not save the consent mode.");
+      }
+    });
+  };
+
+  return (
+    <section className="jr-panel jr-consent">
+      <h2>
+        Visitor consent
+        <span className="jr-sub2">enforced server-side</span>
+      </h2>
+      <div className="jr-lens" role="group" aria-label="Consent mode">
+        {JOURNEY_CONSENT_MODE_META.map((m) => (
+          <button
+            key={m.key}
+            type="button"
+            className={`jr-lensbtn${current === m.key ? " on" : ""}`}
+            onClick={() => pick(m.key)}
+            aria-pressed={current === m.key}
+            disabled={pending}
+            title={m.blurb}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+      <p className="jr-lensblurb">{active?.blurb}</p>
+      <p className="jr-installnote">Global Privacy Control and per-visitor opt-outs are honored in every mode.</p>
+      {error && <p className="jr-consenterr">{error}</p>}
+    </section>
+  );
+}
+
 /** Operator install panel: the one-line snippet to drop on a first-party landing page. */
-function CollectorInstall({ origin }: { origin: string }) {
+function CollectorInstall({ origin, consentMode }: { origin: string; consentMode: JourneyConsentMode }) {
   const [copied, setCopied] = useState(false);
-  const snippet = `<script src="${origin || "https://your-arc-domain"}/api/v1/journey/snippet.js" defer></script>`;
+  // In explicit mode the tag must defer until the page's banner grants consent.
+  const consentAttr = consentMode === "explicit" ? ' data-consent="required"' : "";
+  const snippet = `<script src="${origin || "https://your-arc-domain"}/api/v1/journey/snippet.js"${consentAttr} defer></script>`;
   const copy = () => {
     navigator.clipboard
       ?.writeText(snippet)
@@ -411,7 +479,18 @@ function CollectorInstall({ origin }: { origin: string }) {
         </button>
       </div>
       <p className="jr-installnote">
-        Campaign links are already tagged at dispatch — arrivals light up <em>Reached / Engaged</em>, then stitch at identification.
+        {consentMode === "explicit" ? (
+          <>
+            Nothing is recorded until your banner calls <code>arcJourney.consent(true)</code>. Visitors can erase their history with{" "}
+            <code>arcJourney.optOut()</code>.
+          </>
+        ) : consentMode === "off" ? (
+          <>Collection is off for this workspace — the collector accepts beacons and discards them.</>
+        ) : (
+          <>
+            Campaign links are already tagged at dispatch — arrivals light up <em>Reached / Engaged</em>, then stitch at identification.
+          </>
+        )}
       </p>
     </section>
   );

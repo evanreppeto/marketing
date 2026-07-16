@@ -79,6 +79,7 @@ describe("settings store helpers", () => {
       appearanceMotion: "reduced",
       imageModel: "gemini-3-pro-image",
       videoModel: "veo-3.1-generate-preview",
+      journeyConsentMode: "implied",
     });
     expect(settings).not.toHaveProperty("markWebhookEnabled");
   });

@@ -112,6 +112,54 @@ export async function recordCollectedTouch(args: {
   return { identityId, anonymousId, touchpointId: (insert.data?.id as string) ?? null, deduped: false };
 }
 
+/**
+ * Is this anonymous id on the workspace's suppression list?
+ *
+ * Fails CLOSED: if we can't confirm the visitor hasn't opted out, we don't record.
+ * The cost of a false positive is a lost analytics touch; the cost of a false
+ * negative is tracking someone who told us to stop.
+ */
+export async function isIdentitySuppressed(supabase: SupabaseClient, orgId: string, anonymousId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("journey_identities")
+    .select("opted_out_at")
+    .eq("org_id", orgId)
+    .eq("anonymous_id", anonymousId)
+    .maybeSingle();
+  if (error) return true;
+  return Boolean(data?.opted_out_at);
+}
+
+export type OptOutResult = { identities: number; touchpointsDeleted: number };
+
+/**
+ * Honor a visitor's opt-out: delete every touchpoint collected against this
+ * anonymous id and mark its identities suppressed so future beacons are dropped.
+ *
+ * Deliberately NOT org-scoped: the anonymous id is a random uuid the visitor's own
+ * browser holds, so "forget me" should mean everywhere it appears. Erring toward
+ * more suppression is the privacy-safe direction. The identity row survives as a
+ * tombstone — the minimum needed to keep honoring the opt-out.
+ */
+export async function optOutAnonymousId(args: { supabase: SupabaseClient; anonymousId: string; nowMs?: number }): Promise<OptOutResult> {
+  const { supabase, anonymousId } = args;
+  const nowIso = new Date(args.nowMs ?? Date.now()).toISOString();
+
+  const found = await supabase.from("journey_identities").select("id").eq("anonymous_id", anonymousId);
+  if (found.error) throw new Error(`journey_identities lookup: ${found.error.message}`);
+  const ids = ((found.data ?? []) as { id: string }[]).map((r) => r.id);
+  if (ids.length === 0) return { identities: 0, touchpointsDeleted: 0 };
+
+  // Erase first, then tombstone — so a failure between the two leaves the data
+  // deleted rather than retained-but-unsuppressed.
+  const deleted = await supabase.from("journey_touchpoints").delete().in("identity_id", ids).select("id");
+  if (deleted.error) throw new Error(`journey_touchpoints delete: ${deleted.error.message}`);
+  const marked = await supabase.from("journey_identities").update({ opted_out_at: nowIso, updated_at: nowIso }).in("id", ids);
+  if (marked.error) throw new Error(`journey_identities opt-out: ${marked.error.message}`);
+
+  return { identities: ids.length, touchpointsDeleted: (deleted.data ?? []).length };
+}
+
 export type StitchResult = { stitched: boolean; touchpoints: number };
 
 /**
