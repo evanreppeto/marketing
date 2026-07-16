@@ -122,6 +122,13 @@ export type CampaignWorkspaceAsset = {
   body: string;
   preview: string;
   complianceNotes: string;
+  /** The copy screen's verdict, carried from audit_payload.guardrail — written when
+   *  the asset entered the approval queue. Empty when no screen ran (no active
+   *  Brand Kit, or an asset with no copy). */
+  guardrailFlags: string[];
+  /** The org's banned phrases this copy actually contains. Non-empty means the
+   *  asset is a compliance block, not a routine pending item. */
+  blockedPhrases: string[];
   dispatchLocked: boolean;
   toolSource: string | null;
   updatedAt: string;
@@ -740,6 +747,8 @@ function demoDetailAsset(piece: DemoPiece): CampaignWorkspaceAsset {
     body,
     preview: piece.preview,
     complianceNotes: piece.compliance ?? "No asset-level compliance notes captured.",
+    guardrailFlags: [],
+    blockedPhrases: [],
     // Approved demo pieces in a Live campaign are deployable; everything else
     // stays dispatch-locked so the gold "outbound locked" gate shows.
     dispatchLocked: !/approved/i.test(piece.rawStatus),
@@ -1899,6 +1908,7 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
   const rawBody = asset.approved_body ?? asset.edited_body ?? asset.draft_body ?? "";
   const readableBody = buildReadablePreview(rawBody, asset.prompt_inputs, asset.reasoning_payload);
   const media = renderableMedia(collectMediaFromAsset(asset));
+  const guardrail = asObject(asObject(asset.audit_payload).guardrail);
   // `current` intentionally excludes draft_body — there is no meaningful revision
   // until the operator approves or edits the piece, so draft-vs-draft is no diff.
   const current = asset.approved_body ?? asset.edited_body ?? "";
@@ -1914,6 +1924,8 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
     body: readableBody === EMPTY_READABLE_PREVIEW ? rawBody : readableBody,
     preview: readableBody,
     complianceNotes: asset.compliance_notes ?? "No asset-level compliance notes captured.",
+    guardrailFlags: asStringArray(guardrail.flags),
+    blockedPhrases: asStringArray(guardrail.blocked_phrases),
     dispatchLocked: asset.dispatch_locked,
     toolSource: getString(asset.tool_source),
     updatedAt: formatDate(asset.updated_at),
@@ -1987,6 +1999,8 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       body: "Hi Maya, quick storm follow-up: if any units are still showing moisture, Summit Restoration can document the issue and coordinate mitigation this week. Want me to hold a crew slot?",
       preview: "Hi Maya, quick storm follow-up: if any units are still showing moisture, Summit Restoration can document the issue and coordinate mitigation this week.",
       complianceNotes: "Demo preview content for layout review only.",
+      guardrailFlags: [],
+      blockedPhrases: [],
       dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
@@ -2004,6 +2018,8 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       body: "Visual concept: maintenance tech documenting moisture readings in a multifamily hallway after heavy rain. Caption focuses on fast documentation for property managers.",
       preview: "Social creative concept for post-storm property manager outreach.",
       complianceNotes: "Demo preview content for layout review only.",
+      guardrailFlags: [],
+      blockedPhrases: [],
       dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
@@ -2034,6 +2050,8 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       body: "Headline: Document moisture fast after the storm.\n\nBody: Summit Restoration helps property managers capture photos, readings, and mitigation notes before small leaks become bigger claims.\n\nCTA: Request a same-week moisture walkthrough.",
       preview: "Landing page draft for property managers who need documentation after storm calls.",
       complianceNotes: "Demo preview content for layout review only.",
+      guardrailFlags: [],
+      blockedPhrases: [],
       dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
@@ -2051,6 +2069,8 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       body: "Open by referencing the storm calls from this week, ask whether any tenant reports are unresolved, then offer a short documentation visit before the weekend schedule fills.",
       preview: "CRM/call script for offices that responded to recent storm outreach.",
       complianceNotes: "Demo preview content for layout review only.",
+      guardrailFlags: [],
+      blockedPhrases: [],
       dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
@@ -2103,6 +2123,10 @@ function mapOutputAsAsset(output: AgentOutputRow, agentName: string): CampaignWo
     body: readableBody === EMPTY_READABLE_PREVIEW ? rawBody : readableBody,
     preview: readableBody,
     complianceNotes: output.compliance_status ? `Compliance: ${humanize(output.compliance_status)}` : "No output-level compliance notes captured.",
+    // agent_outputs carries no guardrail block — the copy screen runs on the
+    // campaign_assets path, so an output-derived view has nothing to show.
+    guardrailFlags: [],
+    blockedPhrases: [],
     dispatchLocked: true,
     toolSource: `${agentName} output`,
     updatedAt: formatDate(output.updated_at),
@@ -2118,6 +2142,7 @@ function mapApprovalAsAsset(approval: ApprovalItemRow, agentName: string): Campa
   const type = approval.item_type || "approval_item";
   const channel = getString(asObject(approval.prompt_inputs).channel) ?? type;
   const media = collectMediaFromApproval(approval);
+  const approvalGuardrail = asObject(asObject(approval.audit_payload).guardrail);
 
   return {
     id: `approval-${approval.id}`,
@@ -2129,6 +2154,10 @@ function mapApprovalAsAsset(approval: ApprovalItemRow, agentName: string): Campa
     body: readableBody === EMPTY_READABLE_PREVIEW ? rawBody : readableBody,
     preview: readableBody,
     complianceNotes: approval.compliance_notes ?? "No approval-level compliance notes captured.",
+    // Standalone approvals (no linked campaign_asset — e.g. submit_draft) carry no
+    // guardrail block today; read it anyway so screening that path later just works.
+    guardrailFlags: asStringArray(approvalGuardrail.flags),
+    blockedPhrases: asStringArray(approvalGuardrail.blocked_phrases),
     dispatchLocked: approval.locked_until_approved,
     toolSource: approval.requested_by ?? agentName,
     updatedAt: formatDate(approval.updated_at),

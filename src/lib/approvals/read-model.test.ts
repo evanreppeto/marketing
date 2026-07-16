@@ -269,6 +269,50 @@ describe("listApprovalCards", () => {
     expect(supabase.calls.filter((call) => call[0] === "eq" && call[1] === "org_id" && call[2] === "org-1")).toHaveLength(7);
   });
 
+  it("prefers the copy screen's structured flags over flags inferred from prose", async () => {
+    const supabase = createSupabaseQueryMock({
+      approval_items: {
+        data: [{ ...approvalItemRow, risk_level: "blocked", status: "needs_compliance" }],
+        error: null,
+      },
+      campaign_assets: {
+        data: [
+          {
+            id: approvalItemRow.campaign_asset_id,
+            title: "Blocked email",
+            asset_type: "email",
+            channel: "email",
+            status: "needs_compliance",
+            prompt_input: null,
+            prompt_inputs: {},
+            draft_body: "We guarantee your claim will be approved.",
+            edited_body: null,
+            approved_body: null,
+            // Prose the regex fallback would happily mine for reassuring flags.
+            compliance_notes: "Coverage-neutral language required. No claim approval promises.",
+            reasoning_payload: {},
+            audit_payload: {
+              outbound_locked: true,
+              guardrail: {
+                flags: ["Human review required", "Outbound locked until approved", "Banned phrase detected"],
+                blocked_phrases: ["we guarantee", "claim will be approved"],
+              },
+            },
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const cards = await listApprovalCards({}, supabase);
+
+    // The screen found a banned phrase. The regex fallback cannot see that, and
+    // would have reported "Coverage-neutral" — reassurance on blocked copy.
+    expect(cards[0].complianceFlags).toContain("Banned phrase detected");
+    expect(cards[0].complianceFlags).not.toContain("Coverage-neutral");
+    expect(cards[0].riskFlags).toContain("Blocked risk");
+  });
+
   it("queries active approval statuses by default", async () => {
     const supabase = createSupabaseQueryMock({
       approval_items: { data: [], error: null },
