@@ -201,7 +201,12 @@
 .arc-brand .ic.mu { background: var(--inset); color: var(--text-2); }
 .arc-brand .isrc .nm { font-size: 12.5px; font-weight: 600; }
 .arc-brand .isrc .ds { font-size: 10.5px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
-.arc-brand .isrc .tg { position: absolute; top: 12px; right: 12px; }
+/* The tag sits on its own row (the card is already a flex column) instead of
+   floating absolutely over it. Out of flow it reserved no space, so a wider tag
+   ("vision · partial") printed straight through the card title. Its own row keeps
+   the title at full width — no collision at any tag length, and no squeezed
+   description from sharing the line. */
+.arc-brand .isrc .tg { align-self: flex-end; }
 .arc-brand .isrc .ucta { font-size: 11px; color: var(--muted); border: 1px dashed var(--line-3); border-radius: 9px; padding: 10px; text-align: center; cursor: pointer; transition: 0.14s; margin-top: auto; }
 .arc-brand .isrc .ucta:hover { border-color: var(--accent-border); color: var(--text); background: rgba(255, 255, 255, 0.025); }
 .arc-brand .isrc .ucta b { color: var(--text-2); font-weight: 600; }

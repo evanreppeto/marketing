@@ -1935,7 +1935,12 @@ function headerMetricsForRecord(
     const contact = record as ContactRow;
     metrics.push({ label: "Title", value: contact.title ?? "—" });
     metrics.push({ label: "Persona", value: titleize(contact.persona ?? "Unassigned") });
-    metrics.push({ label: "Stage", value: titleize(getString(metadata.relationship_stage) ?? "engaged") });
+    // "Relationship stage", not "Stage": At a glance already shows a lifecycle
+    // "Stage", and two different values under one label read as a contradiction.
+    // Unset stays "—" (like the sibling metrics) rather than asserting "Engaged"
+    // for a contact nobody has engaged yet.
+    const relationshipStage = getString(metadata.relationship_stage);
+    metrics.push({ label: "Relationship stage", value: relationshipStage ? titleize(relationshipStage) : "—" });
     metrics.push({ label: "Email", value: contact.email ?? contact.phone ?? "—" });
   } else if (key === "properties") {
     const property = record as PropertyRow;
