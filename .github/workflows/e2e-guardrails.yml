@@ -6,18 +6,18 @@ name: E2E Guardrails (deployed)
 #   - the Opportunity inbox is populated,
 #   - the campaign approval gate is present.
 #
-# This validates live deploys (staging tracks `main`), so it runs AFTER merges
-# to main (post-deploy health check) and on a schedule (drift check), plus on
-# demand. It is a deployed-app health guardrail — not a gate on an individual
-# PR's own code (that would require deploying + testing each PR's preview, a
-# later enhancement).
+# Target is PROD. Staging was retired 2026-07-16 to cut Vercel cost, so these
+# now run against arc-studio.ai — every guardrail is read-only (a sign-in plus
+# GETs; nothing is sent, approved, or written), which is what makes that safe.
+# Runs AFTER merges to main (post-deploy health check) and on a schedule (drift
+# check), plus on demand. It is a deployed-app health guardrail — not a gate on
+# an individual PR's own code.
 #
-# Credentials: the staging job defaults to the seeded operator (owner@bsr.test)
-# but prefers the STAGING_E2E_EMAIL / STAGING_E2E_PASSWORD repo secrets when set.
-# The prod-smoke job runs only the UNAUTHENTICATED checks (no creds needed). To
-# add the full authenticated flow against prod, set PROD_E2E_EMAIL /
-# PROD_E2E_PASSWORD secrets and add a job that runs e2e/guardrails.spec.ts with
-# E2E_BASE_URL pointed at prod.
+# Credentials: the authenticated guardrails need the PROD_E2E_PASSWORD secret
+# (PROD_E2E_EMAIL optional; defaults to the seeded owner@bsr.test). Without it
+# they SKIP — visibly, in the report — rather than fail the run, and no working
+# prod credential lives in the repo. The unauthenticated login-wall check and
+# the prod-smoke job always run.
 
 on:
   push:
@@ -28,7 +28,7 @@ on:
 
 jobs:
   guardrails:
-    name: Guardrails (staging)
+    name: Guardrails (prod)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -48,11 +48,13 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Guardrails against staging
-        run: pnpm test:e2e:staging
+      - name: Guardrails against prod
+        run: pnpm test:e2e:prod
         env:
-          E2E_EMAIL: ${{ secrets.STAGING_E2E_EMAIL || 'owner@bsr.test' }}
-          E2E_PASSWORD: ${{ secrets.STAGING_E2E_PASSWORD || 'BsrOwner1234!' }}
+          E2E_EMAIL: ${{ secrets.PROD_E2E_EMAIL || 'owner@bsr.test' }}
+          # No literal fallback — this signs in to production. Unset ⇒ the
+          # authenticated guardrails skip; the login-wall check still runs.
+          E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
 
       - name: Upload Playwright report on failure
         if: ${{ failure() }}
