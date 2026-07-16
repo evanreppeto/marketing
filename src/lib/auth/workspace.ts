@@ -181,14 +181,41 @@ export async function resolveWorkspaceScopeById(
   }
 }
 
+/**
+ * Workspace half of the session-less resolution, and the same rule as
+ * fetchDefaultOrg one level down: answer only when the answer is unambiguous.
+ *
+ * This used to select `key = DEFAULT_WORKSPACE_KEY` ("default"), which had both
+ * of the failure modes its org-level sibling had. An org with several
+ * workspaces silently collapsed to whichever one happened to be keyed "default"
+ * — the last remaining guess on this path, and wrong for every other workspace
+ * in that org. An org whose single workspace was keyed anything else matched
+ * nothing and yielded a null workspaceId, i.e. a 409 for a request that had
+ * exactly one possible answer.
+ *
+ * Resolving the sole ACTIVE workspace fixes both: one workspace is answerable
+ * whatever it is keyed, and several is a refusal rather than a coin flip. As
+ * with DEFAULT_ORG_SLUG, the "default" key does not get to break the tie — it
+ * survives only as the display fallback when there is no workspace at all.
+ */
 async function fetchDefaultWorkspace(client: QueryClient, org: OrgRow): Promise<WorkspaceContext> {
   const { data, error } = await client
     .from("workspaces")
     .select("id,org_id,key,slug,name")
     .eq("org_id", org.id)
-    .eq("key", DEFAULT_WORKSPACE_KEY)
     .eq("status", "active")
-    .maybeSingle<WorkspaceRow>();
+    .limit(2)
+    .returns<WorkspaceRow[]>();
+
+  if (!error && (data?.length ?? 0) > 1) {
+    throw new WorkspaceUnavailableError(
+      `This request has no session and organization "${org.slug}" has more than one active workspace, so the ` +
+        "workspace is ambiguous. Authenticate as a user, or use a workspace-scoped agent token / assert a " +
+        "workspace on the request.",
+    );
+  }
+
+  const row = data?.[0] ?? null;
 
   if (error) {
     return {
@@ -209,13 +236,13 @@ async function fetchDefaultWorkspace(client: QueryClient, org: OrgRow): Promise<
     orgId: org.id,
     orgSlug: org.slug,
     orgName: org.name,
-    workspaceId: data?.id ?? null,
-    workspaceKey: data?.key ?? DEFAULT_WORKSPACE_KEY,
-    workspaceSlug: data?.slug ?? org.slug,
-    workspaceName: data?.name ?? org.name,
+    workspaceId: row?.id ?? null,
+    workspaceKey: row?.key ?? DEFAULT_WORKSPACE_KEY,
+    workspaceSlug: row?.slug ?? org.slug,
+    workspaceName: row?.name ?? org.name,
     role: null,
     userId: null,
-    source: data ? "default-org" : "legacy-org",
+    source: row ? "default-org" : "legacy-org",
   };
 }
 
