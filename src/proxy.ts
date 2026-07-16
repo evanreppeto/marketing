@@ -104,6 +104,14 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Protect page routes only. Skip API routes (own bearer auth), Next internals,
-  // auth pages themselves, and static/brand assets.
-  matcher: ["/((?!api|auth/callback|_next/static|_next/image|login|sign-in|sign-up|forgot-password|reset-password|favicon.ico|icon.png|brand|effects).*)"],
+  // auth pages themselves, static/brand assets, and Sentry's ingest tunnel.
+  //
+  // `monitoring` is the tunnelRoute configured in next.config.ts — the endpoint the
+  // browser SDK POSTs error reports to. It is not a page, and gating it broke error
+  // reporting silently: the proxy answered each report with a 302 to /login, the SDK
+  // saw the login page's 200 and considered the event delivered, and nothing ever
+  // reached Sentry. It must stay open to signed-out visitors in particular — /login
+  // is exactly where a browser error most needs reporting and nobody has a session
+  // yet. The route forwards only to the configured Sentry DSN, so it exposes nothing.
+  matcher: ["/((?!api|monitoring|auth/callback|_next/static|_next/image|login|sign-in|sign-up|forgot-password|reset-password|favicon.ico|icon.png|brand|effects).*)"],
 };
