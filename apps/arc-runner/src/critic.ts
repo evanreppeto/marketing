@@ -177,6 +177,14 @@ export async function reviewDraft(
       // only needs to run to completion.
       void _message;
     }
+  } catch (error) {
+    // The spawned claude CLI can exit non-zero even after the model has already
+    // called submit_review (it prints benign notices to stderr, and the run can
+    // end on a terminal condition after the tool result landed). The verdict we
+    // collected is still the model's real answer, so losing it here would throw
+    // away a completed review over an exit code. Only rethrow if we got nothing.
+    if (!review) throw error;
+    console.warn(`[arc-runner] critic for "${draft.title}" errored after submitting its review:`, error);
   } finally {
     await step(`Reviewing claims in "${draft.title}"`, "done");
   }

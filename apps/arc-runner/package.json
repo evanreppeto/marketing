@@ -10,6 +10,7 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "spike:multimodal": "tsx src/spike-multimodal.ts",
+    "spike:critic": "tsx src/spike-critic.ts",
     "test": "vitest run"
   },
   "dependencies": {
