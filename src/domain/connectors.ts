@@ -87,6 +87,17 @@ export type ConnectorRegistryEntry = {
   capability: ConnectorCapability;
   /** What the operator must supply to connect. */
   credentialSchema: ConnectorCredentialSchema;
+  /**
+   * Per-workspace config keys the connector cannot meaningfully run without — any
+   * ONE present counts as satisfied (a key set often has aliases). Absent/empty
+   * means the connector needs no config.
+   *
+   * This exists so a connector that needs *where to look* rather than *a key* can
+   * still report `not_configured` instead of claiming "Connected" and quietly doing
+   * nothing — or, worse, falling back to some built-in default that is right for
+   * exactly one tenant.
+   */
+  requiredConfigKeys?: string[];
   /** Convenience mirror of credentialSchema.kind (widely read by UI/read-model). */
   authKind: ConnectorAuthKind;
   access: ConnectorAccess;
@@ -163,6 +174,11 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
       kind: "none",
       hint: "No credential — NWS/NOAA is a public API. Configure the US states (or lat-lng points) to watch.",
     },
+    // No key to supply, but it still cannot run until it's told WHERE to watch.
+    // Without this the connector reads "Connected" on an empty config and silently
+    // watches whatever the code happens to default to — see parseWeatherServiceArea.
+    // The aliases mirror exactly what that parser accepts.
+    requiredConfigKeys: ["states", "areas", "points", "locations"],
     authKind: "none",
     access: "read_only",
     mcpUrl: null,
@@ -359,11 +375,30 @@ export function bypassesMetering(costTier: ConnectorCostTier): boolean {
   return costTier === "free" || costTier === "byo_key";
 }
 
+/** True when the connector's required per-workspace config is actually filled in. */
+export function connectorConfigSatisfied(
+  entry: Pick<ConnectorRegistryEntry, "requiredConfigKeys">,
+  config: Record<string, unknown> | null | undefined,
+): boolean {
+  const keys = entry.requiredConfigKeys ?? [];
+  if (keys.length === 0) return true;
+  const cfg = config ?? {};
+  return keys.some((key) => {
+    const value = cfg[key];
+    if (value == null) return false;
+    if (typeof value === "string") return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    return true;
+  });
+}
+
 /**
  * Operator-facing status, computed (never stored): a missing REQUIRED credential
- * always wins (not_configured); a disabled switch beats test state; an untested
- * but enabled connector is connected. Connectors that need no credential
- * (requiresCredential=false) skip the not_configured gate entirely.
+ * always wins (not_configured); missing required config is the same kind of "you
+ * haven't finished connecting this" and reports the same way; a disabled switch
+ * beats test state; an untested but enabled connector is connected. Connectors that
+ * need no credential (requiresCredential=false) skip the credential gate entirely,
+ * and connectors with no required config skip the config gate.
  */
 export function computeConnectorStatus(input: {
   credentialPresent: boolean;
@@ -371,9 +406,12 @@ export function computeConnectorStatus(input: {
   lastTestOk: boolean | null;
   /** Defaults true — the historical behaviour for credentialed connectors. */
   requiresCredential?: boolean;
+  /** Defaults satisfied — only `false` gates, so connectors with no required config are unaffected. */
+  configPresent?: boolean;
 }): ConnectorStatus {
   const requiresCredential = input.requiresCredential ?? true;
   if (requiresCredential && !input.credentialPresent) return "not_configured";
+  if (input.configPresent === false) return "not_configured";
   if (!input.enabled) return "disabled";
   if (input.lastTestOk === false) return "error";
   return "connected";

@@ -87,13 +87,13 @@ export type WeatherServiceArea = {
   points: WeatherServicePoint[];
 };
 
-/**
- * Sensible demo default when a workspace enables the connector but hasn't set a
- * service area yet — Illinois (BSR's home turf). Tenant-agnostic: any workspace
- * can override it in Settings → Connections. Kept small so the demo scan stays
- * fast and predictable.
- */
-export const DEMO_WEATHER_SERVICE_AREA: WeatherServiceArea = { states: ["IL"], points: [] };
+/** Nothing configured — watch nowhere. See parseWeatherServiceArea. */
+export const EMPTY_WEATHER_SERVICE_AREA: WeatherServiceArea = { states: [], points: [] };
+
+/** True once the operator has told us anywhere to watch. */
+export function isWeatherServiceAreaConfigured(area: WeatherServiceArea): boolean {
+  return area.states.length > 0 || area.points.length > 0;
+}
 
 const STATE_CODE_RE = /^[A-Za-z]{2}$/;
 
@@ -160,7 +160,15 @@ export function parseWeatherServiceArea(config: Record<string, unknown> | null |
     else addPoint(parsePoint(t));
   }
 
-  if (states.size === 0 && points.length === 0) return { ...DEMO_WEATHER_SERVICE_AREA };
+  // Nothing usable configured -> watch NOWHERE, and let the caller say so.
+  //
+  // This used to fall back to a built-in default of Illinois ("BSR's home turf").
+  // That default was invisible and wrong for every other tenant: enable the
+  // connector without setting an area and Arc would quietly propose Illinois storm
+  // opportunities — carrying real NWS evidence — to a workspace that might be in
+  // Phoenix. A service area is the operator's to choose; guessing it is worse than
+  // doing nothing, because the output looks source-backed either way.
+  if (states.size === 0 && points.length === 0) return { ...EMPTY_WEATHER_SERVICE_AREA };
   return { states: [...states], points };
 }
 

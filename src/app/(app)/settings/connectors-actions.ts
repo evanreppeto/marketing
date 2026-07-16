@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { findConnector, parseWeatherServiceArea } from "@/domain";
+import { findConnector, isWeatherServiceAreaConfigured, parseWeatherServiceArea } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config";
@@ -117,6 +117,11 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
       const client = getSupabaseAdminClient();
       const config = await getConnectorConfig(client, workspaceId, connector.key);
       const area = parseWeatherServiceArea(config);
+      // Say what's missing rather than probing somewhere arbitrary and reporting a
+      // live alert count for a place this workspace never asked about.
+      if (!isWeatherServiceAreaConfigured(area)) {
+        return { ok: false, error: "Set a service area first (e.g. IL, WI) — NWS needs to know where to watch." };
+      }
       const result = await checkNwsConnection(area);
       await recordConnectorTest(client, {
         workspaceId,

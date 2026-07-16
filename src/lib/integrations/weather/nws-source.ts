@@ -1,5 +1,5 @@
 import {
-  DEMO_WEATHER_SERVICE_AREA,
+  isWeatherServiceAreaConfigured,
   mapNwsAlertsToWeatherEvents,
   summarizeForecastPeriods,
   type WeatherServiceArea,
@@ -58,15 +58,21 @@ export async function checkNwsConnection(
   opts?: NwsRequestOptions,
 ): Promise<NwsConnectionResult> {
   try {
+    // Nothing to probe until the operator says where to watch. This used to fall
+    // back to a built-in area so the button always "worked" — which reported a live
+    // alert count for somebody else's state.
+    if (!isWeatherServiceAreaConfigured(area)) {
+      return { ok: false, error: "No service area configured — set the states (or points) to watch first." };
+    }
+
     // A direct, throwing probe of the first configured source, so a genuine NWS
     // outage surfaces as a failed test. countActiveAlerts (below) is best-effort
     // per source and would otherwise mask a total outage as "0 alerts". The
     // probe's response is TTL-cached, so the count re-uses it for free.
-    const probeArea = area.states.length || area.points.length ? area : DEMO_WEATHER_SERVICE_AREA;
-    if (probeArea.states[0]) await fetchActiveAlertsByState(probeArea.states[0], opts);
-    else await fetchActiveAlertsByPoint(probeArea.points[0].lat, probeArea.points[0].lng, opts);
+    if (area.states[0]) await fetchActiveAlertsByState(area.states[0], opts);
+    else await fetchActiveAlertsByPoint(area.points[0].lat, area.points[0].lng, opts);
 
-    const count = await countActiveAlerts(probeArea, opts);
+    const count = await countActiveAlerts(area, opts);
     let forecast: string | undefined;
     const point = area.points[0];
     if (point) {
