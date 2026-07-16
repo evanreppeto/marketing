@@ -2,6 +2,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 
 import {
   assembleJourney,
+  ATTRIBUTION_MODELS,
   computeAttribution,
   summarizeFunnel,
   TOUCH_KINDS,
@@ -52,6 +53,9 @@ export type JourneyKpis = {
 
 export type JourneyChannelCredit = { channel: string; valueCents: number; conversions: number };
 
+/** Per-channel credit under every attribution lens, keyed by model. */
+export type ChannelCreditByModel = Record<AttributionModel, JourneyChannelCredit[]>;
+
 export type JourneysReadModel =
   | {
       status: "live";
@@ -59,8 +63,14 @@ export type JourneysReadModel =
       funnel: FunnelStage[];
       kpis: JourneyKpis;
       journeys: JourneyWithMeta[];
-      /** Conversion value credited per channel under the default (last-touch) lens. */
-      channelCredit: JourneyChannelCredit[];
+      /**
+       * Conversion value credited per channel, computed for ALL five attribution
+       * lenses up front. It's cheap pure math over the same converted journeys, and
+       * doing it server-side keeps every lens accurate across the full set — the
+       * returned `journeys` list is capped at MAX_JOURNEYS, so recomputing lenses
+       * client-side from it would silently under-count.
+       */
+      channelCreditByModel: ChannelCreditByModel;
       defaultModel: AttributionModel;
     }
   | { status: "unavailable"; message: string };
@@ -317,29 +327,35 @@ function buildLiveModel(journeys: JourneyWithMeta[], nowMs: number, isDemo: bool
     avgDaysToConvert,
   };
 
-  // Channel credit: distribute each converted journey's value under the default
-  // (last-touch) lens, then roll up by channel — the "which channels actually
-  // drove revenue" signal that closes the learning loop.
-  const creditByChannel = new Map<string, JourneyChannelCredit>();
-  for (const journey of converted) {
-    const rows = computeAttribution(journey, DEFAULT_ATTRIBUTION_MODEL, nowMs);
-    for (const row of rows) {
-      const channel = row.channel ?? "unattributed";
-      const cur = creditByChannel.get(channel) ?? { channel, valueCents: 0, conversions: 0 };
-      cur.valueCents += row.valueCents;
-      cur.conversions += row.weight; // fractional credit
-      creditByChannel.set(channel, cur);
-    }
-  }
-  const channelCredit = [...creditByChannel.values()]
-    .map((c) => ({ ...c, conversions: Math.round(c.conversions * 10) / 10 }))
-    .sort((a, b) => b.valueCents - a.valueCents);
+  // Channel credit under EVERY lens — "which channels actually drove revenue", and
+  // how that answer changes with how you assign credit. Five cheap pure passes over
+  // the same converted set; the picker then switches lenses with no round-trip.
+  const channelCreditByModel = Object.fromEntries(
+    ATTRIBUTION_MODELS.map((m) => [m.key, creditByChannelFor(converted, m.key, nowMs)]),
+  ) as ChannelCreditByModel;
 
   const sorted = [...journeys]
     .sort((a, b) => (Date.parse(b.lastTouchAt ?? "") || 0) - (Date.parse(a.lastTouchAt ?? "") || 0))
     .slice(0, MAX_JOURNEYS);
 
-  return { status: "live", isDemo: isDemo || undefined, funnel, kpis, journeys: sorted, channelCredit, defaultModel: DEFAULT_ATTRIBUTION_MODEL };
+  return { status: "live", isDemo: isDemo || undefined, funnel, kpis, journeys: sorted, channelCreditByModel, defaultModel: DEFAULT_ATTRIBUTION_MODEL };
+}
+
+/** Roll one lens's per-journey credit up by channel, richest first. Pure. */
+function creditByChannelFor(converted: JourneyWithMeta[], model: AttributionModel, nowMs: number): JourneyChannelCredit[] {
+  const byChannel = new Map<string, JourneyChannelCredit>();
+  for (const journey of converted) {
+    for (const row of computeAttribution(journey, model, nowMs)) {
+      const channel = row.channel ?? "unattributed";
+      const cur = byChannel.get(channel) ?? { channel, valueCents: 0, conversions: 0 };
+      cur.valueCents += row.valueCents;
+      cur.conversions += row.weight; // fractional credit
+      byChannel.set(channel, cur);
+    }
+  }
+  return [...byChannel.values()]
+    .map((c) => ({ ...c, conversions: Math.round(c.conversions * 10) / 10 }))
+    .sort((a, b) => b.valueCents - a.valueCents);
 }
 
 // ---------------------------------------------------------------------------

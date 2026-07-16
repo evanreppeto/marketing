@@ -1463,7 +1463,18 @@
 .arc-app .journeys .jr-bn { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arc-app .journeys .jr-bb { height: 8px; border-radius: 99px; background: var(--inset); overflow: hidden; }
 .arc-app .journeys .jr-bb i { display: block; height: 100%; border-radius: 99px; background: var(--accent); min-width: 3px; }
-.arc-app .journeys .jr-bv { font-size: 12px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.arc-app .journeys .jr-bv { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; font-size: 12px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.arc-app .journeys .jr-delta { font-size: 9.5px; font-weight: 600; font-style: normal; }
+.arc-app .journeys .jr-delta.up { color: var(--ok-text); }
+.arc-app .journeys .jr-delta.down { color: var(--muted); }
+
+/* Attribution lens picker */
+.arc-app .journeys .jr-lens { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 9px; }
+.arc-app .journeys .jr-lensbtn { padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--inset); color: var(--text-2); font: inherit; font-size: 10.5px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: border-color 0.15s var(--ease), color 0.15s var(--ease), background 0.15s var(--ease); }
+.arc-app .journeys .jr-lensbtn:hover { color: var(--text); border-color: var(--line-3); }
+.arc-app .journeys .jr-lensbtn.on { color: var(--accent); border-color: var(--accent-border); background: var(--accent-soft); }
+.arc-app .journeys .jr-lensblurb { font-size: 11px; color: var(--muted); line-height: 1.45; margin-bottom: 11px; }
+.arc-app .journeys .jr-lensfoot { margin-top: 9px; font-size: 10.5px; color: var(--muted); }
 
 /* How-it-works note */
 .arc-app .journeys .jr-note p { font-size: 12.5px; line-height: 1.55; color: var(--text-2); margin-bottom: 9px; }

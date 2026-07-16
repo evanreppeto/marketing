@@ -2,8 +2,26 @@
 
 import { useMemo, useState } from "react";
 
-import { JOURNEY_STAGES, classifyTouchStage, stageOrder, type JourneyStageKey, type JourneyTouch } from "@/domain";
+import {
+  ATTRIBUTION_MODELS,
+  JOURNEY_STAGES,
+  classifyTouchStage,
+  stageOrder,
+  type AttributionModel,
+  type JourneyStageKey,
+  type JourneyTouch,
+} from "@/domain";
 import type { JourneyWithMeta, JourneysReadModel } from "@/lib/journey/read-model";
+
+// Compact labels for the lens picker — the 320px side panel can't fit the full
+// names. The full label + blurb ride along in each button's title.
+const LENS_SHORT: Record<AttributionModel, string> = {
+  last_touch: "Last",
+  first_touch: "First",
+  linear: "Linear",
+  time_decay: "Decay",
+  position_based: "40/20/40",
+};
 
 // Stage → tone token (see the .journeys CSS block). Two anonymous stages read
 // blue; the known-side stages escalate gold → amber → green, with retention its
@@ -167,6 +185,7 @@ function JourneyRow({ journey }: { journey: JourneyWithMeta }) {
 
 export function JourneysView({ model, origin = "" }: { model: JourneysReadModel; origin?: string }) {
   const [stageFilter, setStageFilter] = useState<JourneyStageKey | "all">("all");
+  const [lens, setLens] = useState<AttributionModel>("last_touch");
 
   const filtered = useMemo(() => {
     const list = model.status === "live" ? model.journeys : [];
@@ -194,9 +213,15 @@ export function JourneysView({ model, origin = "" }: { model: JourneysReadModel;
     );
   }
 
-  const { funnel, kpis, channelCredit, isDemo } = model;
+  const { funnel, kpis, channelCreditByModel, defaultModel, isDemo } = model;
   const topCount = funnel[0]?.count ?? 0;
+  const channelCredit = channelCreditByModel[lens] ?? [];
   const creditTotal = channelCredit.reduce((s, c) => s + c.valueCents, 0);
+  const activeLens = ATTRIBUTION_MODELS.find((m) => m.key === lens);
+  // Credit under the default lens, to show how much each channel gains/loses
+  // when you switch — the point of having lenses at all.
+  const baseByChannel = new Map((channelCreditByModel[defaultModel] ?? []).map((c) => [c.channel, c.valueCents]));
+  const defaultLabel = ATTRIBUTION_MODELS.find((m) => m.key === defaultModel)?.label ?? "last touch";
 
   return (
     <div className="journeys">
@@ -210,7 +235,7 @@ export function JourneysView({ model, origin = "" }: { model: JourneysReadModel;
         </div>
         <div className="jr-model" title="Attribution lens applied to channel credit">
           <span className="jr-modellab">Credit</span>
-          <span className="jr-modelval">Last touch</span>
+          <span className="jr-modelval">{activeLens?.label ?? defaultLabel}</span>
         </div>
       </header>
 
@@ -282,23 +307,51 @@ export function JourneysView({ model, origin = "" }: { model: JourneysReadModel;
           <section className="jr-panel">
             <h2>
               Revenue by channel
-              <span className="jr-sub2">last-touch credit across converted journeys</span>
+              <span className="jr-sub2">credit across converted journeys</span>
             </h2>
+            <div className="jr-lens" role="group" aria-label="Attribution model">
+              {ATTRIBUTION_MODELS.map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  className={`jr-lensbtn${lens === m.key ? " on" : ""}`}
+                  onClick={() => setLens(m.key)}
+                  aria-pressed={lens === m.key}
+                  title={`${m.label} — ${m.blurb}`}
+                >
+                  {LENS_SHORT[m.key]}
+                </button>
+              ))}
+            </div>
+            <p className="jr-lensblurb">{activeLens?.blurb}</p>
             {channelCredit.length === 0 ? (
               <div className="jr-sub">No converted journeys yet.</div>
             ) : (
               <div className="jr-bd">
-                {channelCredit.map((c) => (
-                  <div className="jr-bdrow" key={c.channel}>
-                    <span className="jr-bn">{titleize(c.channel)}</span>
-                    <span className="jr-bb">
-                      <i style={{ width: `${creditTotal > 0 ? Math.max(3, Math.round((c.valueCents / creditTotal) * 100)) : 0}%` }} />
-                    </span>
-                    <span className="jr-bv">{money(c.valueCents)}</span>
-                  </div>
-                ))}
+                {channelCredit.map((c) => {
+                  const delta = c.valueCents - (baseByChannel.get(c.channel) ?? 0);
+                  const showDelta = lens !== defaultModel && Math.round(delta / 100) !== 0;
+                  return (
+                    <div className="jr-bdrow" key={c.channel}>
+                      <span className="jr-bn">{titleize(c.channel)}</span>
+                      <span className="jr-bb">
+                        <i style={{ width: `${creditTotal > 0 ? Math.max(3, Math.round((c.valueCents / creditTotal) * 100)) : 0}%` }} />
+                      </span>
+                      <span className="jr-bv">
+                        {money(c.valueCents)}
+                        {showDelta && (
+                          <em className={`jr-delta ${delta > 0 ? "up" : "down"}`}>
+                            {delta > 0 ? "+" : "−"}
+                            {money(Math.abs(delta))}
+                          </em>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
+            {lens !== defaultModel && <p className="jr-lensfoot">Change shown vs {defaultLabel.toLowerCase()}.</p>}
           </section>
 
           <section className="jr-panel jr-note">

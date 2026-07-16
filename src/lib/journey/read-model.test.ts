@@ -69,7 +69,65 @@ describe("getJourneysReadModel", () => {
     expect(model.funnel.find((f) => f.key === "reached")?.count).toBe(1);
 
     // Last-touch credit lands on the last attributable channel (the lead's meta touch).
-    expect(model.channelCredit[0]).toMatchObject({ channel: "meta", valueCents: 500000 });
+    expect(model.channelCreditByModel.last_touch[0]).toMatchObject({ channel: "meta", valueCents: 500000 });
+  });
+
+  it("computes channel credit under every attribution lens, and the lenses disagree", async () => {
+    // meta reached them first (engagement), email closed them (the attributed lead).
+    const supabase = createSupabaseQueryMock({
+      contacts: { data: [{ id: "c1", full_name: "Split Journey", email: null, persona: null, created_at: "2026-03-01T00:00:00Z" }], error: null },
+      engagement_events: {
+        data: [
+          {
+            id: "e1",
+            contact_id: "c1",
+            campaign_id: "camp-1",
+            campaign_asset_id: null,
+            event_type: "outbound_send",
+            channel: "meta",
+            direction: "outbound",
+            occurred_at: "2026-03-01T00:00:00Z",
+            summary: "first touch",
+          },
+        ],
+        error: null,
+      },
+      leads: {
+        data: [
+          {
+            id: "l1",
+            contact_id: "c1",
+            attributed_campaign_id: "camp-2",
+            attributed_asset_id: null,
+            attribution_channel: "email",
+            source: "email",
+            received_at: "2026-03-05T00:00:00Z",
+            created_at: "2026-03-05T00:00:00Z",
+          },
+        ],
+        error: null,
+      },
+      outcomes: {
+        data: [{ id: "o1", contact_id: "c1", status: "won", gross_revenue_cents: 400000, closed_at: "2026-03-10T00:00:00Z", created_at: "2026-03-10T00:00:00Z" }],
+        error: null,
+      },
+    });
+
+    const model = await getJourneysReadModel(supabase, undefined, NOW);
+    expect(model.status).toBe("live");
+    if (model.status !== "live") return;
+
+    const byModel = model.channelCreditByModel;
+    // Every lens is precomputed server-side so the picker switches with no round-trip.
+    expect(Object.keys(byModel).sort()).toEqual(["first_touch", "last_touch", "linear", "position_based", "time_decay"]);
+
+    // The whole point of lenses: they credit different channels.
+    expect(byModel.last_touch).toEqual([{ channel: "email", valueCents: 400000, conversions: 1 }]);
+    expect(byModel.first_touch).toEqual([{ channel: "meta", valueCents: 400000, conversions: 1 }]);
+
+    // Linear splits the same conversion evenly across both channels.
+    const linear = Object.fromEntries(byModel.linear.map((c) => [c.channel, c.valueCents]));
+    expect(linear).toEqual({ meta: 200000, email: 200000 });
   });
 
   it("returns an empty live model when there is data access but no records (demo flag off)", async () => {
