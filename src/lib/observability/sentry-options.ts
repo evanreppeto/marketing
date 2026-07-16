@@ -22,6 +22,44 @@ export type SentryBaseOptions = {
   release: string | undefined;
 };
 
+/** Already-read env values. The builder takes these rather than `process.env`
+ *  itself — see readEnv() for why that distinction is load-bearing. */
+export type SentryEnvInput = {
+  dsn?: string;
+  environment?: string;
+  tracesSampleRate?: string;
+  release?: string;
+  vercelEnv?: string;
+  vercelSha?: string;
+};
+
+/**
+ * Read the env. Every `NEXT_PUBLIC_*` MUST be a literal `process.env.X` member
+ * expression, exactly as written here.
+ *
+ * Next inlines these by find-and-replacing that literal text at build time —
+ * `process.env` is not a real object in the browser. Reaching them through a
+ * variable (`const env = process.env; env.NEXT_PUBLIC_SENTRY_DSN`, or a function
+ * parameter defaulted to `process.env`) leaves nothing to replace, so the client
+ * silently gets `undefined` and Sentry stays off no matter what Vercel is set to.
+ * Next's own env-vars guide calls this out as explicitly NOT inlined.
+ *
+ * This is not hypothetical: it shipped that way in #463 and cost a real debugging
+ * round. Unit tests can't catch it — Node has a real `process.env`, so it only
+ * shows up in the browser bundle. Do not "simplify" this back into a dynamic
+ * lookup; sentry-options.inlining.test.ts pins it.
+ */
+function readEnv(): SentryEnvInput {
+  return {
+    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
+    tracesSampleRate: process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE,
+    release: process.env.NEXT_PUBLIC_SENTRY_RELEASE,
+    vercelEnv: process.env.VERCEL_ENV,
+    vercelSha: process.env.VERCEL_GIT_COMMIT_SHA,
+  };
+}
+
 /** Traces are sampled low by default — errors are the point; tracing is a bonus
  *  that bills per event. Override per environment without a code change. */
 function readTracesSampleRate(raw: string | undefined): number {
@@ -34,22 +72,20 @@ function readTracesSampleRate(raw: string | undefined): number {
   return Number.isFinite(value) && value >= 0 && value <= 1 ? value : 0.1;
 }
 
-/** Pure: env → options. Takes the environment so it can be tested without
- *  module-level env stubbing. */
-export function buildSentryOptions(env: NodeJS.ProcessEnv = process.env): SentryBaseOptions {
-  // Public because the browser bundle needs it; absent ⇒ Sentry stays off.
-  const dsn = env.NEXT_PUBLIC_SENTRY_DSN?.trim() || undefined;
+/** Pure: already-read env values → options. */
+export function buildSentryOptions(input: SentryEnvInput = readEnv()): SentryBaseOptions {
+  const dsn = input.dsn?.trim() || undefined;
   return {
     dsn,
     // Explicit rather than implied by a missing DSN: makes the "off" state
     // readable, and keeps a stray DSN from quietly going live somewhere it shouldn't.
     enabled: Boolean(dsn),
-    environment: env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || env.VERCEL_ENV || "development",
-    tracesSampleRate: readTracesSampleRate(env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE),
+    environment: input.environment?.trim() || input.vercelEnv?.trim() || "development",
+    tracesSampleRate: readTracesSampleRate(input.tracesSampleRate),
     sendDefaultPii: false,
     // Vercel exposes the deploy SHA; tying events to a release is what makes a
     // stack trace point at a specific line rather than "somewhere in main".
-    release: env.NEXT_PUBLIC_SENTRY_RELEASE || env.VERCEL_GIT_COMMIT_SHA || undefined,
+    release: input.release?.trim() || input.vercelSha?.trim() || undefined,
   };
 }
 
