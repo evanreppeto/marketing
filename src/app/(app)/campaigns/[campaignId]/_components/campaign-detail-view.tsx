@@ -498,6 +498,30 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
                           </div>
                         )}
                         {asset.complianceNotes && <div className="dcompliance">Guardrail: {asset.complianceNotes}</div>}
+                        {asset.recommendation && (
+                          <div className="drec">
+                            <div className="drh">
+                              {asset.recommendation.agent} recommends
+                              <span className="drv">{asset.recommendation.verdict}</span>
+                            </div>
+                            {asset.recommendation.rationale && <p className="drb">{asset.recommendation.rationale}</p>}
+                            {asset.recommendation.riskFlags.length > 0 && (
+                              <div className="flags">
+                                {asset.recommendation.riskFlags.map((f) => (
+                                  <span className="flag" key={f}>
+                                    {f}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {asset.recommendation.suggestedEdits && (
+                              <p className="drb">
+                                <b>Suggested edits:</b> {asset.recommendation.suggestedEdits}
+                              </p>
+                            )}
+                            <p className="drn">Advisory only — you decide.</p>
+                          </div>
+                        )}
 
                         {reviseFor === asset.id ? (
                           <div className="revbox">
