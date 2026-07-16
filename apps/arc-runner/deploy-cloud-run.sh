@@ -12,6 +12,9 @@ REGION="${GCP_REGION:-us-central1}"
 SERVICE="${SERVICE_NAME:-arc-runner}"
 APP_URL="${APP_API_BASE_URL:?set APP_API_BASE_URL to the prod app base URL}"
 MODEL="${ARC_MODEL:-claude-haiku-4-5}"
+# Optional error tracking. Unset ⇒ the runner starts with Sentry disabled, so this
+# stays a no-op until you pass SENTRY_DSN=<dsn> to the deploy.
+SENTRY_DSN="${SENTRY_DSN:-}"
 
 SECRET_OAUTH="${SECRET_OAUTH:-arc-claude-oauth-token}"
 SECRET_API_TOKEN="${SECRET_API_TOKEN:-arc-agent-api-token}"
@@ -29,7 +32,7 @@ gcloud run deploy "$SERVICE" \
   --cpu 2 \
   --timeout 900 \
   --allow-unauthenticated \
-  --set-env-vars "APP_API_BASE_URL=${APP_URL},ARC_MODEL=${MODEL}" \
+  --set-env-vars "APP_API_BASE_URL=${APP_URL},ARC_MODEL=${MODEL}${SENTRY_DSN:+,SENTRY_DSN=${SENTRY_DSN}}" \
   --set-secrets "CLAUDE_CODE_OAUTH_TOKEN=${SECRET_OAUTH}:latest,ARC_AGENT_API_TOKEN=${SECRET_API_TOKEN}:latest,ARC_WEBHOOK_SECRET=${SECRET_WEBHOOK}:latest"
 
 URL="$(gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" --format='value(status.url)')"
