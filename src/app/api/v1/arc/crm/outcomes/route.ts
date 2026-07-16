@@ -1,4 +1,5 @@
 import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
+import { centsToUsd } from "@/app/api/v1/arc/_lib/money";
 import { type OutcomeStatus } from "@/domain";
 import { listOutcomes } from "@/lib/repos";
 
@@ -20,7 +21,8 @@ export async function GET(request: Request) {
 
   try {
     const outcomes = await listOutcomes({ orgId: allowed.scope.orgId, status: status as OutcomeStatus | undefined, persona, companyId, limit });
-    return ok({ outcomes });
+    // Dollars, not cents — Arc quotes these straight to the operator. See _lib/money.
+    return ok({ outcomes: outcomes.map((o) => centsToUsd(o, "grossRevenueCents", "grossMarginCents")) });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list outcomes.", 502);
   }
