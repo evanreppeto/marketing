@@ -107,4 +107,54 @@ describe("getJourneysReadModel", () => {
     // The only event was internal → no customer touches → no journey.
     expect(model.journeys).toHaveLength(0);
   });
+
+  it("folds in P1 collected touchpoints — anonymous journeys + stitched-onto-contact", async () => {
+    const supabase = createSupabaseQueryMock({
+      contacts: { data: [{ id: "c1", full_name: "Dana Whitfield", email: null, persona: "persona_x", created_at: "2026-03-01T00:00:00Z" }], error: null },
+      leads: {
+        data: [
+          {
+            id: "l1",
+            contact_id: "c1",
+            attributed_campaign_id: "camp-1",
+            attributed_asset_id: null,
+            attribution_channel: "meta",
+            source: "meta_ad",
+            received_at: "2026-03-03T00:00:00Z",
+            created_at: "2026-03-03T00:00:00Z",
+          },
+        ],
+        error: null,
+      },
+      journey_identities: {
+        data: [
+          { id: "is", contact_id: "c1", resolution: "stitched", anonymous_id: "anon-s" },
+          { id: "ia", contact_id: null, resolution: "anonymous", anonymous_id: "anon-a" },
+        ],
+        error: null,
+      },
+      journey_touchpoints: {
+        data: [
+          { id: "tp1", identity_id: "is", contact_id: "c1", occurred_at: "2026-03-01T00:00:00Z", kind: "ad_click", direction: "inbound", channel: "meta", campaign_id: "camp-1", campaign_asset_id: null, summary: "clicked", is_conversion: false, value_cents: null },
+          { id: "tp2", identity_id: "ia", contact_id: null, occurred_at: "2026-03-02T00:00:00Z", kind: "site_visit", direction: "inbound", channel: "meta", campaign_id: "camp-1", campaign_asset_id: null, summary: "visited", is_conversion: false, value_cents: null },
+        ],
+        error: null,
+      },
+    });
+
+    const model = await getJourneysReadModel(supabase, undefined, NOW);
+    expect(model.status).toBe("live");
+    if (model.status !== "live") return;
+
+    const dana = model.journeys.find((j) => j.identity.label === "Dana Whitfield");
+    const anon = model.journeys.find((j) => j.identity.resolution === "anonymous");
+
+    // The stitched touch merged onto the known contact, whose identity now reads "stitched".
+    expect(dana?.identity.resolution).toBe("stitched");
+    expect(dana?.timeline.some((t) => t.id === "tp:tp1")).toBe(true);
+
+    // The unstitched identity is its own pre-lead journey.
+    expect(anon?.identity.label).toBe("Anonymous visitor");
+    expect(anon?.currentStage).toBe("engaged");
+  });
 });

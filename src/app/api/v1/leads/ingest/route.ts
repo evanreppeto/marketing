@@ -1,8 +1,10 @@
+import { type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 import { checkBearerToken } from "@/lib/auth/api-token";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { parseLeadIngestionPayload } from "@/domain";
+import { stitchAnonymousToContact } from "@/lib/journey/persistence";
 import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { persistLeadIngestion } from "@/lib/lead-ingestion/persistence";
 import { persistPersonaIntelligenceForLead } from "@/lib/persona-intelligence/persistence";
@@ -93,6 +95,10 @@ export async function POST(request: Request) {
       persisted,
       supabase,
     });
+    // Identity stitch (P1): if this lead carried an anonymous_id from a first-party
+    // collector cookie, merge its pre-lead journey onto the now-known contact.
+    // Best-effort — a stitch failure never fails a successful ingest.
+    const journeyStitch = await maybeStitchAnonymousJourney(payload, persisted.contactId, supabase, orgId);
 
     return NextResponse.json(
       {
@@ -101,6 +107,7 @@ export async function POST(request: Request) {
           status: "persisted",
           ...persisted,
           personaIntelligence,
+          journeyStitch,
         },
       },
       { status: 201 },
@@ -120,6 +127,26 @@ export async function POST(request: Request) {
     );
   }
 
+}
+
+/** Pull a collector anonymous_id off the raw ingest body, if a valid one is present. */
+function extractAnonymousId(payload: unknown): string | null {
+  if (payload && typeof payload === "object" && "anonymousId" in payload) {
+    const value = (payload as { anonymousId?: unknown }).anonymousId;
+    if (typeof value === "string" && value.length >= 8 && value.length <= 128) return value;
+  }
+  return null;
+}
+
+async function maybeStitchAnonymousJourney(payload: unknown, contactId: string | null, supabase: SupabaseClient, orgId: string) {
+  if (!contactId) return null;
+  const anonymousId = extractAnonymousId(payload);
+  if (!anonymousId) return null;
+  try {
+    return await stitchAnonymousToContact({ supabase, orgId, anonymousId, contactId });
+  } catch {
+    return null;
+  }
 }
 
 type OptionalPersonaIntelligenceInput = Parameters<typeof persistPersonaIntelligenceForLead>[0];
