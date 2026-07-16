@@ -47,6 +47,7 @@ describe("enqueueArcChatTask", () => {
       agents: { data: { id: "agent-1" }, error: null },
       agent_tasks: { data: { id: "task-1" }, error: null },
       agent_task_inputs: { data: null, error: null },
+      arc_conversations: { data: { org_id: "org-1" }, error: null },
       arc_messages: { data: PENDING_BUBBLE_ROW, error: null },
     });
 
@@ -96,6 +97,7 @@ describe("enqueueArcChatTask", () => {
       agents: { data: { id: "agent-1" }, error: null },
       agent_tasks: { data: { id: "task-1" }, error: null },
       agent_task_inputs: { data: null, error: null },
+      arc_conversations: { data: { org_id: "org-1" }, error: null },
       arc_messages: { data: PENDING_BUBBLE_ROW, error: null },
     });
 
@@ -123,6 +125,7 @@ describe("enqueueArcChatTask", () => {
       agents: { data: { id: "agent-1" }, error: null },
       agent_tasks: { data: { id: "task-1" }, error: null },
       agent_task_inputs: { data: null, error: null },
+      arc_conversations: { data: { org_id: "org-1" }, error: null },
       arc_messages: { data: PENDING_BUBBLE_ROW, error: null },
     });
 
@@ -143,6 +146,7 @@ describe("enqueueArcChatTask", () => {
       agents: { data: { id: "agent-1" }, error: null },
       agent_tasks: { data: { id: "task-1" }, error: null },
       agent_task_inputs: { data: null, error: null },
+      arc_conversations: { data: { org_id: "org-1" }, error: null },
       arc_messages: { data: PENDING_BUBBLE_ROW, error: null },
     });
 
@@ -166,6 +170,9 @@ describe("enqueueArcChatTask", () => {
       conversation_id: "conversation-1",
       agent_task_id: "task-1",
       status: "pending",
+      // Explicit, derived from the parent conversation — never left to the
+      // hardcoded arc_messages.org_id DEFAULT, which misfiles into one tenant.
+      org_id: "org-1",
     });
     expect(bubbleInsertedBeforeWake).toBe(true);
   });

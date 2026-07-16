@@ -7,7 +7,7 @@
  * enforced the moment a token IS configured (so configured deployments are closed).
  */
 
-import { hasActiveAgentTokens, verifyAgentToken, type VerifyAgentTokenResult } from "@/lib/agent/tokens";
+import { hasActiveAgentTokens, tokenAllows, verifyAgentToken, type VerifyAgentTokenResult } from "@/lib/agent/tokens";
 import { recordAgentSeen } from "@/lib/agent/health";
 import { deferAfterResponse } from "@/lib/defer";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -38,6 +38,54 @@ export function checkBearerToken(
   }
 
   return { ok: true, tokenSource: "env" };
+}
+
+/**
+ * Workspace-aware bearer gate for tenant-facing v1 endpoints (lead ingest).
+ *
+ * The difference from `checkBearerToken` matters: the env token proves "you're
+ * allowed" but says nothing about WHO you are, so a route using it has to guess
+ * the org — which in practice meant `getCurrentOrgId()` and a single-tenant
+ * endpoint. A per-workspace DB token carries its own org, so the caller's
+ * workspace is a fact rather than a guess. That's what lets any tenant's site
+ * post leads into their own workspace.
+ *
+ * Order: env token first (back-compat, dev/single-tenant — resolves no org), then
+ * hashed per-workspace tokens, which must carry `scope`.
+ */
+export async function checkWorkspaceBearer(
+  request: HeaderCarrier,
+  envVarName: string,
+  options: { required?: boolean; scope: string; verify?: (plaintext: string) => Promise<VerifyAgentTokenResult> } = {
+    scope: "",
+  },
+): Promise<BearerTokenResult> {
+  const required = options.required ?? true;
+  const envToken = process.env[envVarName];
+  const token = bearerValue(request);
+  const verify = options.verify ?? verifyConfiguredAgentToken;
+
+  if (token && envToken && token === envToken) {
+    // Legacy shared token: authorised, but anonymous — the caller's org is
+    // unknown, so the route falls back to the session/default workspace.
+    return { ok: true, tokenSource: "env" };
+  }
+
+  if (token) {
+    const verified = await verify(token);
+    if (verified.ok) {
+      if (!tokenAllows(verified.scopes, options.scope)) {
+        return { ok: false, status: 401, reason: "unauthorized" };
+      }
+      return { ok: true, tokenSource: "database", orgId: verified.orgId, workspaceId: verified.workspaceId };
+    }
+    return { ok: false, status: 401, reason: "unauthorized" };
+  }
+
+  // No credential presented. Endpoints that aren't `required` (lead intake in
+  // dev, before any token is configured) stay open; otherwise refuse.
+  if (!envToken && !required) return { ok: true, tokenSource: "env" };
+  return required ? { ok: false, status: envToken ? 401 : 503, reason: envToken ? "unauthorized" : "not_configured" } : { ok: true, tokenSource: "env" };
 }
 
 type AgentBearerDeps = {

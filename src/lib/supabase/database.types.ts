@@ -1275,6 +1275,7 @@ export type Database = {
           metadata: Json;
           created_at: string;
           updated_at: string;
+          org_id: string;
         };
         Insert: {
           id?: string;
@@ -1289,6 +1290,10 @@ export type Database = {
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
+          // Required, not optional: agents.org_id is NOT NULL and (as of
+          // 20260716140000) has no default, so an insert that omits it fails.
+          // Requiring it here turns that into a compile error instead.
+          org_id: string;
         };
         Update: {
           id?: string;
@@ -1303,6 +1308,7 @@ export type Database = {
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
+          org_id?: string;
         };
         Relationships: [];
       };

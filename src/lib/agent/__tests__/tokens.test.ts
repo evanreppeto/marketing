@@ -43,7 +43,7 @@ describe("token primitives", () => {
 });
 
 describe("verifyAgentToken", () => {
-  function fakeClient(row: { org_id?: string; workspace_id: string } | null) {
+  function fakeClient(row: { org_id?: string; workspace_id: string; scopes?: string[] | null } | null) {
     const update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
     return {
       from: () => ({
@@ -62,13 +62,23 @@ describe("verifyAgentToken", () => {
   it("returns the workspace for a known, non-revoked token", async () => {
     const result = await verifyAgentToken("sk_live_known", fakeClient({ workspace_id: "default" }));
 
-    expect(result).toEqual({ ok: true, workspaceId: "default" });
+    // scopes: null = a legacy token — unrestricted, exactly as before scoping existed.
+    expect(result).toEqual({ ok: true, workspaceId: "default", scopes: null });
   });
 
   it("returns the organization and workspace scope for a scoped token", async () => {
     const result = await verifyAgentToken("sk_live_known", fakeClient({ org_id: "org-1", workspace_id: "workspace-1" }));
 
-    expect(result).toEqual({ ok: true, orgId: "org-1", workspaceId: "workspace-1" });
+    expect(result).toEqual({ ok: true, orgId: "org-1", workspaceId: "workspace-1", scopes: null });
+  });
+
+  it("surfaces a narrow token's scopes so the bearer gate can enforce them", async () => {
+    const result = await verifyAgentToken(
+      "sk_live_known",
+      fakeClient({ org_id: "org-1", workspace_id: "workspace-1", scopes: ["leads:ingest"] }),
+    );
+
+    expect(result).toEqual({ ok: true, orgId: "org-1", workspaceId: "workspace-1", scopes: ["leads:ingest"] });
   });
 
   it("returns not-ok for an unknown token", async () => {

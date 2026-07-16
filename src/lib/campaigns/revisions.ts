@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
+import { type AgentTaskTenantFields, getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { getSupabaseAdminClient } from "../supabase/server";
 
 export type RevisionRequestInput = {
@@ -31,10 +31,16 @@ export async function requestAssetRevision(
   const { campaignId, assetId, instruction, operator } = input;
   const now = new Date().toISOString();
 
+  // Resolved once, up front: every row this operation touches belongs to one
+  // workspace. `client` is the service-role admin client, so RLS is bypassed and
+  // this org_id is the only thing scoping these reads and writes.
+  const tenant = await getCurrentAgentTaskTenantFields();
+
   // 1. Find the asset's most recent approval item (if any).
   const { data: approvalRow, error: approvalError } = await client
     .from("approval_items")
     .select("id,status")
+    .eq("org_id", tenant.org_id)
     .eq("campaign_asset_id", assetId)
     .order("submitted_at", { ascending: false })
     .limit(1)
@@ -46,6 +52,7 @@ export async function requestAssetRevision(
   // 2 + 3. Log the decision and move the approval item to revision_requested.
   if (approvalRow) {
     const { error: decisionError } = await client.from("approval_decisions").insert({
+      org_id: tenant.org_id,
       approval_item_id: approvalRow.id,
       decision: "revision_requested",
       decided_by: operator,
@@ -69,14 +76,18 @@ export async function requestAssetRevision(
   }
 
   // 4. Flip the asset. Note: dispatch_locked is deliberately untouched.
+  // `assetId` is caller-supplied, so the org filter is load-bearing: without it
+  // this updates by id alone and can reach another tenant's asset.
   const { error: assetError } = await client
     .from("campaign_assets")
     .update({ status: "revision_requested" })
+    .eq("org_id", tenant.org_id)
     .eq("id", assetId);
   assertOk("campaign_assets update", assetError);
 
   // 5. Campaign event for the timeline.
   const { error: eventError } = await client.from("campaign_events").insert({
+    org_id: tenant.org_id,
     campaign_id: campaignId,
     campaign_asset_id: assetId,
     approval_item_id: approvalItemId,
@@ -88,18 +99,29 @@ export async function requestAssetRevision(
   assertOk("campaign_events insert", eventError);
 
   // 6. Queue Arc to act on the revision.
-  const agentTaskId = await queueArcRevision(client, { campaignId, assetId, approvalItemId, instruction, operator });
+  const agentTaskId = await queueArcRevision(client, tenant, {
+    campaignId,
+    assetId,
+    approvalItemId,
+    instruction,
+    operator,
+  });
 
   return { approvalItemId, agentTaskId };
 }
 
 async function queueArcRevision(
   client: SupabaseClient,
+  tenant: AgentTaskTenantFields,
   input: { campaignId: string; assetId: string; approvalItemId: string | null; instruction: string; operator: string },
 ): Promise<string | null> {
+  // `key` is only unique per-org, so this must filter by org_id -- otherwise it
+  // can return another tenant's Arc agent and stamp its id onto this tenant's
+  // agent_tasks.agent_id.
   const { data: agent, error: agentError } = await client
     .from("agents")
     .select("id")
+    .eq("org_id", tenant.org_id)
     .eq("key", "arc")
     .limit(1)
     .maybeSingle<{ id: string }>();
@@ -108,8 +130,6 @@ async function queueArcRevision(
   // No Arc agent registered yet (campaign predates an orchestrator run): the
   // approval/asset state transition above still stands; just skip the queue.
   if (!agent) return null;
-
-  const tenant = await getCurrentAgentTaskTenantFields();
 
   const { data: task, error: taskError } = await client
     .from("agent_tasks")
@@ -137,7 +157,10 @@ async function queueArcRevision(
     throw new Error("agent_tasks insert returned no id");
   }
 
+  // org_id only — agent_task_inputs has no workspace_id column, so `...tenant`
+  // would send one that doesn't exist.
   const { error: inputError } = await client.from("agent_task_inputs").insert({
+    org_id: tenant.org_id,
     task_id: task.id,
     input_type: "revision_instruction",
     source_table: "campaign_assets",

@@ -1,7 +1,8 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-import { checkBearerToken } from "@/lib/auth/api-token";
+import { TOKEN_SCOPE_LEADS_INGEST } from "@/lib/agent/tokens";
+import { checkWorkspaceBearer } from "@/lib/auth/api-token";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { parseLeadIngestionPayload } from "@/domain";
 import { stitchAnonymousToContact } from "@/lib/journey/persistence";
@@ -14,7 +15,10 @@ export async function POST(request: Request) {
   const persistenceConfigured = isSupabaseAdminConfigured();
   // Non-persistent dev/contract mode stays open. Once Supabase persistence is
   // connected, ingestion must be authenticated before it can write data.
-  const auth = checkBearerToken(request, "LEADS_INGEST_API_TOKEN", { required: persistenceConfigured });
+  const auth = await checkWorkspaceBearer(request, "LEADS_INGEST_API_TOKEN", {
+    required: persistenceConfigured,
+    scope: TOKEN_SCOPE_LEADS_INGEST,
+  });
 
   if (!auth.ok) {
     const notConfigured = auth.reason === "not_configured";
@@ -55,10 +59,16 @@ export async function POST(request: Request) {
     );
   }
 
-  // Validate persona against the org's own taxonomy when persisting; local
-  // no-Supabase mode keeps the built-in default so the dev contract still holds.
+  // A per-workspace token carries its own org, so the caller's workspace is a
+  // fact. The legacy shared env token doesn't, so it falls back to the session /
+  // default workspace — which is exactly why this endpoint could only ever serve
+  // one tenant before scoped tokens existed.
+  const tokenOrgId = auth.orgId;
+
+  // Validate persona against the CALLER's taxonomy (not the default workspace's);
+  // local no-Supabase mode keeps the built-in default so the dev contract holds.
   const result = persistenceConfigured
-    ? parseLeadIngestionPayload(payload, undefined, await getOrgPersonaKeys())
+    ? parseLeadIngestionPayload(payload, undefined, await getOrgPersonaKeys(tokenOrgId))
     : parseLeadIngestionPayload(payload);
 
   if (!result.ok) {
@@ -82,7 +92,7 @@ export async function POST(request: Request) {
 
   try {
     const supabase = getSupabaseAdminClient();
-    const orgId = await getCurrentOrgId();
+    const orgId = tokenOrgId ?? (await getCurrentOrgId());
     const persisted = await persistLeadIngestion({
       input: normalizedInput,
       result,
@@ -94,6 +104,7 @@ export async function POST(request: Request) {
       result,
       persisted,
       supabase,
+      orgId,
     });
     // Identity stitch (P1): if this lead carried an anonymous_id from a first-party
     // collector cookie, merge its pre-lead journey onto the now-known contact.

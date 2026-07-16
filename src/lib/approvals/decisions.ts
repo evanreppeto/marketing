@@ -17,6 +17,7 @@ export type DecideApprovalItemInput = {
 
 type ApprovalItemDecisionRow = {
   id: string;
+  org_id: string;
   status: string;
   campaign_id: string | null;
   campaign_asset_id: string | null;
@@ -70,6 +71,11 @@ export async function decideApprovalItem(
   }
 
   const { error: decisionError } = await client.from("approval_decisions").insert({
+    // The decision inherits the org of the item it decides — approval_items.org_id is
+    // NOT NULL, so this is always present, and unlike an ambient session lookup it
+    // cannot misfile the row for a session-less caller. approval_decisions has no
+    // workspace_id column, so only org_id rides along.
+    org_id: item.org_id,
     approval_item_id: approvalItemId,
     decision: decision.decisionKind,
     decided_by: reviewer,
@@ -109,6 +115,7 @@ export async function decideApprovalItem(
     await updateCampaignAfterDecision({
       client,
       campaignId: item.campaign_id,
+      orgId: item.org_id,
       action: input.action,
       nextStatus: decision.campaignStatus,
       approvalItemId,
@@ -140,7 +147,7 @@ export async function decideApprovalItem(
 async function fetchApprovalItem(client: SupabaseClient, approvalItemId: string) {
   const { data, error } = await client
     .from("approval_items")
-    .select("id,status,campaign_id,campaign_asset_id,draft_output,edited_output,item_type")
+    .select("id,org_id,status,campaign_id,campaign_asset_id,draft_output,edited_output,item_type")
     .eq("id", approvalItemId)
     .maybeSingle<ApprovalItemDecisionRow>();
 
@@ -204,6 +211,7 @@ async function updateCampaignAssetAfterDecision(input: {
 async function updateCampaignAfterDecision(input: {
   client: SupabaseClient;
   campaignId: string;
+  orgId: string;
   action: ApprovalDecisionAction;
   nextStatus: string;
   approvalItemId: string;
@@ -232,6 +240,8 @@ async function updateCampaignAfterDecision(input: {
   }
 
   const { error: eventError } = await input.client.from("campaign_events").insert({
+    // Inherited from the approval item; campaign_events has no workspace_id column.
+    org_id: input.orgId,
     campaign_id: input.campaignId,
     campaign_asset_id: input.campaignAssetId,
     approval_item_id: input.approvalItemId,
@@ -262,9 +272,14 @@ async function createRevisionTask(input: {
     return;
   }
 
+  // Hoisted above the agents lookup: `key` is only unique per-org, so the
+  // lookup must filter by org_id or it can return another tenant's agent.
+  const tenant = await getCurrentAgentTaskTenantFields();
+
   const { data: agent, error: agentError } = await input.client
     .from("agents")
     .select("id")
+    .eq("org_id", tenant.org_id)
     .eq("key", "arc-demo")
     .maybeSingle<{ id: string }>();
 
@@ -275,8 +290,6 @@ async function createRevisionTask(input: {
   if (!agent) {
     return;
   }
-
-  const tenant = await getCurrentAgentTaskTenantFields();
 
   const { error } = await input.client.from("agent_tasks").insert({
     ...tenant,

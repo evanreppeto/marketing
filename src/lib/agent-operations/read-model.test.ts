@@ -196,7 +196,11 @@ describe("getAgentOperationsDashboard", () => {
     expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
     expect(supabase.calls).toContainEqual(["eq", "workspace_id", "workspace-1"]);
     expect(supabase.calls).toContainEqual(["from", "approval_items"]);
-    expect(supabase.calls.filter((call) => call[0] === "eq" && call[1] === "org_id" && call[2] === "org-1")).toHaveLength(4);
+    // 5, not 4: the `agents` list is org-scoped too. It used to be the one query
+    // here that wasn't, which was survivable only while `unique (key)` meant a
+    // single `arc` row existed database-wide. Agent keys are now unique per org
+    // (20260716150000), so an unscoped list returns every tenant's agents.
+    expect(supabase.calls.filter((call) => call[0] === "eq" && call[1] === "org_id" && call[2] === "org-1")).toHaveLength(5);
     expect(supabase.calls.filter((call) => call[0] === "eq" && call[1] === "workspace_id" && call[2] === "workspace-1")).toHaveLength(1);
   });
 

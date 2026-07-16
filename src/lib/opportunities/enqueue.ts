@@ -27,15 +27,18 @@ export async function enqueueArcOpportunityTask(
   input: EnqueueOpportunityTaskInput,
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<string> {
+  // Hoisted above the agents lookup: agent keys are only unique per-org, so the
+  // lookup must filter by org_id or it can return another tenant's agent.
+  const tenant = await getCurrentAgentTaskTenantFields();
+
   const { data: agent } = await client
     .from("agents")
     .select("id")
+    .eq("org_id", tenant.org_id)
     .in("key", await markAgentKeys())
     .limit(1)
     .maybeSingle<{ id: string }>();
   if (!agent) throw new Error("Arc agent not found");
-
-  const tenant = await getCurrentAgentTaskTenantFields();
 
   const { data: task, error } = await client
     .from("agent_tasks")
@@ -85,15 +88,18 @@ export async function enqueueOpportunityScanTask(input: {
   const client = getSupabaseAdminClient();
 
   try {
+    // Hoisted above the agents lookup: agent keys are only unique per-org, so
+    // the lookup must filter by org_id or it can return another tenant's agent.
+    const tenant = await getCurrentAgentTaskTenantFields();
+
     const { data: agent } = await client
       .from("agents")
       .select("id")
+      .eq("org_id", tenant.org_id)
       .in("key", await markAgentKeys())
       .limit(1)
       .maybeSingle<{ id: string }>();
     if (!agent) return { ok: false, error: "Arc agent not found." };
-
-    const tenant = await getCurrentAgentTaskTenantFields();
 
     const { data: task, error } = await client
       .from("agent_tasks")

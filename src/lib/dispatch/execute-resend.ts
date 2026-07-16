@@ -50,6 +50,7 @@ type DispatchRow = {
 
 async function logCampaignEvent(
   client: SupabaseClient,
+  orgId: string,
   campaignId: string | null,
   eventType: "dispatch_sent" | "dispatch_failed",
   actor: string,
@@ -57,6 +58,7 @@ async function logCampaignEvent(
 ) {
   if (!campaignId) return;
   const { error } = await client.from("campaign_events").insert({
+    org_id: orgId,
     campaign_id: campaignId,
     event_type: eventType,
     actor,
@@ -170,7 +172,7 @@ export async function executeResendDispatch(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Invalid email payload.";
-    await markFailed(client, dispatchId, dispatch.campaign_id, operator, message);
+    await markFailed(client, dispatch.org_id, dispatchId, dispatch.campaign_id, operator, message);
     return { ok: false, message };
   }
 
@@ -180,7 +182,7 @@ export async function executeResendDispatch(
     providerMessageId = sent.id;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Resend send failed.";
-    await markFailed(client, dispatchId, dispatch.campaign_id, operator, message);
+    await markFailed(client, dispatch.org_id, dispatchId, dispatch.campaign_id, operator, message);
     return { ok: false, message };
   }
 
@@ -197,7 +199,7 @@ export async function executeResendDispatch(
   assertOk("campaign_dispatches sent update", updateError);
 
   await recordConnectionUse(client, dispatch.org_id, "resend");
-  await logCampaignEvent(client, dispatch.campaign_id, "dispatch_sent", operator, `Sent via Resend (${providerMessageId}).`);
+  await logCampaignEvent(client, dispatch.org_id, dispatch.campaign_id, "dispatch_sent", operator, `Sent via Resend (${providerMessageId}).`);
   await recordOutboundTouch(client, dispatch, providerMessageId);
 
   return { ok: true, message: "Sent via Resend.", providerMessageId };
@@ -244,6 +246,7 @@ async function recordOutboundTouch(client: SupabaseClient, dispatch: DispatchRow
 
 async function markFailed(
   client: SupabaseClient,
+  orgId: string,
   dispatchId: string,
   campaignId: string | null,
   operator: string,
@@ -252,7 +255,8 @@ async function markFailed(
   const { error } = await client
     .from("campaign_dispatches")
     .update({ status: "failed", last_error: message })
+    .eq("org_id", orgId)
     .eq("id", dispatchId);
   assertOk("campaign_dispatches failed update", error);
-  await logCampaignEvent(client, campaignId, "dispatch_failed", operator, message);
+  await logCampaignEvent(client, orgId, campaignId, "dispatch_failed", operator, message);
 }
