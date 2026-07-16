@@ -165,7 +165,7 @@ function JourneyRow({ journey }: { journey: JourneyWithMeta }) {
   );
 }
 
-export function JourneysView({ model }: { model: JourneysReadModel }) {
+export function JourneysView({ model, origin = "" }: { model: JourneysReadModel; origin?: string }) {
   const [stageFilter, setStageFilter] = useState<JourneyStageKey | "all">("all");
 
   const filtered = useMemo(() => {
@@ -313,6 +313,8 @@ export function JourneysView({ model }: { model: JourneysReadModel }) {
               <em>anonymous</em> or <em>stitched</em> tag.
             </p>
           </section>
+
+          <CollectorInstall origin={origin} />
         </aside>
       </div>
     </div>
@@ -326,5 +328,38 @@ function Kpi({ label, value, hint, tone }: { label: string; value: string; hint:
       <span className="jr-kval">{value}</span>
       <span className="jr-khint">{hint}</span>
     </div>
+  );
+}
+
+/** Operator install panel: the one-line snippet to drop on a first-party landing page. */
+function CollectorInstall({ origin }: { origin: string }) {
+  const [copied, setCopied] = useState(false);
+  const snippet = `<script src="${origin || "https://your-arc-domain"}/api/v1/journey/snippet.js" defer></script>`;
+  const copy = () => {
+    navigator.clipboard
+      ?.writeText(snippet)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(() => {});
+  };
+  return (
+    <section className="jr-panel jr-install">
+      <h2>Connect your funnel</h2>
+      <p className="jr-installlede">
+        Add this to your landing pages. It records anonymous visits from campaign links and hands the visitor id to your lead form —
+        so the journey stitches onto the contact automatically.
+      </p>
+      <div className="jr-code">
+        <code>{snippet}</code>
+        <button type="button" className="jr-copy" onClick={copy}>
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <p className="jr-installnote">
+        Campaign links are already tagged at dispatch — arrivals light up <em>Reached / Engaged</em>, then stitch at identification.
+      </p>
+    </section>
   );
 }

@@ -1471,6 +1471,14 @@
 .arc-app .journeys .jr-notenext { color: var(--muted) !important; }
 .arc-app .journeys .jr-notenext b { color: var(--accent); }
 
+/* Collector install panel */
+.arc-app .journeys .jr-install .jr-installlede { font-size: 12.5px; line-height: 1.55; color: var(--text-2); margin-bottom: 11px; }
+.arc-app .journeys .jr-code { display: flex; align-items: flex-start; gap: 8px; background: var(--canvas-deep); border: 1px solid var(--line-2); border-radius: 8px; padding: 10px 11px; }
+.arc-app .journeys .jr-code code { flex: 1; min-width: 0; font-family: var(--mono); font-size: 10.5px; line-height: 1.55; color: var(--text-2); word-break: break-all; }
+.arc-app .journeys .jr-copy { flex: 0 0 auto; font-size: 11px; font-weight: 600; color: var(--accent); background: none; border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 10px; cursor: pointer; transition: border-color 0.15s var(--ease); }
+.arc-app .journeys .jr-copy:hover { border-color: var(--accent-border); }
+.arc-app .journeys .jr-installnote { font-size: 11.5px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+
 /* Empty state */
 .arc-app .journeys .jr-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 56px 24px; border: 1px dashed var(--line-3); border-radius: 14px; background: var(--panel); }
 .arc-app .journeys .jr-emptymk { font-size: 34px; color: var(--muted); line-height: 1; }
