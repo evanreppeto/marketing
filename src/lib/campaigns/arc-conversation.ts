@@ -28,9 +28,15 @@ export async function sendArcDirective(
 ): Promise<ArcDirectiveResult> {
   const { campaignId, message, operator, agentName = "Arc" } = input;
 
+  // Hoisted above the agents lookup: `key` is only unique per-org, so the
+  // lookup needs the tenant to avoid returning another tenant's Arc agent and
+  // stamping its id onto this tenant's agent_tasks.agent_id.
+  const tenant = await getCurrentAgentTaskTenantFields();
+
   const { data: agent, error: agentError } = await client
     .from("agents")
     .select("id")
+    .eq("org_id", tenant.org_id)
     .eq("key", "arc")
     .limit(1)
     .maybeSingle<{ id: string }>();
@@ -41,8 +47,6 @@ export async function sendArcDirective(
   if (!agent) {
     throw new Error(`${agentName} isn't connected to this workspace yet, so the message can't be queued.`);
   }
-
-  const tenant = await getCurrentAgentTaskTenantFields();
 
   const { data: task, error: taskError } = await client
     .from("agent_tasks")
@@ -70,7 +74,10 @@ export async function sendArcDirective(
     throw new Error("agent_tasks insert returned no id");
   }
 
+  // org_id only — agent_task_inputs has no workspace_id column, so `...tenant`
+  // would send one that doesn't exist.
   const { error: inputError } = await client.from("agent_task_inputs").insert({
+    org_id: tenant.org_id,
     task_id: task.id,
     input_type: "operator_message",
     source_table: "campaigns",

@@ -390,11 +390,14 @@ export async function getAgentOperationsDashboard(
     const supabase = client ?? getSupabaseAdminClient();
     const scope = tenantScope ?? (!client ? await getCurrentAgentTaskTenantFields() : undefined);
     const [agentsResult, tasksResult, approvalsResult, outputsResult, campaignsResult] = await Promise.all([
-      supabase
-        .from("agents")
-        .select("id,key,name,description,status,allowed_actions,blocked_actions,default_approval_policy,metadata,updated_at")
-        .order("updated_at", { ascending: false })
-        .limit(25),
+      applyOrgScope(
+        supabase
+          .from("agents")
+          .select("id,key,name,description,status,allowed_actions,blocked_actions,default_approval_policy,metadata,updated_at")
+          .order("updated_at", { ascending: false })
+          .limit(25),
+        scope?.org_id,
+      ),
       fetchDashboardTasks(supabase, scope),
       applyOrgScope(
         supabase

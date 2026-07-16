@@ -17,6 +17,8 @@ export type ArcConversation = {
   campaignId: string | null;
   ownerId: string | null;
   workspaceId: string | null;
+  /** NOT NULL in the DB: every conversation belongs to exactly one org. */
+  orgId: string;
   visibility: "private" | "workspace";
   workspacePermission: "view" | "collaborate";
   createdAt: string;
@@ -98,6 +100,7 @@ type ConversationRow = {
   campaign_id: string | null;
   owner_id: string | null;
   workspace_id: string | null;
+  org_id: string;
   visibility: "private" | "workspace" | null;
   workspace_permission: "view" | "collaborate" | null;
   created_at: string;
@@ -120,7 +123,7 @@ type MessageRow = {
 };
 
 const CONVERSATION_COLUMNS =
-  "id, operator, title, status, project_id, campaign_id, owner_id, workspace_id, pinned_at, visibility, workspace_permission, created_at, updated_at, last_message_at, summary, summary_through_message_id";
+  "id, operator, title, status, project_id, campaign_id, owner_id, workspace_id, org_id, pinned_at, visibility, workspace_permission, created_at, updated_at, last_message_at, summary, summary_through_message_id";
 const MESSAGE_COLUMNS = "id, conversation_id, role, body, status, agent_task_id, mentions, metadata, created_at";
 
 function toConversation(row: ConversationRow): ArcConversation {
@@ -134,6 +137,7 @@ function toConversation(row: ConversationRow): ArcConversation {
     campaignId: row.campaign_id ?? null,
     ownerId: row.owner_id ?? null,
     workspaceId: row.workspace_id ?? null,
+    orgId: row.org_id,
     visibility: row.visibility ?? "private",
     workspacePermission: row.workspace_permission ?? "view",
     createdAt: row.created_at,
@@ -300,6 +304,25 @@ async function taskBelongsToScope(
   ).maybeSingle<{ id: string }>();
   assertOk("agent_tasks scope lookup", error);
   return Boolean(data);
+}
+
+/**
+ * A message belongs to the org that owns its conversation. Derived rather than
+ * passed in by callers: arc_messages.org_id has a DEFAULT hardcoded to one org's
+ * slug, so an omitted org_id silently misfiles the row into that tenant instead
+ * of failing. Total by construction — arc_messages.conversation_id and
+ * arc_conversations.org_id are both NOT NULL, so every message has exactly one
+ * conversation with exactly one org.
+ */
+async function conversationOrgId(client: SupabaseClient, conversationId: string): Promise<string> {
+  const { data, error } = await client
+    .from("arc_conversations")
+    .select("org_id")
+    .eq("id", conversationId)
+    .single<{ org_id: string }>();
+  assertOk("arc_conversations org lookup", error);
+  if (!data?.org_id) throw new Error(`arc_conversations ${conversationId} has no org_id`);
+  return data.org_id;
 }
 
 /**
@@ -768,6 +791,7 @@ export async function insertOperatorMessage(
     .from("arc_messages")
     .insert({
       conversation_id: input.conversationId,
+      org_id: await conversationOrgId(client, input.conversationId),
       role: "operator",
       body: input.body,
       status: "sent",
@@ -790,6 +814,7 @@ export async function insertPendingArcMessage(
     .from("arc_messages")
     .insert({
       conversation_id: input.conversationId,
+      org_id: await conversationOrgId(client, input.conversationId),
       role: "arc",
       body: "",
       status: "pending",
@@ -806,9 +831,10 @@ export async function insertFailedArcMessage(
   input: { conversationId: string; body: string },
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<ArcMessage> {
+  const orgId = await conversationOrgId(client, input.conversationId);
   const { data, error } = await client
     .from("arc_messages")
-    .insert({ conversation_id: input.conversationId, role: "arc", body: input.body, status: "failed" })
+    .insert({ conversation_id: input.conversationId, org_id: orgId, role: "arc", body: input.body, status: "failed" })
     .select(MESSAGE_COLUMNS)
     .single<MessageRow>();
   assertOk("arc_messages failed insert", error);
@@ -933,7 +959,9 @@ export async function createProject(
     name: string;
     ownerId?: string | null;
     workspaceId?: string | null;
-    orgId?: string | null;
+    /** Required: arc_projects.org_id has no default, so omitting it is a
+     *  not-null violation. Typed non-optional to catch that at compile time. */
+    orgId: string;
   },
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<ArcProject> {
@@ -942,9 +970,9 @@ export async function createProject(
     .insert({
       operator: input.operator,
       name: input.name,
+      org_id: input.orgId,
       ...(input.ownerId != null ? { owner_id: input.ownerId } : {}),
       ...(input.workspaceId != null ? { workspace_id: input.workspaceId } : {}),
-      ...(input.orgId != null ? { org_id: input.orgId } : {}),
     })
     .select(PROJECT_COLUMNS)
     .single<ProjectRow>();
@@ -969,7 +997,13 @@ export async function linkConversationToCampaign(
   if (!conversation) return;
   let projectId = conversation.projectId;
   if (!projectId) {
-    const project = await createProject({ operator: conversation.operator, name: projectName }, client);
+    // The project belongs to the same org as the conversation it groups. Passing
+    // it explicitly is load-bearing: arc_projects.org_id has no default anymore,
+    // so an omitted org is a not-null violation rather than a silent misfile.
+    const project = await createProject(
+      { operator: conversation.operator, name: projectName, orgId: conversation.orgId },
+      client,
+    );
     projectId = project.id;
   }
   const { error } = await client

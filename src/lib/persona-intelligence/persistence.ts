@@ -10,6 +10,20 @@ type PersistPersonaIntelligenceInput = {
   result: AcceptedLeadIngestionResult;
   persisted: PersistedLeadIngestion;
   supabase: SupabaseClient;
+  /**
+   * The owning workspace. Required — and the reason is nastier than it looks.
+   *
+   * persona_snapshots / engagement_events / next_best_actions are `org_id NOT
+   * NULL`, but they also carry `default default_organization_id()`, which is
+   * hardcoded to the 'big-shoulders-restoration' slug. So omitting org_id does
+   * NOT fail and does NOT write an unscoped row — it silently writes the row into
+   * BSR's workspace. That was invisible while lead ingest was single-tenant
+   * (everything was BSR anyway); the moment ingest resolves a real per-workspace
+   * org, a tenant's lead would persist to their org while its persona snapshot,
+   * engagement events and next-best-action landed in BSR's. Passing org_id
+   * explicitly is what stops that.
+   */
+  orgId: string;
 };
 
 type InsertResult = {
@@ -27,9 +41,11 @@ export async function persistPersonaIntelligenceForLead({
   result,
   persisted,
   supabase,
+  orgId,
 }: PersistPersonaIntelligenceInput): Promise<PersistedPersonaIntelligence> {
   const profile = buildProfile(input, result);
   const personaSnapshotId = await insertAndReturnId(supabase, "persona_snapshots", {
+    org_id: orgId,
     persona: result.persona,
     company_id: persisted.companyId,
     contact_id: persisted.contactId,
@@ -62,6 +78,7 @@ export async function persistPersonaIntelligenceForLead({
 
   const engagementEventIds = await insertManyAndReturnIds(supabase, "engagement_events", [
     {
+      org_id: orgId,
       company_id: persisted.companyId,
       contact_id: persisted.contactId,
       property_id: persisted.propertyId,
@@ -78,6 +95,7 @@ export async function persistPersonaIntelligenceForLead({
       reasoning_payload: {},
     },
     {
+      org_id: orgId,
       company_id: persisted.companyId,
       contact_id: persisted.contactId,
       property_id: persisted.propertyId,
@@ -96,6 +114,7 @@ export async function persistPersonaIntelligenceForLead({
       },
     },
     {
+      org_id: orgId,
       company_id: persisted.companyId,
       contact_id: persisted.contactId,
       property_id: persisted.propertyId,
@@ -116,6 +135,7 @@ export async function persistPersonaIntelligenceForLead({
   ]);
 
   const nextBestActionId = await insertAndReturnId(supabase, "next_best_actions", {
+    org_id: orgId,
     persona_snapshot_id: personaSnapshotId,
     company_id: persisted.companyId,
     contact_id: persisted.contactId,
