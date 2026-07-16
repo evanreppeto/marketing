@@ -2,22 +2,28 @@ name: E2E Guardrails (deployed)
 
 # Continuously verifies the DEPLOYED app still works end to end:
 #   - the login wall holds (the public can't see the app),
-#   - a seeded operator can sign in and the tenant renders,
+#   - a real operator can sign in and the tenant renders,
 #   - the Opportunity inbox is populated,
 #   - the campaign approval gate is present.
 #
-# This validates live deploys (staging tracks `main`), so it runs AFTER merges
-# to main (post-deploy health check) and on a schedule (drift check), plus on
-# demand. It is a deployed-app health guardrail — not a gate on an individual
-# PR's own code (that would require deploying + testing each PR's preview, a
-# later enhancement).
+# Runs AFTER merges to main (post-deploy health check), on a schedule (drift
+# check), and on demand. It is a deployed-app health guardrail — not a gate on an
+# individual PR's own code (only ci.yml's `verify`+`e2e` gate PRs).
 #
-# Credentials: the staging job defaults to the seeded operator (owner@bsr.test)
-# but prefers the STAGING_E2E_EMAIL / STAGING_E2E_PASSWORD repo secrets when set.
-# The prod-smoke job runs only the UNAUTHENTICATED checks (no creds needed). To
-# add the full authenticated flow against prod, set PROD_E2E_EMAIL /
-# PROD_E2E_PASSWORD secrets and add a job that runs e2e/guardrails.spec.ts with
-# E2E_BASE_URL pointed at prod.
+# TARGET: prod (arc-studio.ai). This used to point at a `marketing-staging`
+# Vercel deploy; that project was deleted to cut cost, so the job hardcoded a URL
+# that 404s and went permanently red — which silently masked real regressions.
+# There is no staging app: do NOT repoint at a staging alias.
+#
+# CREDENTIALS: the authenticated job needs PROD_E2E_EMAIL / PROD_E2E_PASSWORD
+# repo secrets. There is deliberately NO hardcoded fallback (the old job shipped a
+# real password in this YAML). Without the secrets the authenticated job SKIPS with
+# a warning instead of failing — a red guardrail nobody can fix is worse than an
+# honest skip, because it trains you to ignore the check.
+#
+# SAFETY: the guardrails are read-only against prod — the only write is the
+# sign-in POST (authentication, not business data). No sends, approvals, or record
+# mutations. See e2e/guardrails.spec.ts.
 
 on:
   push:
@@ -28,31 +34,52 @@ on:
 
 jobs:
   guardrails:
-    name: Guardrails (staging)
+    name: Guardrails (prod, authenticated)
     runs-on: ubuntu-latest
     steps:
+      # `secrets` isn't available in a job-level `if`, so gate the steps on this.
+      - name: Check for prod credentials
+        id: creds
+        env:
+          E2E_EMAIL: ${{ secrets.PROD_E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
+        run: |
+          if [ -n "$E2E_EMAIL" ] && [ -n "$E2E_PASSWORD" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Authenticated guardrails skipped::Set the PROD_E2E_EMAIL and PROD_E2E_PASSWORD repo secrets to enable the authenticated prod guardrails. The unauthenticated prod smoke still ran."
+          fi
+
       - uses: actions/checkout@v5
+        if: steps.creds.outputs.ok == 'true'
 
       - name: Install pnpm
+        if: steps.creds.outputs.ok == 'true'
         uses: pnpm/action-setup@v4
 
       - name: Setup Node
+        if: steps.creds.outputs.ok == 'true'
         uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install dependencies
+        if: steps.creds.outputs.ok == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browser
+        if: steps.creds.outputs.ok == 'true'
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Guardrails against staging
-        run: pnpm test:e2e:staging
+      - name: Guardrails against prod
+        if: steps.creds.outputs.ok == 'true'
+        run: pnpm test:e2e:guardrails
         env:
-          E2E_EMAIL: ${{ secrets.STAGING_E2E_EMAIL || 'owner@bsr.test' }}
-          E2E_PASSWORD: ${{ secrets.STAGING_E2E_PASSWORD || 'BsrOwner1234!' }}
+          E2E_BASE_URL: ${{ vars.PROD_BASE_URL || 'https://arc-studio.ai' }}
+          E2E_EMAIL: ${{ secrets.PROD_E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
 
       - name: Upload Playwright report on failure
         if: ${{ failure() }}
