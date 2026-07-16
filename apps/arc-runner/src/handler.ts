@@ -1,4 +1,5 @@
 import { runArcCampaignTask, runArcOpportunityDraft, runArcOpportunityScan, runArcTurn } from "./arc";
+import { captureRunnerError } from "./observability";
 import type { Config } from "./config";
 import type { ArcClient } from "./arc-client";
 import type { ArcCampaignTaskPayload, ArcOpportunityDraftPayload, ArcOpportunityScanPayload, MarkChatMessagePayload } from "./types";
@@ -41,6 +42,9 @@ export async function handleChatMessage(
     console.log(`[arc-runner] replied to task ${payload.agentTaskId} in ${Date.now() - started}ms`);
   } catch (error) {
     console.error("[arc-runner] Arc run failed:", error);
+    // The operator only sees "Arc hit an error… check the runner logs" — this is
+    // what makes the cause reach someone without them going to look.
+    captureRunnerError(error, { run: "chat", agentTaskId: payload.agentTaskId });
     await client
       .postChatReply({
         agentTaskId: payload.agentTaskId,
@@ -83,6 +87,7 @@ export async function handleOpportunityDraft(
     });
   } catch (error) {
     console.error(`[arc-runner] opportunity-draft run failed for ${payload.opportunityId}:`, error);
+    captureRunnerError(error, { run: "opportunity-draft", opportunityId: payload.opportunityId });
   }
 }
 
@@ -119,6 +124,7 @@ export async function handleOpportunityScan(
     });
   } catch (error) {
     console.error(`[arc-runner] opportunity-scan run failed (task ${payload.agentTaskId}):`, error);
+    captureRunnerError(error, { run: "opportunity-scan", agentTaskId: payload.agentTaskId });
     await client
       .apiPost(`/api/v1/arc/tasks/${payload.agentTaskId}/block`, {
         reason: "Arc hit an error running the opportunity scan. Check the runner logs.",
@@ -173,6 +179,7 @@ export async function handleCampaignTask(
     console.log(`[arc-runner] campaign task ${payload.agentTaskId} finished in ${Date.now() - started}ms`);
   } catch (error) {
     console.error(`[arc-runner] campaign-task run failed for ${payload.agentTaskId}:`, error);
+    captureRunnerError(error, { run: "campaign-task", agentTaskId: payload.agentTaskId });
     if (payload.conversationId) {
       await client
         .postChatReply({
