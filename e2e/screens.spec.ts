@@ -1,5 +1,13 @@
 import { test, expect, type Page } from "@playwright/test";
 
+// Per-PR smoke: the public (unauthenticated) surface renders cleanly with no
+// runtime errors. CI has no Supabase env, so the authenticated (app) routes all
+// redirect to /login — those are covered by the deployed guardrails
+// (e2e/guardrails.spec.ts), not here. What we CAN prove on every PR, with no
+// backend, is that the front door and the auth screens load and their own JS
+// doesn't throw. (The old static public/build-*.html gallery this job used to
+// smoke-test was removed when those screens were ported into the real app.)
+
 // Noise we don't fail on: the external font CDN and favicon fetches don't affect
 // the page's own behavior. Anything else — our own JS throwing, a bad asset
 // path — is a real failure.
@@ -32,8 +40,7 @@ function watchForErrors(page: Page): string[] {
 // The front door enters the real app (src/app/page.tsx redirects to /home).
 // An authenticated session lands on the home screen ("waiting on you"); without
 // one — as in CI, where there is no Supabase env — it redirects on to the
-// sign-in screen. Either way root resolves cleanly into the app (the old static
-// mockup gallery under public/build-*.html has been removed).
+// sign-in screen. Either way root resolves cleanly into the app.
 test("/ enters the real app", async ({ page }) => {
   const errors = watchForErrors(page);
   const resp = await page.goto("/", { waitUntil: "load" });
@@ -41,3 +48,23 @@ test("/ enters the real app", async ({ page }) => {
   await expect(page.locator("body")).toContainText(/waiting on you|sign in/i);
   expect(errors, `/ had errors:\n${errors.join("\n")}`).toEqual([]);
 });
+
+// The public auth screens must render without a backend — these are the pages a
+// logged-out visitor (or an expired session) actually lands on. A blank screen
+// or a thrown error here locks everyone out, so we assert each one loads, shows
+// its headline copy, and its own JS stays quiet.
+const AUTH_SCREENS: Array<{ path: string; expect: RegExp }> = [
+  { path: "/login", expect: /sign in/i },
+  { path: "/sign-up", expect: /create (your )?workspace|create account|sign up/i },
+  { path: "/forgot-password", expect: /reset|forgot|back in/i },
+];
+
+for (const screen of AUTH_SCREENS) {
+  test(`${screen.path} renders cleanly`, async ({ page }) => {
+    const errors = watchForErrors(page);
+    const resp = await page.goto(screen.path, { waitUntil: "load" });
+    expect(resp?.status(), `HTTP status for ${screen.path}`).toBeLessThan(400);
+    await expect(page.locator("body")).toContainText(screen.expect);
+    expect(errors, `${screen.path} had errors:\n${errors.join("\n")}`).toEqual([]);
+  });
+}

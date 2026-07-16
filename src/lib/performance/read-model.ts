@@ -346,7 +346,6 @@ function buildDemoPerformanceReadModel(rangeDays: number): PerformanceReadModel 
   const conversionPct = 63;
 
   // Sparkline helpers from the trend so KPI cards animate believably.
-  const leadSpark = trend.map((p) => p.leads);
   const bookedSpark = trend.map((p) => p.bookings);
   const revenueSpark = trend.map((p) => p.bookings * (rng() * 1.6 + 2.2));
   const scoreSpark = trend.map((_, i) => 70 + (i / Math.max(weeks - 1, 1)) * 10 + (rng() - 0.5) * 3);
