@@ -1,6 +1,6 @@
 import { type NodeKind, type EdgeRelation } from "@/domain";
 import { type TypedSupabaseClient } from "@/lib/supabase/server";
-import { createEdge, createNode, type WriteResult } from "@/lib/knowledge-graph/persistence";
+import { createEdge, createNode, upsertReferenceNode, type WriteResult } from "@/lib/knowledge-graph/persistence";
 import { listNodes, type NodeFilters } from "@/lib/knowledge-graph/read-model";
 import { getBrainGraph } from "@/lib/knowledge-graph/graph";
 
@@ -28,6 +28,39 @@ export async function markCreateNode(
       props: (payload.props as Record<string, unknown>) ?? {},
     },
     { ...deps, createdBy: "arc" },
+  );
+}
+
+/**
+ * Arc records a durable fact it learned in a chat, keyed so re-learning updates that
+ * one node instead of inserting a near-duplicate. Duplicates are not cosmetic here:
+ * recall ranks a bounded set of nodes, so a pile of restatements of one fact would
+ * crowd real memory out of the block.
+ *
+ * `learning` is a non-gated kind, so this resolves to `observed` and is recalled going
+ * forward — Arc still cannot self-approve a gated kind, and nothing here is outbound.
+ */
+export async function markUpsertLearning(
+  payload: Record<string, unknown>,
+  deps: ApiDeps = {},
+): Promise<WriteResult> {
+  return upsertReferenceNode(
+    {
+      kind: "learning",
+      key: payload.key as string,
+      label: payload.label as string,
+      body: (payload.body as string) ?? null,
+      summary: (payload.summary as string) ?? null,
+      persona: null,
+      confidence: (payload.confidence as number) ?? null,
+      refTable: null,
+      refId: null,
+      source: "arc-chat",
+      sourceReference: (payload.source_reference as string) ?? null,
+      tags: Array.isArray(payload.tags) ? (payload.tags as string[]) : [],
+      props: {},
+    },
+    deps,
   );
 }
 

@@ -249,10 +249,12 @@ export async function setNodeTags(
 }
 
 /**
- * Insert-or-update a reference node keyed on (org_id, kind, key). Used by CRM →
- * Brain ingestion: an edit updates the same row instead of duplicating. Always
- * authored "arc" (non-gated kinds resolve to "observed"). Re-embeds only when the
- * embed text hash changed. Trust tier is left untouched on update.
+ * Insert-or-update a node keyed on (org_id, kind, key), so a repeat write updates the
+ * same row instead of duplicating. Two callers: CRM → Brain ingestion (an edited record
+ * updates its mirror) and chat memory promotion (a re-learned fact refreshes one node).
+ * Always authored "arc" (non-gated kinds resolve to "observed"). Re-embeds only when the
+ * embed text hash changed — so an updated fact stays semantically recallable without
+ * paying to re-embed unchanged ones. Trust tier is left untouched on update.
  */
 export async function upsertReferenceNode(input: KnowledgeNodeInput, deps: WriteDeps = {}): Promise<WriteResult> {
   const parsed = validateNodeInput(input);
