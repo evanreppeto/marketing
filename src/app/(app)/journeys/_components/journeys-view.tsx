@@ -337,7 +337,14 @@ export function JourneysView({
             </div>
             <p className="jr-lensblurb">{activeLens?.blurb}</p>
             {channelCredit.length === 0 ? (
-              <div className="jr-sub">No converted journeys yet.</div>
+              // "No credit" and "no conversions" are different things, and conflating
+              // them reads as broken: a workspace whose campaigns haven't sent yet has
+              // real conversions but no attributable touch to credit them to.
+              <div className="jr-sub">
+                {kpis.converted === 0
+                  ? "No converted journeys yet."
+                  : `${kpis.converted} conversion${kpis.converted === 1 ? "" : "s"}, but none carry campaign attribution yet — credit appears once a journey includes a tagged campaign touch.`}
+              </div>
             ) : (
               <div className="jr-bd">
                 {channelCredit.map((c) => {
