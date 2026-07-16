@@ -15,6 +15,8 @@
  * if the runner scales horizontally each instance bounds its own concurrency.
  */
 
+import { captureRunnerError } from "./observability";
+
 export type FairSchedulerOptions = {
   /** Global cap on Arc runs in flight at once (across all workspaces). */
   maxConcurrent: number;
@@ -68,8 +70,11 @@ export function createFairScheduler(options: FairSchedulerOptions): FairSchedule
       inFlight.set(next.key, (inFlight.get(next.key) ?? 0) + 1);
       Promise.resolve()
         .then(next.job)
-        .catch(() => {
-          /* the handler owns its own error reporting; never let it wedge the pump */
+        .catch((error: unknown) => {
+          // Still never let a job wedge the pump. But "the handler owns its own
+          // error reporting" only holds for throws INSIDE the handler's try — a
+          // throw before/around it used to vanish here with no trace anywhere.
+          captureRunnerError(error, { run: "scheduler", kind: "escapedJob" });
         })
         .finally(() => {
           running -= 1;
