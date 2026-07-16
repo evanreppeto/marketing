@@ -19,6 +19,7 @@ function fakeClient(tables: TableRows) {
           rows = rows.slice(0, count);
           return builder;
         },
+        returns: async () => ({ data: rows, error: null }),
         maybeSingle: async () => ({ data: rows[0] ?? null, error: null }),
       };
       return builder;
@@ -65,17 +66,20 @@ describe("resolveWorkspaceContextForUser", () => {
     });
   });
 
-  it("falls back to the seeded default workspace before users are assigned", async () => {
+  it("resolves the sole org when there is no session, since it is the only possible answer", async () => {
     const context = await resolveWorkspaceContextForUser(
       fakeClient({
-        organizations: [{ id: "org-1", slug: "big-shoulders-restoration", name: "Big Shoulders Restoration" }],
+        // Deliberately NOT the old default slug: resolution must not depend on the
+        // org being named "big-shoulders-restoration". It is chosen because it is
+        // the only one, not because of what it is called.
+        organizations: [{ id: "org-1", slug: "acme-restoration", name: "Acme Restoration" }],
         workspaces: [
           {
             id: "workspace-1",
             org_id: "org-1",
             key: "default",
-            slug: "big-shoulders-restoration",
-            name: "Big Shoulders Restoration",
+            slug: "acme-restoration",
+            name: "Acme Restoration",
             status: "active",
           },
         ],
@@ -91,6 +95,34 @@ describe("resolveWorkspaceContextForUser", () => {
       userId: null,
       source: "default-org",
     });
+  });
+
+  // Mechanism 2 of the org-scoping audit, in one assertion. This used to return
+  // whichever org was named by DEFAULT_ORG_SLUG, so a session-less caller — a
+  // bearer token, which proves "you're allowed" and never "you're Acme" — silently
+  // became that tenant and stamped its rows with that org. It must refuse instead.
+  it("refuses to guess when there is no session and more than one org exists", async () => {
+    await expect(
+      resolveWorkspaceContextForUser(
+        fakeClient({
+          organizations: [
+            { id: "org-bsr", slug: "big-shoulders-restoration", name: "Big Shoulders Restoration" },
+            { id: "org-acme", slug: "acme-restoration", name: "Acme Restoration" },
+          ],
+          workspaces: [
+            { id: "ws-bsr", org_id: "org-bsr", key: "default", slug: "bsr", name: "BSR", status: "active" },
+            { id: "ws-acme", org_id: "org-acme", key: "default", slug: "acme", name: "Acme", status: "active" },
+          ],
+        }),
+        null,
+      ),
+    ).rejects.toThrow(WorkspaceUnavailableError);
+  });
+
+  it("refuses when no org exists at all rather than returning a partial context", async () => {
+    await expect(
+      resolveWorkspaceContextForUser(fakeClient({ organizations: [], workspaces: [] }), null),
+    ).rejects.toThrow(WorkspaceUnavailableError);
   });
 
   it("does not fall back to the seeded workspace for signed-in users without access", async () => {

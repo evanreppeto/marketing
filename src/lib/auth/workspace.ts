@@ -10,6 +10,14 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
 
 type QueryClient = SupabaseClient;
 
+/**
+ * Cosmetic only — it names the synthetic offline demo workspace and seeds a few
+ * BSR-specific scripts. It is NOT how a tenant is resolved: nothing here queries
+ * by this slug any more. It used to, and that was mechanism 2 of the org-scoping
+ * audit — a session-less caller silently became this tenant. Resolution now goes
+ * through fetchSoleOrg, which refuses when the answer isn't provable. Don't
+ * reintroduce a slug lookup on a request path.
+ */
 export const DEFAULT_ORG_SLUG = process.env.DEFAULT_ORG_SLUG ?? "big-shoulders-restoration";
 export const DEFAULT_WORKSPACE_KEY = process.env.DEFAULT_WORKSPACE_KEY ?? "default";
 
@@ -92,15 +100,37 @@ async function fetchOrgById(client: QueryClient, orgId: string): Promise<OrgRow 
   return data ?? null;
 }
 
-async function fetchDefaultOrg(client: QueryClient): Promise<OrgRow> {
-  const { data, error } = await client
-    .from("organizations")
-    .select("id,slug,name")
-    .eq("slug", DEFAULT_ORG_SLUG)
-    .maybeSingle<OrgRow>();
+/**
+ * The org for a caller that has no session to derive one from.
+ *
+ * This is deliberately NOT a lookup of a named org. With exactly one
+ * organization in the database, that org is the only answer this function could
+ * correctly return — so returning it is a fact, not a guess. With two or more
+ * there is no basis to choose, so it refuses rather than picking.
+ *
+ * It replaced a lookup of DEFAULT_ORG_SLUG, hardcoded to one tenant, which
+ * answered "big-shoulders-restoration" to every session-less caller. That
+ * included bearer-token callers — precisely the ones whose org cannot be
+ * inferred, because a shared token proves "you're allowed" and not "you're
+ * Acme". Those sites then stamped that org onto their rows explicitly, so they
+ * read as correct and no grep for a missing org_id could find them. The failure
+ * only became visible with a second tenant, at which point it was silent
+ * cross-tenant data mixing. See docs/ORG-SCOPING-AUDIT.md.
+ *
+ * The refusal is the point: it fires the moment the answer stops being provable,
+ * which is the same moment the old code started being wrong.
+ */
+async function fetchSoleOrg(client: QueryClient): Promise<OrgRow> {
+  const { data, error } = await client.from("organizations").select("id,slug,name").limit(2).returns<OrgRow[]>();
   if (error) throw new WorkspaceUnavailableError(error.message);
-  if (!data) throw new WorkspaceUnavailableError(`No organization found for slug "${DEFAULT_ORG_SLUG}".`);
-  return data;
+  if (!data?.length) throw new WorkspaceUnavailableError("No organization exists, so no workspace can be resolved.");
+  if (data.length > 1) {
+    throw new WorkspaceUnavailableError(
+      "This request carries no session, so its organization cannot be determined, and this database holds more than " +
+        "one. Sign in, or call with a per-workspace API token that names its own org.",
+    );
+  }
+  return data[0];
 }
 
 async function fetchWorkspaceById(client: QueryClient, workspaceId: string): Promise<WorkspaceRow | null> {
@@ -239,7 +269,9 @@ export async function resolveWorkspaceContextForUser(
     throw new WorkspaceUnavailableError("No active workspace membership is available for this user.");
   }
 
-  const org = await fetchDefaultOrg(client);
+  // No userId: nothing here identifies a tenant. Resolve the org only when it is
+  // unambiguous; fetchSoleOrg throws rather than guess.
+  const org = await fetchSoleOrg(client);
   return fetchDefaultWorkspace(client, org);
 }
 

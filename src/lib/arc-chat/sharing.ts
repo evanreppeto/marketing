@@ -64,7 +64,12 @@ export async function getCreationTenancy(): Promise<{
 }> {
   const viewer = await getShareViewer();
   if (!viewer.enforce || !viewer.userId) {
-    return { ownerId: null, workspaceId: null, orgId: await resolveSoleOrgIdForOpenMode() };
+    // Open/dev mode: no session, so no user to derive an org from. Delegate to the
+    // workspace resolver instead of keeping a second copy of the rule -- it already
+    // refuses to guess when more than one org exists, and a duplicate is how the
+    // two drift apart. Without Supabase there is no org and no writer either.
+    if (!isSupabaseAdminConfigured()) return { ownerId: null, workspaceId: null, orgId: null };
+    return { ownerId: null, workspaceId: null, orgId: (await getCurrentWorkspaceContext()).orgId };
   }
   try {
     const ctx = await getCurrentWorkspaceContext();
@@ -72,33 +77,6 @@ export async function getCreationTenancy(): Promise<{
   } catch {
     return { ownerId: viewer.userId, workspaceId: null, orgId: null };
   }
-}
-
-/**
- * Open/dev mode has no session, so there is no user to derive an org from. Look
- * the org up explicitly rather than leaving org_id off the payload: the columns
- * used to carry `default default_organization_id()` (hardcoded to one slug), so
- * an omitted org was silently filled in instead of failing. That default is gone,
- * so an omitted org is now a not-null violation.
- *
- * Only answers when the answer is unambiguous. A dev database has exactly one
- * org; if it somehow has several there is no basis to pick one, so refuse rather
- * than guess -- guessing is the bug this replaced.
- */
-async function resolveSoleOrgIdForOpenMode(): Promise<string | null> {
-  if (!isSupabaseAdminConfigured()) return null;
-  const { data, error } = await getSupabaseAdminClient()
-    .from("organizations")
-    .select("id")
-    .limit(2)
-    .returns<Array<{ id: string }>>();
-  if (error || !data?.length) return null;
-  if (data.length > 1) {
-    throw new Error(
-      "Open/dev mode can't choose an org: this database has more than one. Run in supabase auth mode and sign in so the org comes from the session.",
-    );
-  }
-  return data[0].id;
 }
 
 async function getConversationShare(
