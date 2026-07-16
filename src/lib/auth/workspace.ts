@@ -10,6 +10,12 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
 
 type QueryClient = SupabaseClient;
 
+/**
+ * Cosmetic only: names the synthetic org in the offline demo context, which
+ * never touches a database. It does NOT select a tenant any more — resolving a
+ * real org by hardcoded slug is the bug `fetchDefaultOrg` below was rewritten to
+ * remove. Don't reintroduce it as a tenant selector.
+ */
 export const DEFAULT_ORG_SLUG = process.env.DEFAULT_ORG_SLUG ?? "big-shoulders-restoration";
 export const DEFAULT_WORKSPACE_KEY = process.env.DEFAULT_WORKSPACE_KEY ?? "default";
 
@@ -92,15 +98,53 @@ async function fetchOrgById(client: QueryClient, orgId: string): Promise<OrgRow 
   return data ?? null;
 }
 
+/**
+ * Resolve the org for a caller that has no session to derive one from — in
+ * practice the bearer-token API path, where `getSupabaseSessionUserId()` is
+ * necessarily null because there is no cookie on the request.
+ *
+ * This used to look the org up by a hardcoded slug (`DEFAULT_ORG_SLUG`,
+ * defaulting to `big-shoulders-restoration`), which was wrong in two directions
+ * at once:
+ *
+ *   - Multi-tenant: every session-less write silently landed in BSR, no matter
+ *     who the caller actually was. Same bug class as the column default dropped
+ *     in 20260716140000 — a hidden default that answers when it should refuse.
+ *   - Single-tenant, non-BSR: it did not even misfile, it THREW. Any deployment
+ *     whose org isn't literally slugged `big-shoulders-restoration` got
+ *     `No organization found for slug "big-shoulders-restoration"`. BSR is a
+ *     tenant of this product, not the product.
+ *
+ * So: answer only when the answer is unambiguous. One org means there is exactly
+ * one thing this could mean. Several orgs means there is no basis to pick, and
+ * guessing is precisely the bug being removed — refuse instead, and let the
+ * caller name its workspace (a DB-issued token, or ARC_WORKSPACE_HEADER, both of
+ * which resolve before this is ever reached).
+ *
+ * DEFAULT_ORG_SLUG deliberately does NOT rescue the ambiguous case. An env var
+ * that silently picks a winner among real tenants is the same hidden default
+ * wearing a different hat; for a bearer request, guessing a tenant is never
+ * right. It survives only as cosmetic naming for the offline demo context.
+ */
 async function fetchDefaultOrg(client: QueryClient): Promise<OrgRow> {
   const { data, error } = await client
     .from("organizations")
     .select("id,slug,name")
-    .eq("slug", DEFAULT_ORG_SLUG)
-    .maybeSingle<OrgRow>();
+    .limit(2)
+    .returns<OrgRow[]>();
   if (error) throw new WorkspaceUnavailableError(error.message);
-  if (!data) throw new WorkspaceUnavailableError(`No organization found for slug "${DEFAULT_ORG_SLUG}".`);
-  return data;
+
+  const orgs = data ?? [];
+  if (orgs.length === 0) {
+    throw new WorkspaceUnavailableError("No organization exists, so no workspace can be resolved without a session.");
+  }
+  if (orgs.length > 1) {
+    throw new WorkspaceUnavailableError(
+      "This request has no session and this database has more than one organization, so the tenant is ambiguous. " +
+        "Authenticate as a user, or use a workspace-scoped agent token / assert a workspace on the request.",
+    );
+  }
+  return orgs[0];
 }
 
 async function fetchWorkspaceById(client: QueryClient, workspaceId: string): Promise<WorkspaceRow | null> {
@@ -137,14 +181,41 @@ export async function resolveWorkspaceScopeById(
   }
 }
 
+/**
+ * Workspace half of the session-less resolution, and the same rule as
+ * fetchDefaultOrg one level down: answer only when the answer is unambiguous.
+ *
+ * This used to select `key = DEFAULT_WORKSPACE_KEY` ("default"), which had both
+ * of the failure modes its org-level sibling had. An org with several
+ * workspaces silently collapsed to whichever one happened to be keyed "default"
+ * — the last remaining guess on this path, and wrong for every other workspace
+ * in that org. An org whose single workspace was keyed anything else matched
+ * nothing and yielded a null workspaceId, i.e. a 409 for a request that had
+ * exactly one possible answer.
+ *
+ * Resolving the sole ACTIVE workspace fixes both: one workspace is answerable
+ * whatever it is keyed, and several is a refusal rather than a coin flip. As
+ * with DEFAULT_ORG_SLUG, the "default" key does not get to break the tie — it
+ * survives only as the display fallback when there is no workspace at all.
+ */
 async function fetchDefaultWorkspace(client: QueryClient, org: OrgRow): Promise<WorkspaceContext> {
   const { data, error } = await client
     .from("workspaces")
     .select("id,org_id,key,slug,name")
     .eq("org_id", org.id)
-    .eq("key", DEFAULT_WORKSPACE_KEY)
     .eq("status", "active")
-    .maybeSingle<WorkspaceRow>();
+    .limit(2)
+    .returns<WorkspaceRow[]>();
+
+  if (!error && (data?.length ?? 0) > 1) {
+    throw new WorkspaceUnavailableError(
+      `This request has no session and organization "${org.slug}" has more than one active workspace, so the ` +
+        "workspace is ambiguous. Authenticate as a user, or use a workspace-scoped agent token / assert a " +
+        "workspace on the request.",
+    );
+  }
+
+  const row = data?.[0] ?? null;
 
   if (error) {
     return {
@@ -165,13 +236,13 @@ async function fetchDefaultWorkspace(client: QueryClient, org: OrgRow): Promise<
     orgId: org.id,
     orgSlug: org.slug,
     orgName: org.name,
-    workspaceId: data?.id ?? null,
-    workspaceKey: data?.key ?? DEFAULT_WORKSPACE_KEY,
-    workspaceSlug: data?.slug ?? org.slug,
-    workspaceName: data?.name ?? org.name,
+    workspaceId: row?.id ?? null,
+    workspaceKey: row?.key ?? DEFAULT_WORKSPACE_KEY,
+    workspaceSlug: row?.slug ?? org.slug,
+    workspaceName: row?.name ?? org.name,
     role: null,
     userId: null,
-    source: data ? "default-org" : "legacy-org",
+    source: row ? "default-org" : "legacy-org",
   };
 }
 

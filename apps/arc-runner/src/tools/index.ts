@@ -65,7 +65,7 @@ function writeTools(client: ArcClient, step: StepFn) {
 /** Draft work products: create approval-gated campaign assets + brand learning. act + draft modes (they share capabilities). */
 function draftTools(client: ArcClient, step: StepFn, sink: TurnSink, ctx: ToolContext) {
   return [
-    ...draftWorkProductTools(client, step, sink.card, ctx),
+    ...draftWorkProductTools(client, step, sink, ctx),
     ...mediaTools(client, step, sink.card, ctx),
     ...variantsTools(client, step, sink.card, ctx),
     ...libraryDraftTools(client, step, sink.card),
@@ -112,6 +112,6 @@ export function allowedToolNames(mode: ArcMode, skill?: ArcSkill | null): string
   // Build from the same source of truth; dummies are fine — we only read names.
   const noop = (async () => {}) as StepFn;
   const placeholder = {} as ArcClient;
-  const sink: TurnSink = { card: () => {}, suggestion: () => {}, source: () => {}, question: () => {} };
+  const sink: TurnSink = { card: () => {}, suggestion: () => {}, source: () => {}, question: () => {}, draft: () => {} };
   return toolsForMode(mode, placeholder, noop, sink, { skill }).map((t) => `mcp__arc__${t.name}`);
 }

@@ -107,6 +107,7 @@ describe("handleCampaignTask", () => {
       suggestions: [],
       sources: [],
       questions: [],
+      drafts: [],
       memory: [{ label: "Landlord playbook", summary: null, kind: "note", confidence: 0.8, nodeId: "n1" }],
       usage: { model: "claude-sonnet-4-5", inputTokens: null, outputTokens: null },
     });

@@ -16,6 +16,39 @@ export type ColdLeadInput = {
   hasActiveCampaign: boolean;
 };
 
+/** What a cold-lead card can be named after, best first. */
+export type ColdLeadLabelParts = {
+  id: string;
+  contactName?: string | null;
+  companyName?: string | null;
+  lossSummary?: string | null;
+};
+
+const LABEL_MAX = 60;
+
+/**
+ * Name a cold-lead card.
+ *
+ * Order matters and is the whole point: an operator triaging the inbox needs to
+ * know *who* has gone quiet. Prior code preferred lossSummary and fell back to
+ * `Lead <uuid>` — and in production lossSummary was set on 1 of 64 cold leads
+ * while a contact AND company name existed for all 64, so the inbox rendered 64
+ * cards titled "Lead c1aa307a — quiet 32 days". Unreadable, and every one of them
+ * had a real name a join away.
+ *
+ * The uuid fallback stays last: it is a genuine last resort, not a default.
+ */
+export function buildColdLeadLabel(parts: ColdLeadLabelParts): string {
+  const clean = (v: string | null | undefined) => v?.trim() || "";
+  const contact = clean(parts.contactName);
+  const company = clean(parts.companyName);
+  // Both when we have both: "Dana Whitfield (North Shore Property Group)" tells an
+  // operator who to call and which account it belongs to in one line.
+  const named = contact && company ? `${contact} (${company})` : contact || company;
+  const label = named || clean(parts.lossSummary) || `Lead ${parts.id.slice(0, 8)}`;
+  return label.length > LABEL_MAX ? `${label.slice(0, LABEL_MAX - 1).trimEnd()}…` : label;
+}
+
 export type DetectionConfig = { now: string; coldDays?: number };
 
 export type OpportunityCandidate = {

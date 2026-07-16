@@ -51,9 +51,12 @@ function statusMeta(status: string): { tone: Tone; label: string } {
   if (/approved/.test(s)) return { tone: "ok", label: "Approved" };
   if (/declined|rejected/.test(s)) return { tone: "red", label: "Declined" };
   if (/archived/.test(s)) return { tone: "gray", label: "Archived" };
+  // A compliance block is not a routine pending item and must not read as one —
+  // it has to be distinguishable at a glance from the amber "Needs review" crowd.
+  if (/compliance|blocked/.test(s)) return { tone: "red", label: "Blocked" };
   if (/revision/.test(s)) return { tone: "amber", label: "Revision requested" };
   if (/live|sent|deployed/.test(s)) return { tone: "blue", label: "Live" };
-  if (/pending|review|compliance/.test(s)) return { tone: "amber", label: "Needs review" };
+  if (/pending|review/.test(s)) return { tone: "amber", label: "Needs review" };
   return { tone: "gray", label: status ? status.replace(/[_-]+/g, " ") : "Draft" };
 }
 
@@ -487,7 +490,47 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
                             <b>Revised by Arc.</b> Latest reflects your last request.
                           </div>
                         )}
+                        {asset.blockedPhrases.length > 0 && (
+                          <div className="dblocked">
+                            <b>Blocked language</b> — this copy contains{" "}
+                            {asset.blockedPhrases.map((p) => `“${p}”`).join(", ")}, which your Brand Kit bans.
+                            Rewrite it before approving.
+                          </div>
+                        )}
                         {asset.complianceNotes && <div className="dcompliance">Guardrail: {asset.complianceNotes}</div>}
+                        {asset.recommendation && (
+                          <div className="drec">
+                            <div className="drh">
+                              {asset.recommendation.agent} recommends
+                              <span className="drv">{asset.recommendation.verdict}</span>
+                            </div>
+                            {asset.recommendation.rationale && <p className="drb">{asset.recommendation.rationale}</p>}
+                            {asset.findings.length > 0 && (
+                              <ul className="dfind">
+                                {asset.findings.map((f, i) => (
+                                  <li key={i} className={f.severity === "blocker" ? "dfb" : undefined}>
+                                    {f.claim && <q>{f.claim}</q>} {f.message}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {asset.recommendation.riskFlags.length > 0 && (
+                              <div className="flags">
+                                {asset.recommendation.riskFlags.map((f) => (
+                                  <span className="flag" key={f}>
+                                    {f}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {asset.recommendation.suggestedEdits && (
+                              <p className="drb">
+                                <b>Suggested edits:</b> {asset.recommendation.suggestedEdits}
+                              </p>
+                            )}
+                            <p className="drn">Advisory only — you decide.</p>
+                          </div>
+                        )}
 
                         {reviseFor === asset.id ? (
                           <div className="revbox">

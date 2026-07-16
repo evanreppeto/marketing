@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import {
+  buildColdLeadLabel,
   detectColdLeadOpportunities,
   detectCompetitorOpportunities,
   detectNextIterationOpportunities,
@@ -21,6 +22,26 @@ import { upsertOpportunities, type PersistResult } from "./persistence";
 // Non-terminal campaign_status values (everything except 'archived'/'blocked') —
 // a lead with one of these is already being worked, so skip it.
 const ACTIVE_CAMPAIGN_STATUSES = ["draft", "briefing", "generating", "pending_approval", "approved", "active", "paused"];
+
+/** id -> display name for a CRM table. Empty in, empty out — never a query on []. */
+async function fetchNames(
+  db: SupabaseClient,
+  table: "contacts" | "companies",
+  nameColumn: "full_name" | "name",
+  ids: Array<string | null | undefined>,
+): Promise<Map<string, string>> {
+  const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))];
+  if (unique.length === 0) return new Map();
+  const { data } = await db.from(table).select(`id, ${nameColumn}`).in("id", unique);
+  const rows = (data ?? []) as unknown as Array<Record<string, string | null>>;
+  // A name we can't read is the same as no name — the label falls through rather
+  // than titling the card "null".
+  return new Map(
+    rows
+      .filter((r) => r.id && r[nameColumn])
+      .map((r) => [r.id as string, r[nameColumn] as string]),
+  );
+}
 
 /**
  * Run cold-lead detection over current CRM data and persist new opportunities.
@@ -59,9 +80,22 @@ export async function runColdLeadDetection(
     .in("status", ACTIVE_CAMPAIGN_STATUSES);
   const leadsWithCampaign = new Set((camps ?? []).map((c: { lead_id: string }) => c.lead_id).filter(Boolean));
 
+  // Whose lead is it? The lead row carries only FKs, so the card had nothing to
+  // name itself after and fell back to the uuid. Two keyed lookups, bounded by the
+  // same org-scoped lead ids as the queries above.
+  const [contactNames, companyNames] = await Promise.all([
+    fetchNames(db, "contacts", "full_name", leads.map((l) => l.contactId)),
+    fetchNames(db, "companies", "name", leads.map((l) => l.companyId)),
+  ]);
+
   const inputs: ColdLeadInput[] = leads.map((l) => ({
     id: l.id,
-    label: l.lossSummary?.slice(0, 60) || `Lead ${l.id.slice(0, 8)}`,
+    label: buildColdLeadLabel({
+      id: l.id,
+      contactName: l.contactId ? contactNames.get(l.contactId) : null,
+      companyName: l.companyId ? companyNames.get(l.companyId) : null,
+      lossSummary: l.lossSummary,
+    }),
     persona: l.persona,
     leadScore: l.leadScore,
     status: l.status,

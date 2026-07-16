@@ -20,6 +20,14 @@ export type OpportunityVM = {
   typeLabel: string;
   icon: "weather" | "comp" | "clock" | "user" | "repeat";
   sourceLabel: string;
+  /**
+   * How stale the subject is, e.g. "quiet 32d" — null when the signal isn't
+   * inactivity-based. The list truncates long titles, so a named card's
+   * "— quiet 32 days" tail falls off the end; staleness is the whole reason a
+   * cold-lead card exists, so the row carries it as its own field rather than
+   * hoping it survives the ellipsis.
+   */
+  staleLabel: string | null;
   summary: string;
   recommendedAction: string;
   persona: string;
@@ -185,6 +193,7 @@ export function OpportunityInbox({
                 </div>
                 <div className="om">
                   Confidence <span className="src">{it.sourceLabel}</span>
+                  {it.staleLabel && <span className="stale">{it.staleLabel}</span>}
                   {it.statusLabel && <span className="ostat">{it.statusLabel}</span>}
                 </div>
               </div>

@@ -1,3 +1,5 @@
+import { type SupabaseClient } from "@supabase/supabase-js";
+
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import {
   parseBusinessProfile,
@@ -5,10 +7,15 @@ import {
   type PersonaDefinition,
 } from "@/domain";
 
-/** Read the Brand Kit for an org, or null if none exists / Supabase unconfigured. */
-export async function getBusinessProfile(orgId: string): Promise<BusinessProfile | null> {
-  if (!isSupabaseAdminConfigured()) return null;
-  const supabase = getSupabaseAdminClient();
+/** Read the Brand Kit for an org, or null if none exists / Supabase unconfigured.
+ *  `client` lets a caller already holding a client reuse it (and lets tests inject
+ *  a mock); omitted, it falls back to the admin client. */
+export async function getBusinessProfile(
+  orgId: string,
+  client?: SupabaseClient,
+): Promise<BusinessProfile | null> {
+  if (!client && !isSupabaseAdminConfigured()) return null;
+  const supabase = client ?? getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("business_profiles")
     .select("*")

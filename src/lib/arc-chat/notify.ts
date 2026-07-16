@@ -126,6 +126,19 @@ export async function notifyArcCampaignTask(payload: ArcCampaignTaskWake): Promi
  * Best-effort — never throws; records reachability so the connection pill reflects
  * whether the runner actually answered.
  */
+/**
+ * An un-stamped wake makes the runner omit ARC_WORKSPACE_HEADER, which pushes its
+ * callbacks onto arcGuard's session-less fallback. Returns the empty identity so
+ * the wake still goes out — but never without a record of why it was blind.
+ */
+function warnUnstampedWake(reason: string): Record<string, never> {
+  console.warn(
+    `[arc-notify] waking Arc without tenant identity: ${reason}. The runner will omit ${"x-arc-workspace-id"} and its ` +
+      "callbacks will fall back to sole-workspace resolution, which fails once this deployment has more than one.",
+  );
+  return {};
+}
+
 async function postArcWake(body: Record<string, unknown>): Promise<boolean> {
   const connection = await resolveAgentConnection();
   const url = connection.webhookUrl;
@@ -134,11 +147,23 @@ async function postArcWake(body: Record<string, unknown>): Promise<boolean> {
 
   // Stamp the wake with the authoritative tenant identity so a shared runner can
   // echo it back on its callbacks (ARC_WORKSPACE_HEADER) and act as the right
-  // workspace, instead of collapsing every callback to the default one. Absent a
-  // resolvable context (offline/demo), the runner falls back to default (back-compat).
-  const context = await getCurrentWorkspaceContext().catch(() => null);
-  const identity =
-    context?.orgId && context?.workspaceId ? { orgId: context.orgId, workspaceId: context.workspaceId } : {};
+  // workspace, instead of collapsing every callback to the default one.
+  //
+  // A wake that goes out WITHOUT identity is the one case that still reaches the
+  // session-less fallback in arcGuard, so it must not fail quietly: this used to
+  // be `.catch(() => null)`, which turned "we could not tell who this is" into an
+  // ordinary unstamped wake and left no trace anywhere. It is survivable today
+  // only because a single-org, single-workspace deployment has exactly one
+  // answer for the fallback to find; the moment a second workspace exists the
+  // same silence becomes a 409 with nothing in the logs explaining it. Degrade,
+  // but say so.
+  const identity = await getCurrentWorkspaceContext()
+    .then((context) =>
+      context.orgId && context.workspaceId
+        ? { orgId: context.orgId, workspaceId: context.workspaceId }
+        : warnUnstampedWake(`workspace context resolved without a workspaceId (org "${context.orgSlug}")`),
+    )
+    .catch((error: unknown) => warnUnstampedWake(error instanceof Error ? error.message : String(error)));
 
   const serialized = JSON.stringify({ ...body, ...identity });
   const headers: Record<string, string> = { "content-type": "application/json" };

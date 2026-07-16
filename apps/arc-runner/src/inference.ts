@@ -61,9 +61,26 @@ const DEEP: InferenceSettings = {
   maxBudgetUsd: 8,
 };
 
+// The draft critic — an independent, read-only claims reviewer. Checking copy
+// against workspace evidence is well within Sonnet, and the pass runs once per
+// asset (a campaign package is ~4-7 of these), so the tier is picked for cost.
+// The budget rail is tight on purpose: a critic that needs $0.50 of tool calls
+// to check one email has lost the plot.
+const CRITIC: InferenceSettings = {
+  model: "claude-sonnet-5",
+  fallbackModel: "claude-haiku-4-5",
+  maxThinkingTokens: 4_000,
+  maxTurns: 14,
+  maxBudgetUsd: 0.5,
+};
+
 export function inferenceForRoute(route: ArcRoute): InferenceSettings {
   if (route === "deep") return DEEP;
   return route === "standard" ? STANDARD : FAST;
+}
+
+export function inferenceForCritic(): InferenceSettings {
+  return CRITIC;
 }
 
 /**
