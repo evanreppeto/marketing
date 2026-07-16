@@ -1,4 +1,4 @@
-import type { ArcActionCard, ArcMention, ArcQuestion } from "../types";
+import type { ArcActionCard, ArcMention, ArcQuestion, DraftForReview } from "../types";
 
 /** Step reporter signature shared by every tool (running -> done live trace). */
 export type StepFn = (label: string, status: "running" | "done") => Promise<void>;
@@ -9,6 +9,10 @@ export type TurnSink = {
   suggestion: (text: string) => void;
   source: (mention: ArcMention) => void;
   question: (question: ArcQuestion) => void;
+  /** Every approval-gated draft the turn created, with its full copy — the
+   *  critic's work list. Collected here rather than re-fetched because the
+   *  drafting tool already holds the body it just persisted. */
+  draft: (draft: DraftForReview) => void;
 };
 
 /** SDK tool result shape. */

@@ -14,6 +14,8 @@ const OUTPUT_SELECT =
   "id,task_id,approval_item_id,campaign_asset_id,output_type,title,body,edited_body,structured_payload,risk_level,compliance_status,approval_status,created_at,updated_at";
 const AGENT_TASK_SELECT = "id,objective,task_type,status,priority,metadata,created_at,updated_at";
 const DECISION_SELECT = "id,approval_item_id,decision,decided_by,decided_at,decision_notes,previous_status,next_status";
+const RECOMMENDATION_SELECT = "id,approval_item_id,agent,recommendation,rationale,risk_flags,suggested_edits,created_at";
+const FINDING_SELECT = "id,campaign_asset_id,severity,status,matched_text,finding_message,created_at";
 
 export type CampaignWorkspaceAssetCategory = "physical" | "virtual" | "ads" | "media" | "other";
 
@@ -122,6 +124,13 @@ export type CampaignWorkspaceAsset = {
   body: string;
   preview: string;
   complianceNotes: string;
+  /** The copy screen's verdict, carried from audit_payload.guardrail — written when
+   *  the asset entered the approval queue. Empty when no screen ran (no active
+   *  Brand Kit, or an asset with no copy). */
+  guardrailFlags: string[];
+  /** The org's banned phrases this copy actually contains. Non-empty means the
+   *  asset is a compliance block, not a routine pending item. */
+  blockedPhrases: string[];
   dispatchLocked: boolean;
   toolSource: string | null;
   updatedAt: string;
@@ -132,6 +141,28 @@ export type CampaignWorkspaceAsset = {
   /** The approval item gating this deliverable, if one exists — drives the
    *  per-asset Approve/Decline controls in the Deliverables tab. */
   approval: { id: string; status: string } | null;
+  /** The agent's latest advisory recommendation on this deliverable's approval
+   *  item. Advisory only: it never decides, it tells the operator what the agent
+   *  would do and why. Null when the agent hasn't weighed in. */
+  recommendation: CampaignAssetRecommendation | null;
+  /** Open claims the critic could not ground in workspace evidence. Empty when
+   *  the copy is clean OR when nothing has reviewed it yet — `recommendation`
+   *  is what distinguishes those two. */
+  findings: CampaignAssetFinding[];
+};
+
+export type CampaignAssetRecommendation = {
+  agent: string;
+  verdict: string;
+  rationale: string;
+  riskFlags: string[];
+  suggestedEdits: string;
+};
+
+export type CampaignAssetFinding = {
+  claim: string;
+  severity: string;
+  message: string;
 };
 
 export type CampaignWorkspaceReasoning = {
@@ -413,6 +444,27 @@ type ApprovalDecisionRow = {
   decision_notes: string | null;
   previous_status: string | null;
   next_status: string;
+};
+
+type ApprovalRecommendationRow = {
+  id: string;
+  approval_item_id: string;
+  agent: string;
+  recommendation: string;
+  rationale: string | null;
+  risk_flags: string[] | null;
+  suggested_edits: string | null;
+  created_at: string;
+};
+
+type GuardrailFindingRow = {
+  id: string;
+  campaign_asset_id: string | null;
+  severity: string;
+  status: string;
+  matched_text: string | null;
+  finding_message: string;
+  created_at: string;
 };
 
 type CompanyRow = {
@@ -740,6 +792,10 @@ function demoDetailAsset(piece: DemoPiece): CampaignWorkspaceAsset {
     body,
     preview: piece.preview,
     complianceNotes: piece.compliance ?? "No asset-level compliance notes captured.",
+    guardrailFlags: [],
+    blockedPhrases: [],
+    recommendation: null,
+    findings: [],
     // Approved demo pieces in a Live campaign are deployable; everything else
     // stays dispatch-locked so the gold "outbound locked" gate shows.
     dispatchLocked: !/approved/i.test(piece.rawStatus),
@@ -1504,6 +1560,33 @@ export async function getCampaignWorkspaceDetail(
     ]);
     const outputs = uniqueById([...assetOutputs, ...approvalOutputs]);
     const decisions = await selectIn<ApprovalDecisionRow>(supabase, "approval_decisions", DECISION_SELECT, "approval_item_id", approvalIds, "decided_at", resolvedOrgId);
+    // selectIn orders descending, so each group's head is the agent's latest word.
+    // Advisory data only: if the table is missing or the read fails, the campaign
+    // still renders without it — a recommendation must never take down the page.
+    const recommendations = groupByApprovalItem(
+      await selectIn<ApprovalRecommendationRow>(
+        supabase,
+        "approval_recommendations",
+        RECOMMENDATION_SELECT,
+        "approval_item_id",
+        approvalIds,
+        "created_at",
+        resolvedOrgId,
+      ).catch(() => []),
+    );
+    // NB no org scope: guardrail_findings has no org_id column, so passing one
+    // would query a column that doesn't exist. It's scoped transitively by
+    // campaign_asset_id, and these ids are already this org's assets.
+    const findings = groupFindingsByAsset(
+      await selectIn<GuardrailFindingRow>(
+        supabase,
+        "guardrail_findings",
+        FINDING_SELECT,
+        "campaign_asset_id",
+        assetIds,
+        "created_at",
+      ).catch(() => []),
+    );
     const relatedIds = collectRelatedIds(campaign, approvals);
     const [companies, contacts, leads] = await Promise.all([
       selectIn<CompanyRow>(supabase, "companies", "id,name,website_url,phone,email,partner_tier", "id", relatedIds.companyIds, undefined, resolvedOrgId),
@@ -1511,7 +1594,11 @@ export async function getCampaignWorkspaceDetail(
       selectIn<LeadRow>(supabase, "leads", "id,source,status,loss_summary,lead_score,metadata", "id", relatedIds.leadIds, undefined, resolvedOrgId),
     ]);
 
-    const assetsView = addPreviewCampaignPieces(campaignId, buildWorkspaceAssets(assets, approvals, outputs, agentName), campaign.updated_at);
+    const assetsView = addPreviewCampaignPieces(
+      campaignId,
+      buildWorkspaceAssets(assets, approvals, outputs, agentName, recommendations, findings),
+      campaign.updated_at,
+    );
     const media = renderableMedia(
       uniqueMedia([
         ...collectMediaFromCampaign(campaign),
@@ -1899,6 +1986,7 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
   const rawBody = asset.approved_body ?? asset.edited_body ?? asset.draft_body ?? "";
   const readableBody = buildReadablePreview(rawBody, asset.prompt_inputs, asset.reasoning_payload);
   const media = renderableMedia(collectMediaFromAsset(asset));
+  const guardrail = asObject(asObject(asset.audit_payload).guardrail);
   // `current` intentionally excludes draft_body — there is no meaningful revision
   // until the operator approves or edits the piece, so draft-vs-draft is no diff.
   const current = asset.approved_body ?? asset.edited_body ?? "";
@@ -1914,6 +2002,11 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
     body: readableBody === EMPTY_READABLE_PREVIEW ? rawBody : readableBody,
     preview: readableBody,
     complianceNotes: asset.compliance_notes ?? "No asset-level compliance notes captured.",
+    guardrailFlags: asStringArray(guardrail.flags),
+    blockedPhrases: asStringArray(guardrail.blocked_phrases),
+    // attachApproval fills this in once the gating approval is known.
+    recommendation: null,
+    findings: [],
     dispatchLocked: asset.dispatch_locked,
     toolSource: getString(asset.tool_source),
     updatedAt: formatDate(asset.updated_at),
@@ -1928,6 +2021,8 @@ function buildWorkspaceAssets(
   approvals: ApprovalItemRow[],
   outputs: AgentOutputRow[],
   agentName: string,
+  recommendations?: Map<string, ApprovalRecommendationRow[]>,
+  findings?: Map<string, CampaignAssetFinding[]>,
 ): CampaignWorkspaceAsset[] {
   const assetIds = new Set(assets.map((asset) => asset.id));
   const outputApprovalIds = new Set(outputs.map((output) => output.approval_item_id).filter((id): id is string => Boolean(id)));
@@ -1947,17 +2042,30 @@ function buildWorkspaceAssets(
   // become a second card for the same deliverable (the duplicate-email bug).
   const assetApprovalIds = new Set([...approvalByAssetId.values()].map((approval) => approval.id));
 
-  const mappedAssets = assets.map((asset) => attachApproval(mapAsset(asset), approvalByAssetId.get(asset.id)));
+  const mappedAssets = assets.map((asset) => ({
+    ...attachApproval(mapAsset(asset), approvalByAssetId.get(asset.id), recommendations),
+    findings: findings?.get(asset.id) ?? [],
+  }));
   const outputAssets = outputs
     .filter(
       (output) =>
         (!output.campaign_asset_id || !assetIds.has(output.campaign_asset_id)) &&
         (!output.approval_item_id || !assetApprovalIds.has(output.approval_item_id)),
     )
-    .map((output) => attachApproval(mapOutputAsAsset(output, agentName), output.approval_item_id ? approvalById.get(output.approval_item_id) : undefined));
+    .map((output) =>
+      attachApproval(
+        mapOutputAsAsset(output, agentName),
+        output.approval_item_id ? approvalById.get(output.approval_item_id) : undefined,
+        recommendations,
+      ),
+    );
   const approvalAssets = approvals
     .filter((approval) => !approval.campaign_asset_id && !outputApprovalIds.has(approval.id))
-    .map((approval) => mapApprovalAsAsset(approval, agentName));
+    // These carry their own approval already, so they only need the recommendation.
+    .map((approval) => ({
+      ...mapApprovalAsAsset(approval, agentName),
+      recommendation: pickRecommendation(recommendations?.get(approval.id)),
+    }));
 
   // Real campaign_assets come first, so when an output/approval describes the
   // same deliverable, the real asset (correct id + gating approval) wins and the
@@ -1987,7 +2095,11 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       body: "Hi Maya, quick storm follow-up: if any units are still showing moisture, Summit Restoration can document the issue and coordinate mitigation this week. Want me to hold a crew slot?",
       preview: "Hi Maya, quick storm follow-up: if any units are still showing moisture, Summit Restoration can document the issue and coordinate mitigation this week.",
       complianceNotes: "Demo preview content for layout review only.",
-      dispatchLocked: true,
+      guardrailFlags: [],
+      blockedPhrases: [],
+      recommendation: null,
+    findings: [],
+            dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
       media: [],
@@ -2004,7 +2116,11 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       body: "Visual concept: maintenance tech documenting moisture readings in a multifamily hallway after heavy rain. Caption focuses on fast documentation for property managers.",
       preview: "Social creative concept for post-storm property manager outreach.",
       complianceNotes: "Demo preview content for layout review only.",
-      dispatchLocked: true,
+      guardrailFlags: [],
+      blockedPhrases: [],
+      recommendation: null,
+    findings: [],
+            dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
       media: [
@@ -2034,7 +2150,11 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       body: "Headline: Document moisture fast after the storm.\n\nBody: Summit Restoration helps property managers capture photos, readings, and mitigation notes before small leaks become bigger claims.\n\nCTA: Request a same-week moisture walkthrough.",
       preview: "Landing page draft for property managers who need documentation after storm calls.",
       complianceNotes: "Demo preview content for layout review only.",
-      dispatchLocked: true,
+      guardrailFlags: [],
+      blockedPhrases: [],
+      recommendation: null,
+    findings: [],
+            dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
       media: [],
@@ -2051,7 +2171,11 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       body: "Open by referencing the storm calls from this week, ask whether any tenant reports are unresolved, then offer a short documentation visit before the weekend schedule fills.",
       preview: "CRM/call script for offices that responded to recent storm outreach.",
       complianceNotes: "Demo preview content for layout review only.",
-      dispatchLocked: true,
+      guardrailFlags: [],
+      blockedPhrases: [],
+      recommendation: null,
+    findings: [],
+            dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
       media: [],
@@ -2078,9 +2202,59 @@ function dedupeDeliverables(assets: CampaignWorkspaceAsset[]): CampaignWorkspace
   return result;
 }
 
-function attachApproval(view: CampaignWorkspaceAsset, approval: ApprovalItemRow | undefined): CampaignWorkspaceAsset {
+function groupByApprovalItem(rows: ApprovalRecommendationRow[]): Map<string, ApprovalRecommendationRow[]> {
+  const byId = new Map<string, ApprovalRecommendationRow[]>();
+  for (const row of rows) {
+    const group = byId.get(row.approval_item_id);
+    if (group) group.push(row);
+    else byId.set(row.approval_item_id, [row]);
+  }
+  return byId;
+}
+
+/** Only OPEN findings reach the card — an acknowledged or resolved one has been
+ *  dealt with and would just be noise on a deliverable awaiting a decision. */
+function groupFindingsByAsset(rows: GuardrailFindingRow[]): Map<string, CampaignAssetFinding[]> {
+  const byAsset = new Map<string, CampaignAssetFinding[]>();
+  for (const row of rows) {
+    if (!row.campaign_asset_id || row.status !== "open") continue;
+    const finding: CampaignAssetFinding = {
+      claim: row.matched_text ?? "",
+      severity: row.severity,
+      message: row.finding_message,
+    };
+    const group = byAsset.get(row.campaign_asset_id);
+    if (group) group.push(finding);
+    else byAsset.set(row.campaign_asset_id, [finding]);
+  }
+  return byAsset;
+}
+
+/** The agent's latest word on an approval item. Rows arrive newest-first, so the
+ *  head is the current recommendation; older ones stay in the ledger. */
+function pickRecommendation(rows: ApprovalRecommendationRow[] | undefined): CampaignAssetRecommendation | null {
+  const row = rows?.[0];
+  if (!row) return null;
+  return {
+    agent: row.agent,
+    verdict: row.recommendation,
+    rationale: row.rationale ?? "",
+    riskFlags: asStringArray(row.risk_flags),
+    suggestedEdits: row.suggested_edits ?? "",
+  };
+}
+
+function attachApproval(
+  view: CampaignWorkspaceAsset,
+  approval: ApprovalItemRow | undefined,
+  recommendations?: Map<string, ApprovalRecommendationRow[]>,
+): CampaignWorkspaceAsset {
   if (!approval) return view;
-  return { ...view, approval: { id: approval.id, status: statusLabel(approval.status) } };
+  return {
+    ...view,
+    approval: { id: approval.id, status: statusLabel(approval.status) },
+    recommendation: pickRecommendation(recommendations?.get(approval.id)),
+  };
 }
 
 function isDecidedApproval(approval: ApprovalItemRow): boolean {
@@ -2103,6 +2277,12 @@ function mapOutputAsAsset(output: AgentOutputRow, agentName: string): CampaignWo
     body: readableBody === EMPTY_READABLE_PREVIEW ? rawBody : readableBody,
     preview: readableBody,
     complianceNotes: output.compliance_status ? `Compliance: ${humanize(output.compliance_status)}` : "No output-level compliance notes captured.",
+    // agent_outputs carries no guardrail block — the copy screen runs on the
+    // campaign_assets path, so an output-derived view has nothing to show.
+    guardrailFlags: [],
+    blockedPhrases: [],
+    recommendation: null,
+    findings: [],
     dispatchLocked: true,
     toolSource: `${agentName} output`,
     updatedAt: formatDate(output.updated_at),
@@ -2118,6 +2298,7 @@ function mapApprovalAsAsset(approval: ApprovalItemRow, agentName: string): Campa
   const type = approval.item_type || "approval_item";
   const channel = getString(asObject(approval.prompt_inputs).channel) ?? type;
   const media = collectMediaFromApproval(approval);
+  const approvalGuardrail = asObject(asObject(approval.audit_payload).guardrail);
 
   return {
     id: `approval-${approval.id}`,
@@ -2129,6 +2310,13 @@ function mapApprovalAsAsset(approval: ApprovalItemRow, agentName: string): Campa
     body: readableBody === EMPTY_READABLE_PREVIEW ? rawBody : readableBody,
     preview: readableBody,
     complianceNotes: approval.compliance_notes ?? "No approval-level compliance notes captured.",
+    // Standalone approvals (no linked campaign_asset — e.g. submit_draft) carry no
+    // guardrail block today; read it anyway so screening that path later just works.
+    guardrailFlags: asStringArray(approvalGuardrail.flags),
+    blockedPhrases: asStringArray(approvalGuardrail.blocked_phrases),
+    // buildWorkspaceAssets overlays the recommendation for these.
+    recommendation: null,
+    findings: [],
     dispatchLocked: approval.locked_until_approved,
     toolSource: approval.requested_by ?? agentName,
     updatedAt: formatDate(approval.updated_at),

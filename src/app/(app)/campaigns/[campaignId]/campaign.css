@@ -67,6 +67,20 @@
 .arc-campaign .revnote { font-size: 11px; color: var(--accent-contrast); background: var(--accent-soft); border-radius: 7px; padding: 6px 9px; margin-top: 11px; }
 .arc-campaign .revnote b { color: var(--text); }
 .arc-campaign .dcompliance { font-size: 11px; color: var(--muted); margin-top: 10px; padding-left: 11px; border-left: 2px solid var(--line-3); line-height: 1.5; }
+.arc-campaign .dblocked { font-size: 11px; color: var(--red-text); background: var(--red-soft); margin-top: 10px; padding: 8px 10px; border-left: 2px solid var(--red); border-radius: 0 6px 6px 0; line-height: 1.5; }
+.arc-campaign .dblocked b { color: var(--red); }
+
+.arc-campaign .drec { margin-top: 10px; padding: 9px 11px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--inset); }
+.arc-campaign .drh { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; color: var(--muted); }
+.arc-campaign .drv { color: var(--text); background: var(--raised); border: 1px solid var(--line-2); border-radius: 5px; padding: 1px 7px; text-transform: capitalize; }
+.arc-campaign .drb { font-size: 11.5px; color: var(--text-2); line-height: 1.55; margin-top: 6px; }
+.arc-campaign .drb b { color: var(--text); }
+.arc-campaign .drec .flags { margin-top: 7px; }
+.arc-campaign .drn { font-size: 10.5px; color: var(--muted); margin-top: 7px; }
+.arc-campaign .dfind { list-style: none; margin: 7px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.arc-campaign .dfind li { font-size: 11px; color: var(--text-2); line-height: 1.5; padding-left: 9px; border-left: 2px solid var(--warn); }
+.arc-campaign .dfind li.dfb { border-left-color: var(--red); }
+.arc-campaign .dfind q { color: var(--text); font-style: italic; }
 
 .arc-campaign .dctrls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .arc-campaign .cbtn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 13px; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-weight: 600; font-size: 12px; cursor: pointer; transition: 0.15s var(--ease); }

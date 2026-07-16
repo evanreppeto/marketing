@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
+import { createSupabaseQueryMock, type MockResponse } from "@/lib/repos/__tests__/test-helpers";
 
 import { buildReasoning, getCampaignWorkspaceDetail, getCampaignWorkspaceList, listCampaignNames } from "./read-model";
 
@@ -501,5 +501,163 @@ describe("listCampaignNames", () => {
     await listCampaignNames(undefined, supabase);
 
     expect(supabase.calls.some((call) => call[0] === "eq" && call[1] === "org_id")).toBe(false);
+  });
+});
+
+describe("getCampaignWorkspaceDetail guardrail + recommendation", () => {
+  function mocks(overrides: { guardrail?: unknown; recommendations?: MockResponse } = {}) {
+    return createSupabaseQueryMock({
+      campaigns: {
+        data: {
+          id: "camp-1",
+          name: "Storm push",
+          persona: "persona_landlord",
+          restoration_focus: "flood",
+          status: "pending_approval",
+          company_id: null,
+          contact_id: null,
+          lead_id: null,
+          owner: "Arc",
+          objective: "Storm campaign",
+          audience_summary: null,
+          offer_summary: null,
+          compliance_notes: null,
+          launch_locked: true,
+          source_signal: {},
+          reasoning_payload: {},
+          audit_payload: {},
+          created_at: "2026-07-16T12:00:00.000Z",
+          updated_at: "2026-07-16T12:00:00.000Z",
+        },
+        error: null,
+      },
+      campaign_assets: {
+        data: [
+          {
+            id: "asset-1",
+            campaign_id: "camp-1",
+            asset_type: "email",
+            channel: "email",
+            title: "Storm email",
+            status: "needs_compliance",
+            tool_source: "arc_saved",
+            prompt_input: null,
+            prompt_inputs: {},
+            draft_body: "We guarantee your claim will be approved.",
+            edited_body: null,
+            approved_body: null,
+            dispatch_locked: true,
+            compliance_notes: "Blocked by guardrails: contains disallowed language.",
+            reasoning_payload: {},
+            audit_payload: {
+              outbound_locked: true,
+              guardrail: overrides.guardrail ?? {
+                flags: ["Human review required", "Banned phrase detected"],
+                blocked_phrases: ["we guarantee"],
+              },
+            },
+            created_at: "2026-07-16T12:00:00.000Z",
+            updated_at: "2026-07-16T12:00:00.000Z",
+          },
+        ],
+        error: null,
+      },
+      approval_items: {
+        data: [
+          {
+            id: "appr-1",
+            campaign_id: "camp-1",
+            campaign_asset_id: "asset-1",
+            item_type: "campaign_asset",
+            status: "needs_compliance",
+            locked_until_approved: true,
+            prompt_inputs: {},
+            draft_output: null,
+            edited_output: null,
+            requested_by: "Arc",
+            submitted_at: "2026-07-16T12:00:00.000Z",
+            risk_level: "blocked",
+            compliance_notes: "Blocked by guardrails: contains disallowed language.",
+            decision_notes: null,
+            reasoning_payload: {},
+            audit_payload: {},
+            created_at: "2026-07-16T12:00:00.000Z",
+            updated_at: "2026-07-16T12:00:00.000Z",
+          },
+        ],
+        error: null,
+      },
+      approval_recommendations: overrides.recommendations ?? {
+        data: [
+          {
+            id: "rec-1",
+            approval_item_id: "appr-1",
+            agent: "draft-critic",
+            recommendation: "request revision",
+            rationale: "The payout promise is not supported by any workspace proof point.",
+            risk_flags: ["claim_risk"],
+            suggested_edits: "Drop the guarantee; state the documented response time instead.",
+            created_at: "2026-07-16T12:05:00.000Z",
+          },
+        ],
+        error: null,
+      },
+    });
+  }
+
+  it("carries the copy screen's verdict onto the deliverable", async () => {
+    const detail = await getCampaignWorkspaceDetail("camp-1", mocks(), "Arc", "org-1");
+
+    expect(detail.status).toBe("live");
+    if (detail.status !== "live") return;
+    const asset = detail.assets.find((a) => a.id === "asset-1");
+    expect(asset?.blockedPhrases).toEqual(["we guarantee"]);
+    expect(asset?.guardrailFlags).toContain("Banned phrase detected");
+  });
+
+  it("surfaces the agent's advisory recommendation on the deliverable", async () => {
+    const detail = await getCampaignWorkspaceDetail("camp-1", mocks(), "Arc", "org-1");
+
+    expect(detail.status).toBe("live");
+    if (detail.status !== "live") return;
+    const asset = detail.assets.find((a) => a.id === "asset-1");
+    expect(asset?.recommendation).toMatchObject({
+      agent: "draft-critic",
+      verdict: "request revision",
+      riskFlags: ["claim_risk"],
+    });
+    expect(asset?.recommendation?.suggestedEdits).toContain("Drop the guarantee");
+  });
+
+  it("still renders the campaign when the recommendations read fails", async () => {
+    // Advisory data must never take down the page — e.g. the table not existing.
+    const supabase = mocks({
+      recommendations: { data: null, error: { message: 'relation "approval_recommendations" does not exist' } },
+    });
+
+    const detail = await getCampaignWorkspaceDetail("camp-1", supabase, "Arc", "org-1");
+
+    expect(detail.status).toBe("live");
+    if (detail.status !== "live") return;
+    const asset = detail.assets.find((a) => a.id === "asset-1");
+    // The deliverable still renders, just without the advisory block.
+    expect(asset?.recommendation).toBeNull();
+    expect(asset?.blockedPhrases).toEqual(["we guarantee"]);
+  });
+
+  it("leaves an unscreened, un-recommended asset with empty guardrail data", async () => {
+    const detail = await getCampaignWorkspaceDetail(
+      "camp-1",
+      mocks({ guardrail: {}, recommendations: { data: [], error: null } }),
+      "Arc",
+      "org-1",
+    );
+
+    expect(detail.status).toBe("live");
+    if (detail.status !== "live") return;
+    const asset = detail.assets.find((a) => a.id === "asset-1");
+    expect(asset?.blockedPhrases).toEqual([]);
+    expect(asset?.guardrailFlags).toEqual([]);
+    expect(asset?.recommendation).toBeNull();
   });
 });
