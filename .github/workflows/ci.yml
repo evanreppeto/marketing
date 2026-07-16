@@ -9,14 +9,14 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         # version is read from the "packageManager" field in package.json
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           # Node 22 matches Vercel (where the app runs). Node 20 lacks the
           # global WebSocket that supabase-js needs at runtime — pinning 20
@@ -49,18 +49,21 @@ jobs:
         run: pnpm --filter ./packages/arc-connector test
 
   e2e:
-    # Playwright smoke tests: every public/build-*.html screen loads and renders
-    # with zero console errors (BSR-335). Runs as its own job so a screen
-    # regression is isolated from the app unit tests above.
+    # Playwright smoke tests (e2e/screens.spec.ts): the front door and the public
+    # auth screens (/login, /sign-up, /forgot-password) load and render with zero
+    # runtime errors, against a locally-booted dev server with no backend. Runs as
+    # its own job so a screen regression is isolated from the app unit tests above.
+    # The deployed authenticated flow is covered separately by the E2E Guardrails
+    # workflow (e2e/guardrails.spec.ts), which skips here (no E2E_BASE_URL).
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm

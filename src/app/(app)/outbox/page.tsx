@@ -113,7 +113,6 @@ export default async function OutboxPage() {
   }, {});
 
   const tasks = dashboard.status === "live" ? dashboard.tasks : [];
-  const boardCards = tasks.map(toBoardCard);
   const boardLanes: LaneVM<BoardCardVM>[] = BOARD_LANE_META.map((meta) => ({
     key: meta.key,
     label: meta.label,

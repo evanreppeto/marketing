@@ -1,21 +1,23 @@
-name: E2E Guardrails (staging)
+name: E2E Guardrails (deployed)
 
-# Continuously verifies the DEPLOYED staging app still works end to end:
+# Continuously verifies the DEPLOYED app still works end to end:
 #   - the login wall holds (the public can't see the app),
 #   - a seeded operator can sign in and the tenant renders,
 #   - the Opportunity inbox is populated,
 #   - the campaign approval gate is present.
 #
-# This validates the live staging deploy (which tracks `main`), so it runs
-# AFTER merges to main (post-deploy health check) and on a schedule (drift
-# check), plus on demand. It is a deployed-app health guardrail — not a gate on
-# an individual PR's own code (that would require deploying + testing each PR's
-# preview, a later enhancement).
+# This validates live deploys (staging tracks `main`), so it runs AFTER merges
+# to main (post-deploy health check) and on a schedule (drift check), plus on
+# demand. It is a deployed-app health guardrail — not a gate on an individual
+# PR's own code (that would require deploying + testing each PR's preview, a
+# later enhancement).
 #
-# Sign-in uses the seeded staging operator (owner@bsr.test), defaulted in
-# e2e/guardrails.spec.ts. To move the credentials into repo secrets instead,
-# add STAGING_E2E_EMAIL / STAGING_E2E_PASSWORD and set them as env on the run
-# step (E2E_EMAIL / E2E_PASSWORD).
+# Credentials: the staging job defaults to the seeded operator (owner@bsr.test)
+# but prefers the STAGING_E2E_EMAIL / STAGING_E2E_PASSWORD repo secrets when set.
+# The prod-smoke job runs only the UNAUTHENTICATED checks (no creds needed). To
+# add the full authenticated flow against prod, set PROD_E2E_EMAIL /
+# PROD_E2E_PASSWORD secrets and add a job that runs e2e/guardrails.spec.ts with
+# E2E_BASE_URL pointed at prod.
 
 on:
   push:
@@ -26,15 +28,16 @@ on:
 
 jobs:
   guardrails:
+    name: Guardrails (staging)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -47,11 +50,48 @@ jobs:
 
       - name: Guardrails against staging
         run: pnpm test:e2e:staging
+        env:
+          E2E_EMAIL: ${{ secrets.STAGING_E2E_EMAIL || 'owner@bsr.test' }}
+          E2E_PASSWORD: ${{ secrets.STAGING_E2E_PASSWORD || 'BsrOwner1234!' }}
 
       - name: Upload Playwright report on failure
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
           name: guardrails-report
+          path: playwright-report/
+          retention-days: 7
+
+  prod-smoke:
+    name: Prod smoke (unauthenticated)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Smoke prod (login wall + reachability)
+        run: pnpm exec playwright test e2e/prod-smoke.spec.ts
+        env:
+          E2E_BASE_URL: ${{ vars.PROD_BASE_URL || 'https://arc-studio.ai' }}
+
+      - name: Upload Playwright report on failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-smoke-report
           path: playwright-report/
           retention-days: 7
