@@ -283,6 +283,11 @@ function statusToneOf(status: string): string {
 function titleCase(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+/** Archiving is this CRM's delete (there is no hard delete): an archived record
+ *  drops out of the default list and the counts, and is reachable only by asking
+ *  for it explicitly via Status → Archived. Matches the `archived` status titleCased. */
+const ARCHIVED_LABEL = "Archived";
 function buildOptimisticRow(objectKey: CrmObjectKey, id: string, v: AddRecordValue): CrmRowVM {
   const detail = objectKey === "properties" ? [v.city, v.state].filter(Boolean).join(", ") : v.detail || "";
   return {
@@ -340,7 +345,14 @@ export function CrmBoard({
   const localRows = localByKey[active.key] ?? [];
   const totalRows = localRows.length + (rowsByKey[active.key] ?? []).length;
   const cols = COLS[active.key] ?? COLS.contacts;
-  const countFor = (o: CrmObjectVM) => o.count + (localByKey[o.key]?.length ?? 0);
+  // o.count is the server's row count for the object; archived rows are soft-deleted
+  // so they're netted out of the headline count and tab badges the same way they're
+  // hidden from the list. Subtracting (rather than recomputing) keeps the count intact
+  // if a route ever loads rows for only some objects.
+  const countFor = (o: CrmObjectVM) =>
+    o.count -
+    (rowsByKey[o.key] ?? []).filter((r) => r.statusLabel === ARCHIVED_LABEL).length +
+    (localByKey[o.key]?.length ?? 0);
 
   const allActiveRows = useMemo(
     () => [...(localByKey[active.key] ?? []), ...(rowsByKey[active.key] ?? [])],
@@ -376,6 +388,8 @@ export function CrmBoard({
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase();
     let filtered = allActiveRows.filter((r) => {
+      // Soft-deleted records stay out of the default list; Status → Archived opts in.
+      if (r.statusLabel === ARCHIVED_LABEL && statusF !== ARCHIVED_LABEL) return false;
       if (needle && !`${r.name} ${r.detail} ${r.persona} ${r.owner}`.toLowerCase().includes(needle)) return false;
       if (personaF && r.persona !== personaF) return false;
       if (statusF && r.statusLabel !== statusF) return false;
