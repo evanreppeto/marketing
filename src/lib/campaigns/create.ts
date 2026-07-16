@@ -6,6 +6,8 @@ import { getSupabaseAdminClient, type TypedSupabaseClient } from "../supabase/se
 import { type AgentTaskTenantFields } from "../agent-tasks/scope";
 import { syncCampaignRecordToBrain } from "../brain-ingestion/sync";
 import { deferAfterResponse } from "../defer";
+import { checkArcGeneratedCopy } from "../arc/guardrails";
+import { getBusinessProfile } from "../brand-kit/persistence";
 
 /** Mirror a freshly created/updated campaign into the Brain. Best-effort and
  *  awaited (serverless can kill post-response work) — a sync hiccup must never
@@ -416,11 +418,74 @@ export type PromoteAssetInput = {
   tenant?: AgentTaskTenantFields;
 };
 
+/** The verdict of the deterministic copy screen, mapped onto the approval queue's
+ *  own status/risk vocabulary. */
+type CopyScreen = {
+  riskLevel: string;
+  status: string;
+  complianceNotes: string | null;
+  flags: string[];
+  blockedPhrases: string[];
+};
+
+/** What an asset gets when no screen ran: unchanged from the pre-screen behavior. */
+const UNSCREENED: CopyScreen = {
+  riskLevel: "medium",
+  status: "pending_approval",
+  complianceNotes: null,
+  flags: [],
+  blockedPhrases: [],
+};
+
+/**
+ * Deterministic copy screen for anything entering the approval queue.
+ *
+ * This is the cheap, certain layer: it proves copy is not *known*-bad against the
+ * org's Brand Kit banned-phrase list. It cannot verify a claim — so copy that
+ * passes is `medium` (screened, unverified), never `low`. `low` is reserved for
+ * copy a semantic reviewer has actually grounded in workspace evidence.
+ *
+ * Only an *active* Brand Kit screens, mirroring getBusinessContext: a draft kit
+ * means the operator hasn't committed to those rules yet, and there is no banned
+ * list to check against.
+ */
+async function screenDraftCopy(
+  body: string | null,
+  client: SupabaseClient,
+  tenant?: AgentTaskTenantFields,
+): Promise<CopyScreen> {
+  const draftOutput = body?.trim();
+  if (!draftOutput || !tenant) return UNSCREENED;
+
+  // A Brand Kit read failure must never block asset creation: an unscreened asset
+  // is still pending_approval + dispatch_locked, so the human gate holds either way.
+  const profile = await getBusinessProfile(tenant.org_id, client).catch(() => null);
+  if (profile?.status !== "active") return UNSCREENED;
+
+  const guardrails = checkArcGeneratedCopy({
+    draftOutput,
+    bannedPhrases: profile.bannedPhrases,
+    complianceNotes: profile.guardrails.complianceNotes,
+  });
+  const blocked = guardrails.blockedPhrases.length > 0;
+  return {
+    riskLevel: blocked ? "blocked" : "medium",
+    status: blocked ? "needs_compliance" : "pending_approval",
+    complianceNotes: guardrails.complianceNotes,
+    flags: guardrails.flags,
+    blockedPhrases: guardrails.blockedPhrases,
+  };
+}
+
 /** Insert a pending-approval campaign asset + its approval gate + an event, so the
  *  asset shows up in /campaigns awaiting the operator's decision. Mirrors
- *  insertPhotoAsset but stays pending_approval instead of pre-approved. */
+ *  insertPhotoAsset but stays pending_approval instead of pre-approved.
+ *
+ *  Every caller funnels copy into the approval queue through here, so the copy
+ *  screen lives here too — no caller can forget it. */
 export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<{ assetId: string }> {
   const client = input.client ?? getSupabaseAdminClient();
+  const screen = await screenDraftCopy(input.body, client, input.tenant);
   const agentName = input.agentName?.trim() || "Agent";
   const provenance = input.media ?? {};
   const mediaAsset = input.mediaUrl
@@ -441,24 +506,30 @@ export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<
     campaign_id: input.campaignId,
     asset_type: input.assetType,
     title: input.title,
-    status: "pending_approval",
+    status: screen.status,
     draft_body: input.body,
     dispatch_locked: true,
     tool_source: "arc_saved",
-    audit_payload: mediaAsset
-      ? { media_assets: [mediaAsset], outbound_locked: true }
-      : { outbound_locked: true },
+    ...(screen.complianceNotes ? { compliance_notes: screen.complianceNotes } : {}),
+    audit_payload: {
+      ...(mediaAsset ? { media_assets: [mediaAsset] } : {}),
+      outbound_locked: true,
+      ...(screen.flags.length > 0
+        ? { guardrail: { flags: screen.flags, blocked_phrases: screen.blockedPhrases } }
+        : {}),
+    },
   });
   await insertNoReturn(client, "approval_items", {
     ...orgTenantFields(input.tenant),
     campaign_id: input.campaignId,
     campaign_asset_id: assetId,
     item_type: "campaign_asset",
-    status: "pending_approval",
+    status: screen.status,
     approval_required: true,
     locked_until_approved: true,
     requested_by: input.operator,
-    risk_level: "medium",
+    risk_level: screen.riskLevel,
+    ...(screen.complianceNotes ? { compliance_notes: screen.complianceNotes } : {}),
   });
   await insertNoReturn(client, "campaign_events", {
     ...orgTenantFields(input.tenant),
