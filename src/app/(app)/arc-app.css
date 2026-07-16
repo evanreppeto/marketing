@@ -1489,6 +1489,10 @@
 .arc-app .journeys .jr-copy { flex: 0 0 auto; font-size: 11px; font-weight: 600; color: var(--accent); background: none; border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 10px; cursor: pointer; transition: border-color 0.15s var(--ease); }
 .arc-app .journeys .jr-copy:hover { border-color: var(--accent-border); }
 .arc-app .journeys .jr-installnote { font-size: 11.5px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+.arc-app .journeys .jr-installnote code { font-family: var(--mono); font-size: 10px; color: var(--text-2); background: var(--inset); border: 1px solid var(--line-2); border-radius: 4px; padding: 0 4px; }
+.arc-app .journeys .jr-consent .jr-installnote { margin-top: 0; }
+.arc-app .journeys .jr-consenterr { margin-top: 9px; font-size: 11.5px; color: var(--red-text); }
+.arc-app .journeys .jr-lensbtn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* Empty state */
 .arc-app .journeys .jr-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 56px 24px; border: 1px dashed var(--line-3); border-radius: 14px; background: var(--panel); }

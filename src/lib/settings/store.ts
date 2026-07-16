@@ -2,7 +2,7 @@ import { cache } from "react";
 
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type ArcMode, type ArcRoute } from "@/domain";
+import { normalizeConsentMode, type ArcMode, type ArcRoute, type JourneyConsentMode } from "@/domain";
 
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
@@ -30,6 +30,8 @@ export type AppSettings = {
   appearanceMotion: AppearanceMotion;
   imageModel: string;
   videoModel: string;
+  /** How the journey collector treats consent for this workspace. Enforced server-side. */
+  journeyConsentMode: JourneyConsentMode;
 };
 
 export type AppearanceAccent = "gold" | "blue" | "red" | "steel" | "emerald";
@@ -60,6 +62,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   appearanceMotion: "standard",
   imageModel: "",
   videoModel: "",
+  journeyConsentMode: "implied",
 };
 
 export const DEFAULT_SUPPORT_EMAIL = "support@bigshouldersmp.com";
@@ -201,6 +204,7 @@ export function mergeAppSettingsRows(rows: SettingRow[]): AppSettings {
     appearanceMotion: appAppearanceMotion(map.get("appearance_motion")),
     imageModel: appImageModel(map.get("image_model")),
     videoModel: appVideoModel(map.get("video_model")),
+    journeyConsentMode: normalizeConsentMode(map.get("journey_consent_mode")),
   };
 }
 

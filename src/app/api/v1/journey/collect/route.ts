@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { parseJourneyCollect } from "@/domain";
-import { recordCollectedTouch, resolveCollectOrg } from "@/lib/journey/persistence";
+import { decideCollection, gpcFromHeaders, parseJourneyCollect } from "@/domain";
+import { isIdentitySuppressed, recordCollectedTouch, resolveCollectOrg } from "@/lib/journey/persistence";
+import { getAppSettings } from "@/lib/settings/store";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
@@ -18,6 +19,11 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
  * body, and a conversion can never be recorded here (see parseJourneyCollect /
  * the journey_touchpoints is_conversion default). Rate limiting is left to the
  * edge/infra layer.
+ *
+ * Consent (P4) is enforced HERE, not in the browser: the workspace's mode, the
+ * Sec-GPC header, and the suppression list are all server-side facts a page can't
+ * lie about. A refused beacon is accepted-and-discarded (202) rather than errored,
+ * so a landing page never learns whether a given visitor is suppressed.
  */
 export async function POST(request: Request) {
   let payload: unknown;
@@ -43,6 +49,24 @@ export async function POST(request: Request) {
     const resolved = await resolveCollectOrg(supabase, parsed.value);
     if (!resolved) {
       return json({ ok: false, status: "unresolved", errors: [{ path: "token", message: "Token did not resolve to a known campaign." }] }, 400);
+    }
+
+    // Consent gate — workspace mode + the visitor's GPC signal + the suppression
+    // list. All three are server-side facts; the body's `consent` flag only ever
+    // *grants* (it can never override an opt-out, GPC, or an off workspace).
+    const settings = await getAppSettings(resolved.orgId, supabase);
+    const optedOut = parsed.value.anonymousId
+      ? await isIdentitySuppressed(supabase, resolved.orgId, parsed.value.anonymousId)
+      : false;
+    const decision = decideCollection({
+      mode: settings.journeyConsentMode,
+      consentGiven: parsed.value.consent === true,
+      gpc: gpcFromHeaders((name) => request.headers.get(name)),
+      optedOut,
+    });
+    if (!decision.allowed) {
+      // Accept-and-discard: never reveal suppression state to the page.
+      return json({ ok: true, status: decision.reason, anonymousId: null }, 202);
     }
 
     const recorded = await recordCollectedTouch({ supabase, resolved, input: parsed.value });
