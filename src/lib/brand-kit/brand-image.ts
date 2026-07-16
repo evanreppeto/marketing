@@ -39,6 +39,9 @@ export async function storeBrandImageFromUrl(args: {
     source: "url",
     provenance: { brandRole: args.role, sourceUrl: args.sourceUrl },
     uploadedBy: args.uploadedBy,
+    // Brand marks are fetched precisely so Arc can put them on creative — unlike
+    // Library uploads, they aren't awaiting a provenance decision.
+    availableToArc: true,
   });
   return result.url;
 }

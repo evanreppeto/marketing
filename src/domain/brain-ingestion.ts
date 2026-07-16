@@ -324,7 +324,7 @@ export function buildEdgesForCampaign(row: Record<string, unknown>): CrmEdgeSpec
 // Arc-available media mirrors in as `asset_ref` nodes so Arc can recall and
 // prefer real, approved media. Standalone (no persona/campaign FK on the row).
 
-const MEDIA_NODE_KIND = "asset_ref";
+export const MEDIA_NODE_KIND = "asset_ref";
 
 /** Idempotency handle for a media asset's Brain node. */
 export function mediaNodeKey(id: string): string {

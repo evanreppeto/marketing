@@ -9,6 +9,8 @@ import {
   buildPersonaNodeInput,
   crmChildRefs,
   crmNodeKey,
+  mediaNodeKey,
+  MEDIA_NODE_KIND,
   CRM_NODE_KINDS,
   type CrmEdgeSpec,
   type CrmIngestTable,
@@ -390,6 +392,26 @@ export async function syncMediaRecordToBrain(mediaId: string, deps: SyncDeps = {
   if (!row) return { ok: false, error: `media ${mediaId} not found.` };
   if (row.available_to_arc === false) return { ok: false, error: "media not available to Arc." };
   return syncMediaAssetToBrain(row, { client, orgId });
+}
+
+/** Result of a Brain removal. Distinct from WriteResult: a delete has no row id to hand back. */
+export type RemoveResult = { ok: true } | { ok: false; error: string };
+
+/** Remove a media asset's Brain node (org-scoped), so revoking Arc access also drops
+ *  it from recall. Edges cascade with the node. No-op when the node isn't there. */
+export async function removeMediaRecordFromBrain(mediaId: string, deps: SyncDeps = {}): Promise<RemoveResult> {
+  let resolved;
+  try { resolved = await resolve(deps); }
+  catch (e) { return { ok: false, error: e instanceof Error ? e.message : "org unavailable" }; }
+  if (!resolved) return { ok: false, error: "Supabase is not configured." };
+  const { client, orgId } = resolved;
+  const { error } = await client
+    .from("knowledge_nodes")
+    .delete()
+    .eq("org_id", orgId)
+    .eq("kind", MEDIA_NODE_KIND)
+    .eq("key", mediaNodeKey(mediaId));
+  return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 /** Backfill: mirror every Arc-available media asset in the org into the Brain. */

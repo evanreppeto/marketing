@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
-import { createFolder, insertAssetWithUrl } from "@/lib/media-library/persistence";
+import { removeMediaRecordFromBrain, syncMediaRecordToBrain } from "@/lib/brain-ingestion/sync";
+import { createFolder, insertAssetWithUrl, setAvailableToArc } from "@/lib/media-library/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { type Asset } from "./_components/library-view";
@@ -54,8 +55,9 @@ export type UploadAssetResult =
 /**
  * Persist an operator-uploaded media file to media_assets (public campaign-media
  * bucket) so it becomes real, reusable library media — not a session-only preview.
- * New uploads default to `available_to_arc = false` (the DB default): the operator
- * marks what Arc may reuse. insertAssetWithUrl also mirrors it into the Brain.
+ * New uploads are stored with `available_to_arc = false` (passed explicitly, not
+ * inherited from the DB default): the operator marks what Arc may reuse via
+ * setLibraryAssetArcAvailability. Held media is not mirrored into the Brain.
  * Returns the stored asset in the view's shape so the grid can show it immediately.
  */
 export async function uploadLibraryAsset(formData: FormData): Promise<UploadAssetResult> {
@@ -111,5 +113,44 @@ export async function uploadLibraryAsset(formData: FormData): Promise<UploadAsse
     return { ok: true, persisted: true, asset };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not upload the file." };
+  }
+}
+
+export type SetArcAvailabilityResult =
+  | { ok: true; persisted: boolean }
+  | { ok: false; error: string };
+
+/**
+ * The operator's provenance decision: whether Arc may reuse a Library asset.
+ *
+ * This is the gate the Library has always advertised ("Mark what Arc may use") but
+ * never enforced — the toggle was local component state, so nothing reached the DB.
+ * Granting also mirrors the asset into the Brain; revoking removes that node, so
+ * recall can't keep surfacing media the operator just pulled back. Neither direction
+ * sends anything outbound.
+ */
+export async function setLibraryAssetArcAvailability(
+  assetId: string,
+  value: boolean,
+): Promise<SetArcAvailabilityResult> {
+  await requireOperator();
+
+  if (!assetId?.trim()) return { ok: false, error: "An asset id is required." };
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  try {
+    const orgId = await getCurrentOrgId();
+    const matched = await setAvailableToArc(assetId, value, orgId);
+    if (!matched) return { ok: false, error: "That asset isn't in this workspace." };
+
+    // Best-effort: the flag is the source of truth, so don't fail the operator's
+    // decision if the Brain mirror lags.
+    if (value) await syncMediaRecordToBrain(assetId, { orgId }).catch(() => undefined);
+    else await removeMediaRecordFromBrain(assetId, { orgId }).catch(() => undefined);
+
+    revalidatePath("/library");
+    return { ok: true, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not update the asset." };
   }
 }
