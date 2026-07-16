@@ -180,7 +180,14 @@
 @media (prefers-reduced-motion: no-preference) {
   .arc-record .recband { animation: recRise 0.5s var(--ease) both; }
   .arc-record .rectabs { animation: recRise 0.5s var(--ease) 0.1s both; }
-  .arc-record .recscroll > div:not(.hidden) { animation: recRise 0.45s var(--ease) 0.14s both; }
+  /* Animate the scroll container, not the panel inside it. On the panel this was a
+     page-entry animation that replayed on every tab click — React mounts a fresh
+     panel per tab, re-firing the 0.14s delay (held at opacity:0 by fill-mode) plus
+     a 0.45s fade, so switching tabs flashed blank. The container mounts once, so
+     the entry still plays on load and tab switches are instant. `backwards` rather
+     than `both`: it holds the from-state through the delay but leaves no lingering
+     identity transform (which would make this a permanent stacking context). */
+  .arc-record .recscroll { animation: recRise 0.45s var(--ease) 0.14s backwards; }
   .arc-record .snap { animation: recRise 0.55s var(--ease) 0.18s both; }
   .arc-record .conftrack i, .arc-record .qbar i { transform-origin: left; animation: recGrowX 0.75s var(--ease) 0.35s both; }
 }
