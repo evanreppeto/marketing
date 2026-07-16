@@ -127,6 +127,50 @@ describe("notifyArcWebhook", () => {
     expect(body).toMatchObject({ type: "arc_chat_message", orgId: "org-9", workspaceId: "ws-9" });
   });
 
+  it("warns, rather than silently degrading, when it cannot resolve tenant identity for a wake", async () => {
+    // An unstamped wake makes the runner omit x-arc-workspace-id, pushing its
+    // callbacks onto arcGuard's session-less fallback. That is survivable on a
+    // single-workspace deployment and a 409 on any other, so it must leave a trace.
+    process.env.ARC_RUNNER_URL = "https://arc.example/webhooks/runner";
+    vi.mocked(getCurrentWorkspaceContext).mockRejectedValue(new Error("no workspace membership"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchMock = mockFetch();
+
+    const delivered = await notifyArcWebhook(basePayload);
+
+    expect(delivered).toBe(true); // still wakes Arc — loud, not fatal
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("without tenant identity"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("no workspace membership"));
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).not.toHaveProperty("workspaceId");
+  });
+
+  it("warns when the context resolves but carries no workspaceId", async () => {
+    process.env.ARC_RUNNER_URL = "https://arc.example/webhooks/runner";
+    vi.mocked(getCurrentWorkspaceContext).mockResolvedValue({
+      orgId: "org-9",
+      workspaceId: null,
+      orgSlug: "acme",
+    } as never);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mockFetch();
+
+    await notifyArcWebhook(basePayload);
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("without tenant identity"));
+  });
+
+  it("stays quiet when identity resolves cleanly", async () => {
+    process.env.ARC_RUNNER_URL = "https://arc.example/webhooks/runner";
+    vi.mocked(getCurrentWorkspaceContext).mockResolvedValue({ orgId: "org-9", workspaceId: "ws-9" } as never);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mockFetch();
+
+    await notifyArcWebhook(basePayload);
+
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("without tenant identity"));
+  });
+
   it("signs the raw body with ARC_WEBHOOK_SECRET via the x-webhook-signature header", async () => {
     delete process.env.ARC_RUNNER_URL;
     process.env.ARC_WEBHOOK_URL = "https://arc.example/webhooks/chat";

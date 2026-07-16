@@ -130,6 +130,69 @@ describe("resolveWorkspaceContextForUser", () => {
     ).rejects.toBeInstanceOf(WorkspaceUnavailableError);
   });
 
+  it("resolves the sole active workspace for a session-less caller, whatever it is keyed", async () => {
+    // Not keyed "default": such an org used to match nothing and yield a null
+    // workspaceId (a 409) despite having exactly one possible answer.
+    const context = await resolveWorkspaceContextForUser(
+      fakeClient({
+        organizations: [{ id: "org-1", slug: "acme-roofing", name: "Acme Roofing" }],
+        workspaces: [
+          { id: "ws-1", org_id: "org-1", key: "acme-marketing", slug: "acme", name: "Acme", status: "active" },
+        ],
+      }),
+      null,
+    );
+
+    expect(context).toMatchObject({ orgId: "org-1", workspaceId: "ws-1", workspaceKey: "acme-marketing" });
+  });
+
+  it("refuses to guess a workspace when the sole org has several active ones", async () => {
+    await expect(
+      resolveWorkspaceContextForUser(
+        fakeClient({
+          organizations: [{ id: "org-1", slug: "acme-roofing", name: "Acme Roofing" }],
+          workspaces: [
+            { id: "ws-default", org_id: "org-1", key: "default", slug: "a", name: "A", status: "active" },
+            { id: "ws-second", org_id: "org-1", key: "second-team", slug: "b", name: "B", status: "active" },
+          ],
+        }),
+        null,
+      ),
+    ).rejects.toThrow(/ambiguous/i);
+  });
+
+  it("does not let the 'default' key break a workspace tie", async () => {
+    // The regression that matters: a workspace keyed "default" must not win just
+    // because it is keyed "default" — that was the last silent guess on this path.
+    await expect(
+      resolveWorkspaceContextForUser(
+        fakeClient({
+          organizations: [{ id: "org-1", slug: "acme-roofing", name: "Acme Roofing" }],
+          workspaces: [
+            { id: "ws-default", org_id: "org-1", key: "default", slug: "a", name: "A", status: "active" },
+            { id: "ws-other", org_id: "org-1", key: "other", slug: "b", name: "B", status: "active" },
+          ],
+        }),
+        null,
+      ),
+    ).rejects.toBeInstanceOf(WorkspaceUnavailableError);
+  });
+
+  it("ignores inactive workspaces when deciding whether the answer is ambiguous", async () => {
+    const context = await resolveWorkspaceContextForUser(
+      fakeClient({
+        organizations: [{ id: "org-1", slug: "acme-roofing", name: "Acme Roofing" }],
+        workspaces: [
+          { id: "ws-live", org_id: "org-1", key: "live", slug: "a", name: "A", status: "active" },
+          { id: "ws-dead", org_id: "org-1", key: "dead", slug: "b", name: "B", status: "archived" },
+        ],
+      }),
+      null,
+    );
+
+    expect(context).toMatchObject({ workspaceId: "ws-live" });
+  });
+
   it("refuses when no org exists at all", async () => {
     await expect(
       resolveWorkspaceContextForUser(fakeClient({ organizations: [], workspaces: [] }), null),
