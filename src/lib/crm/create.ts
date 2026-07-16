@@ -3,6 +3,7 @@ import { getCurrentOrgId } from "@/lib/auth/org";
 import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
+import { findExistingContactByEmail } from "./dedupe";
 import { type CrmObjectKey } from "./read-model";
 
 export type CreateCrmInput = {
@@ -62,6 +63,17 @@ export async function insertCrmRecord(input: CreateCrmInput, orgId?: string): Pr
   }
   const metadata: Record<string, unknown> = input.owner ? { owner: input.owner } : {};
   const detail = input.detail?.trim() || null;
+
+  // Dedup: a contact's `detail` is its email. Re-adding someone who is already in
+  // the CRM used to silently create a second row; surface the clash instead and let
+  // the operator decide (open the existing one, or use a different address) rather
+  // than silently returning someone else's record from a "create".
+  if (input.objectKey === "contacts") {
+    const existing = await findExistingContactByEmail(supabase, scopedOrgId, detail);
+    if (existing) {
+      return { ok: false, error: `${existing.name} already uses that email — open that contact instead of adding a second one.` };
+    }
+  }
 
   const { table, row } = buildInsert(input, scopedOrgId, persona, metadata, detail);
 
