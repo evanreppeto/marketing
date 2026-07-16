@@ -56,6 +56,7 @@ export * from "./review-signals";
 export * from "./competitor-ads";
 export * from "./crm-import";
 export * from "./enrichment";
+export * from "./opportunity-kinds";
 export * from "./opportunity-proposal";
 export * from "./opportunity-briefing";
 export * from "./performance-slicing";
