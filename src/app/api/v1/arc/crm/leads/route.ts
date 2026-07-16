@@ -5,6 +5,21 @@ import { listLeads } from "@/lib/repos";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 /**
+ * Read an integer query param, or undefined when it's absent or not an integer.
+ *
+ * Read the raw param FIRST. `Number(null)` is 0 and `Number.isInteger(0)` is
+ * true, so coercing before the presence check turns an absent filter into a
+ * real one — which is how an omitted `max_score` became `lead_score <= 0` and
+ * silently hid every lead from Arc.
+ */
+function intParam(url: URL, key: string): number | undefined {
+  const raw = url.searchParams.get(key);
+  if (raw === null || raw.trim() === "") return undefined;
+  const value = Number(raw);
+  return Number.isInteger(value) ? value : undefined;
+}
+
+/**
  * Read-only lead search for Arc.
  *
  *   GET /api/v1/arc/crm/leads?status=qualified&persona=...&source=...&limit=50
@@ -18,12 +33,10 @@ export async function GET(request: Request) {
   const persona = url.searchParams.get("persona") ?? undefined;
   const source = url.searchParams.get("source") ?? undefined;
   const q = url.searchParams.get("q") ?? undefined;
-  const minScoreParam = Number(url.searchParams.get("min_score"));
-  const minScore = Number.isInteger(minScoreParam) ? minScoreParam : undefined;
-  const maxScoreParam = Number(url.searchParams.get("max_score"));
-  const maxScore = Number.isInteger(maxScoreParam) ? maxScoreParam : undefined;
-  const limitParam = Number(url.searchParams.get("limit"));
-  const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : undefined;
+  const minScore = intParam(url, "min_score");
+  const maxScore = intParam(url, "max_score");
+  const limitValue = intParam(url, "limit");
+  const limit = limitValue !== undefined && limitValue > 0 ? limitValue : undefined;
 
   try {
     const leads = await listLeads({ orgId: allowed.scope.orgId, status: status as LeadStatus | undefined, persona, source, q, minScore, maxScore, limit });
