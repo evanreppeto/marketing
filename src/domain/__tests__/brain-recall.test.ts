@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   rankRecall,
+  recallRelevance,
   selectRecall,
   traverseFrom,
   enrichRecall,
@@ -81,6 +82,120 @@ describe("selectRecall", () => {
     );
     expect(out.map((x) => x.id)).toContain("3");
     expect(out.map((x) => x.id)).not.toContain("4");
+  });
+});
+
+describe("selectRecall — semantic ranking", () => {
+  function c(id: string, label: string, extra: Partial<RecallCandidate> = {}): RecallCandidate {
+    return { id, kind: "learning", label, summary: null, tags: [], trustTier: "trusted", ...extra };
+  }
+
+  // The regression this whole path exists for: the operator paraphrases, so no
+  // literal token matches, and only the vector search knows the node is relevant.
+  it("selects a semantically-near node that shares no keyword with the message", () => {
+    const out = selectRecall(
+      [
+        c("1", "Core one"),
+        c("2", "Basement flooding playbook", { similarity: 0.91 }),
+        c("3", "Invoice reminder cadence"),
+      ],
+      "what do we say when a customer's cellar fills with water",
+      { coreLimit: 1, matchLimit: 5, cap: 15 },
+    );
+    expect(out.map((x) => x.id)).toContain("2");
+    expect(out.map((x) => x.id)).not.toContain("3");
+  });
+
+  it("ranks a node both rankers found above one only a single ranker found", () => {
+    const out = selectRecall(
+      [
+        c("core", "Core"),
+        c("semantic-only", "Cellar water response", { similarity: 0.88 }),
+        c("both", "Flood playbook", { summary: "flood response", similarity: 0.86 }),
+      ],
+      "flood",
+      { coreLimit: 1, matchLimit: 5, cap: 15 },
+    );
+    const ranked = out.slice(1).map((x) => x.id);
+    expect(ranked[0]).toBe("both");
+    expect(ranked).toContain("semantic-only");
+  });
+
+  it("orders semantic matches by similarity, nearest first", () => {
+    const out = selectRecall(
+      [
+        c("core", "Core"),
+        c("far", "Far node", { similarity: 0.55 }),
+        c("near", "Near node", { similarity: 0.95 }),
+        c("mid", "Mid node", { similarity: 0.75 }),
+      ],
+      "some paraphrased question",
+      { coreLimit: 1, matchLimit: 5, cap: 15 },
+    );
+    expect(out.slice(1).map((x) => x.id)).toEqual(["near", "mid", "far"]);
+  });
+
+  it("falls back to keyword-only ranking when no candidate carries a similarity", () => {
+    const withoutSimilarity = selectRecall(
+      [c("1", "Core"), c("2", "flood angle"), c("3", "unrelated")],
+      "flood",
+      { coreLimit: 1, matchLimit: 5, cap: 15 },
+    );
+    expect(withoutSimilarity.map((x) => x.id)).toEqual(["1", "2"]);
+  });
+
+  it("keeps a semantic hit out of the block when the message is empty", () => {
+    const out = selectRecall([c("1", "Core"), c("2", "Scored", { similarity: 0.99 })], "", {
+      coreLimit: 1,
+      matchLimit: 5,
+      cap: 15,
+    });
+    expect(out.map((x) => x.id)).toEqual(["1"]);
+  });
+
+  it("does not mutate the caller's candidate array", () => {
+    const input = [c("1", "Core"), c("2", "B", { similarity: 0.9 }), c("3", "C", { similarity: 0.95 })];
+    const snapshot = input.map((x) => x.id);
+    selectRecall(input, "question", { coreLimit: 1, matchLimit: 5, cap: 15 });
+    expect(input.map((x) => x.id)).toEqual(snapshot);
+  });
+});
+
+describe("recallRelevance — semantic confidence", () => {
+  const base = (over: Partial<RecallCandidate> = {}): RecallCandidate => ({
+    id: "n1",
+    kind: "learning",
+    label: "Basement flooding playbook",
+    summary: null,
+    tags: [],
+    trustTier: "trusted",
+    ...over,
+  });
+
+  it("scores a semantically-near node above an unscored one with the same wording", () => {
+    const msg = "cellar full of water";
+    expect(recallRelevance(base({ similarity: 0.95 }), msg)).toBeGreaterThan(recallRelevance(base(), msg));
+  });
+
+  it("treats similarity at or below the noise floor as no evidence", () => {
+    const msg = "cellar full of water";
+    expect(recallRelevance(base({ similarity: 0.7 }), msg)).toBe(recallRelevance(base(), msg));
+    expect(recallRelevance(base({ similarity: 0.1 }), msg)).toBe(recallRelevance(base(), msg));
+  });
+
+  // Calibration guard. Measured against the live brain (gemini-embedding-2): unrelated
+  // nodes cluster at ~0.62 median / ~0.69 p99, genuine matches reach ~0.83. A floor
+  // that lets 0.62 through would hand most of the brain a spurious confidence bump.
+  it("reads a typical unrelated node's similarity as noise, not evidence", () => {
+    const msg = "cellar full of water";
+    expect(recallRelevance(base({ similarity: 0.62 }), msg)).toBe(recallRelevance(base(), msg));
+    expect(recallRelevance(base({ similarity: 0.83 }), msg)).toBeGreaterThan(recallRelevance(base(), msg));
+  });
+
+  it("stays within [0,1] at maximum similarity", () => {
+    const score = recallRelevance(base({ similarity: 1 }), "basement flooding playbook");
+    expect(score).toBeGreaterThan(0);
+    expect(score).toBeLessThanOrEqual(1);
   });
 });
 
