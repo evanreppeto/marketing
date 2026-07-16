@@ -84,14 +84,15 @@ type StudioDraft = { campaignId: string; assetId: string; url: string; source: s
 
 export function StudioView({ brandName, libraryItems, live = false, campaigns = [], mediaEnabled = false }: { brandName: string; libraryItems?: Item[]; live?: boolean; campaigns?: CampaignRef[]; mediaEnabled?: boolean }) {
   const initial = "Storm season";
-  // The "Approved media" source shows the workspace's real media_assets when
-  // present (Studio composes over your real backgrounds); it falls back to the
-  // built-in samples offline / when the library is empty so the tool stays usable.
+  // The "Approved media" source shows the workspace's real media_assets. Live, it
+  // shows ONLY those — never the built-in samples, which would present stock art as
+  // the workspace's approved media and let an operator compose over it believing it
+  // was theirs. Offline (backend-less preview) the samples keep the tool usable.
   const [uploaded, setUploaded] = useState<Item[]>([]);
   const sources = useMemo<Record<string, { title: string; items: Item[] }>>(
     () => ({
       ...SRC,
-      library: libraryItems && libraryItems.length ? { title: "Approved media", items: libraryItems } : SRC.library,
+      library: live ? { title: "Approved media", items: libraryItems ?? [] } : SRC.library,
       // Imported art: real uploads live-first (empty until you add some); demo samples offline.
       uploads: uploaded.length || live ? { title: "Imported", items: [...uploaded, ...(live ? [] : SRC.uploads.items)] } : SRC.uploads,
     }),
@@ -322,6 +323,9 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
           <div className="drop" onClick={() => { if (live) fileRef.current?.click(); }} style={live ? { cursor: "pointer" } : undefined} {...(!live ? { "data-soon": "Connect a backend to import art" } : {})}><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg><div className="dt">{uploading ? "Uploading…" : "Upload or import art"}</div><div className="dd">{uploadNote ?? "Bring in art from Canva, Midjourney, DALL·E — anything"}</div></div>
           <div className="srchead"><span className="st">{sources[srcTab].title}</span><span className="sc">{sources[srcTab].items.length} items</span></div>
           <div className="mgrid2">{sources[srcTab].items.map((it, i) => <Tile key={i} item={it} i={i} />)}</div>
+          {srcTab === "library" && sources.library.items.length === 0 ? (
+            <div className="srcempty">No approved media yet. Upload real photos in the <a href="/library">Library</a> and mark them available to Arc.</div>
+          ) : null}
           {srcTab === "ai" && (
             <div className="enginenote"><b>AI generation runs on Higgsfield.</b> Image, video, reframe, upscale, cut-out &amp; motion all come from the connected engine.<span className="ed"><i />Connector off — enable in Settings → Connectors</span></div>
           )}

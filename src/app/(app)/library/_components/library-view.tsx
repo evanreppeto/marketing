@@ -2,6 +2,8 @@
 
 import { useMemo, useRef, useState } from "react";
 
+import { formatByteSize } from "@/domain";
+
 import { createLibraryFolder, uploadLibraryAsset } from "../actions";
 import { ImportUrlModal } from "./import-url-modal";
 import { NewFolderModal } from "./new-folder-modal";
@@ -170,7 +172,12 @@ function descKeys(key: string): string[] {
 const NEW_CAMPAIGN = "/campaigns";
 const STUDIO = "/studio";
 
-export function LibraryView({ assets, folders, live = false }: { assets?: Asset[]; folders?: Folder[]; live?: boolean } = {}) {
+export function LibraryView({
+  assets,
+  folders,
+  live = false,
+  totalBytes,
+}: { assets?: Asset[]; folders?: Folder[]; live?: boolean; totalBytes?: number } = {}) {
   const [curFolder, setCurFolder] = useState("all");
   const [curKind, setCurKind] = useState("all");
   const [curColl, setCurColl] = useState("all");
@@ -381,10 +388,15 @@ export function LibraryView({ assets, folders, live = false }: { assets?: Asset[
     return sub ? <div key={`${F.f}-w`}>{rows}</div> : <div key={`${F.f}-w`}>{rows}</div>;
   };
 
-  const arcSugg = !suggDismissed && !q ? (
+  // Arc-approved assets that have never been used in a campaign. Counted over the
+  // live set (not the demo constant) so the nudge can't claim assets the library
+  // doesn't have, and hidden entirely when there are none to draft from.
+  const unshipped = allAssets.filter((a) => isArc(a) && a.uses === 0).length;
+
+  const arcSugg = !suggDismissed && !q && unshipped > 0 ? (
     <div className="arcsugg">
       <span className="am">A</span>
-      <span className="at"><b>{ALL_ASSETS.filter((a) => isArc(a) && a.uses === 0).length} approved assets have never shipped.</b> Want Arc to draft ad variants from your best unused photos?</span>
+      <span className="at"><b>{unshipped} approved {unshipped === 1 ? "asset has" : "assets have"} never shipped.</b> Want Arc to draft ad variants from your best unused photos?</span>
       <span className="ab">
         <a className="miniabtn" href={STUDIO}>Draft in Studio</a>
         <span className="miniabtn ghost" onClick={() => setSuggDismissed(true)}>Dismiss</span>
@@ -419,7 +431,9 @@ export function LibraryView({ assets, folders, live = false }: { assets?: Asset[
         <span className="ostat ok" onClick={() => setCurColl("arc")}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a3d0b8" strokeWidth={2}><path d="M5 12l4 4 10-10" /></svg><b>{totals.arc}</b> Arc-ready</span>
         <span className="ostat warn" onClick={() => setCurColl("review")}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e7c486" strokeWidth={2}><path d="M12 9v4M12 17h.01M10.3 3.9l-8 14A2 2 0 004 21h16a2 2 0 001.7-3l-8-14a2 2 0 00-3.4 0z" /></svg><b>{totals.rev}</b> need review</span>
         <span className="ostat" onClick={() => setCurColl("unused")}><b>{totals.un}</b> unused</span>
-        <div className="ostorage"><div className="sl"><span>Storage</span><span>5.8 / 10 GB</span></div><div className="sb"><i style={{ width: "58%" }} /></div></div>
+        {/* Real bytes stored. There is no storage quota in the backend, so this
+            reports usage rather than a meter against an invented limit. */}
+        {totalBytes != null ? <span className="ostat"><b>{formatByteSize(totalBytes)}</b> stored</span> : null}
       </div>
 
       <div className={`lib${detail ? " detail" : ""}${selmode ? " selmode" : ""}`}>

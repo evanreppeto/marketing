@@ -57,6 +57,10 @@
 .arc-studio .pv.stock { color: var(--text-2); background: rgba(120, 120, 130, 0.28); }
 .arc-studio .mtile .ml { font-size: 10px; color: var(--text-2); padding: 6px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arc-studio .enginenote { margin-top: 13px; border: 1px solid var(--line-2); border-radius: 9px; padding: 10px 11px; background: var(--panel); font-size: 10.5px; color: var(--muted); line-height: 1.5; }
+/* Live workspace with nothing approved yet — the source grid is empty by truth, not by error. */
+.arc-studio .srcempty { margin-top: 13px; border: 1px dashed var(--line-2); border-radius: 9px; padding: 12px 11px; font-size: 10.5px; color: var(--muted); line-height: 1.5; text-align: center; }
+.arc-studio .srcempty a { color: var(--accent); text-decoration: none; }
+.arc-studio .srcempty a:hover { text-decoration: underline; }
 .arc-studio .enginenote b { color: var(--text-2); font-weight: 600; }
 .arc-studio .enginenote .ed { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; font-family: var(--mono); font-size: 9.5px; color: var(--warn-text); }
 .arc-studio .enginenote .ed i { width: 5px; height: 5px; border-radius: 50%; background: var(--warn); }

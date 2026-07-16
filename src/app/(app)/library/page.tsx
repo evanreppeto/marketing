@@ -77,7 +77,7 @@ export default async function LibraryPage() {
   if (ctx?.orgId && isSupabaseAdminConfigured()) {
     const data = await getMediaLibraryData(getSupabaseAdminClient(), ctx.orgId).catch(() => null);
     if (data && data.status === "live") {
-      return <LibraryView assets={data.assets.map(mapAsset)} folders={mapFolders(data.folders)} live />;
+      return <LibraryView assets={data.assets.map(mapAsset)} folders={mapFolders(data.folders)} live totalBytes={data.totalBytes} />;
     }
   }
   // Offline / not configured → the built-in demo set (keeps the preview populated).

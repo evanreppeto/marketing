@@ -27,10 +27,6 @@
 .arc-library .ostat.warn b { color: var(--warn-text); }
 .arc-library .ostat.ok b { color: var(--ok-text); }
 .arc-library .ospacer { margin-left: auto; }
-.arc-library .ostorage { min-width: 150px; }
-.arc-library .ostorage .sl { font-size: 10.5px; color: var(--muted); display: flex; justify-content: space-between; }
-.arc-library .ostorage .sb { height: 5px; border-radius: 99px; background: var(--inset); overflow: hidden; margin-top: 6px; }
-.arc-library .ostorage .sb i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent-contrast)); }
 
 /* body split */
 .arc-library .lib { flex: 1; min-height: 0; display: grid; grid-template-columns: 216px minmax(0, 1fr); overflow: hidden; transition: grid-template-columns 0.2s var(--ease); }
@@ -234,7 +230,6 @@
 /* entrance animations (verbatim from mockup, renamed to avoid collisions) */
 @keyframes libRiseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes libPop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
-@keyframes libGrowX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @media (prefers-reduced-motion: no-preference) {
   .arc-library .oband { animation: libRiseIn 0.5s var(--ease) both; }
   .arc-library .tree { animation: libRiseIn 0.5s var(--ease) 0.06s both; }
@@ -249,5 +244,4 @@
   .arc-library .agrid .acard:nth-child(6) { animation-delay: 0.34s; }
   .arc-library .agrid .acard:nth-child(7) { animation-delay: 0.38s; }
   .arc-library .agrid .acard:nth-child(8) { animation-delay: 0.42s; }
-  .arc-library .ostorage .sb i { transform-origin: left; animation: libGrowX 0.7s var(--ease) 0.3s both; }
 }
