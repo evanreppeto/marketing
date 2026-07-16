@@ -1,24 +1,30 @@
 import { test, expect, type BrowserContext } from "@playwright/test";
 
 /**
- * End-to-end GUARDRAILS for the deployed app (default target: the private
- * staging site). These assert the things that would be genuinely scary if they
- * silently broke:
+ * End-to-end GUARDRAILS for the deployed app (target: prod — staging was retired
+ * 2026-07-16 to cut Vercel cost). These assert the things that would be genuinely
+ * scary if they silently broke:
  *   1. the login wall holds — the public can't see the app,
- *   2. a real operator can sign in and the seeded tenant renders,
+ *   2. a real operator can sign in and the tenant renders,
  *   3. the Opportunity inbox is populated,
  *   4. the campaign approval surface is present (the human gate exists).
  *
- * Reliable by design: sign-in goes through the real API (no fragile form
- * selectors) and assertions match on visible text (not brittle CSS). Point it
- * at any deploy with E2E_BASE_URL:
+ * Every check is READ-ONLY — a sign-in plus three GETs. Nothing is sent,
+ * approved, or written, which is what makes them safe to run against prod.
  *
- *   E2E_BASE_URL=https://marketing-staging-big-shoulders-restoration.vercel.app \
- *     pnpm exec playwright test e2e/guardrails.spec.ts
+ * Reliable by design: sign-in goes through the real API (no fragile form
+ * selectors), and assertions match on visible text (not brittle CSS) — and on
+ * shape rather than specific records, so they don't break when the workspace's
+ * real data changes. Point it at any deploy with E2E_BASE_URL:
+ *
+ *   E2E_BASE_URL=https://arc-studio.ai pnpm exec playwright test e2e/guardrails.spec.ts
  */
 
-const EMAIL = process.env.E2E_EMAIL ?? "owner@bsr.test";
-const PASSWORD = process.env.E2E_PASSWORD ?? "BsrOwner1234!";
+const EMAIL = process.env.E2E_EMAIL || "owner@bsr.test";
+// No fallback: this signs in to PRODUCTION, so the password comes from the
+// PROD_E2E_PASSWORD secret or the authenticated checks skip (visibly) rather
+// than a working prod credential living in the repo.
+const PASSWORD = process.env.E2E_PASSWORD || "";
 
 /**
  * Sign in through the real /api/auth/sign-in endpoint. The Supabase session
@@ -36,10 +42,17 @@ async function login(context: BrowserContext) {
   expect(hasSession, "sign-in should set a Supabase session cookie").toBe(true);
 }
 
+/** The authenticated guardrails need a real operator password. Without the
+ *  PROD_E2E_PASSWORD secret they skip loudly (reported as skipped) instead of
+ *  failing the run or, worse, quietly asserting nothing. */
+function requireCredentials() {
+  test.skip(!PASSWORD, "set the PROD_E2E_PASSWORD secret to run the authenticated guardrails");
+}
+
 test.describe("deployed app guardrails", () => {
   // Guardrails only run against a DEPLOYED target (E2E_BASE_URL). Skip them in a
   // default local run (e.g. CI's local screens job), which has no seeded data or
-  // auth — `pnpm test:e2e:staging` sets E2E_BASE_URL.
+  // auth — `pnpm test:e2e:prod` sets E2E_BASE_URL.
   test.beforeEach(() => {
     test.skip(!process.env.E2E_BASE_URL, "set E2E_BASE_URL to run guardrails against a deploy");
   });
@@ -49,7 +62,8 @@ test.describe("deployed app guardrails", () => {
     expect(page.url(), "unauthenticated /home should redirect to /login").toContain("/login");
   });
 
-  test("an operator can sign in and the seeded tenant renders", async ({ page, context }) => {
+  test("an operator can sign in and the tenant renders", async ({ page, context }) => {
+    requireCredentials();
     await login(context);
     await page.goto("/home", { waitUntil: "domcontentloaded" });
     expect(page.url(), "should not be bounced back to login").not.toContain("/login");
@@ -57,12 +71,19 @@ test.describe("deployed app guardrails", () => {
   });
 
   test("the Opportunity inbox is populated", async ({ page, context }) => {
+    requireCredentials();
     await login(context);
     await page.goto("/opportunities", { waitUntil: "domcontentloaded" });
-    await expect(page.locator("body")).toContainText(/flood watch|property managers|dormant/i);
+    // Assert the inbox's own summary ("N open · …"), not any particular
+    // opportunity: the workspace's real signals churn constantly, so matching
+    // fixture titles would go red on a healthy app. A non-zero count is the
+    // thing that actually matters — the empty state renders no such count.
+    await expect(page.locator("body")).toContainText(/open opportunities/i);
+    await expect(page.locator("body")).toContainText(/[1-9]\d*\s+open\b/i);
   });
 
   test("the campaign approval surface is present (the human gate exists)", async ({ page, context }) => {
+    requireCredentials();
     await login(context);
     await page.goto("/campaigns", { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toContainText(/campaign/i);
