@@ -77,7 +77,10 @@ export type JourneysReadModel =
 
 const MAX_ROWS = 1000;
 const MAX_JOURNEYS = 60;
-const WON_STATUSES = ["won", "closed_won", "paid"];
+// The real `outcome_status` enum is: pending | won | lost | paid | written_off.
+// (performance/read-model.ts also filters a "closed_won" that the enum has never
+// had — harmless there since the match runs in JS, but don't copy it here.)
+const WON_STATUSES = ["won", "paid"];
 
 type ContactRow = { id: string; full_name: string | null; email: string | null; persona: string | null; created_at: string | null };
 type EngagementRow = {
