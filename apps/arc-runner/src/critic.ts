@@ -1,0 +1,250 @@
+import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
+import { z } from "zod";
+
+import type { ArcClient } from "./arc-client";
+import { buildQueryOptions, inferenceForCritic } from "./inference";
+import { brainReadTools } from "./tools/brain";
+import { intelligenceTools } from "./tools/intelligence";
+import { libraryReadTools } from "./tools/library";
+import { performanceReadTools } from "./tools/performance";
+import { textResult, type StepFn } from "./tools/helpers";
+import type { DraftForReview } from "./types";
+
+/**
+ * The draft critic — an independent, read-only reviewer of copy Arc just wrote.
+ *
+ * Why this exists: the deterministic copy screen (app-side, in
+ * promoteAssetToCampaign) can only prove copy is not *known*-bad against the
+ * org's banned-phrase list. It cannot see an invented statistic, a guarantee the
+ * business doesn't offer, or a claim that reads clean and is simply untrue. That
+ * needs a reader.
+ *
+ * Why it's a separate pass and NOT an SDK subagent: `agents` registers a
+ * subagent the model invokes via the Task tool — meaning the drafting model
+ * would choose whether to be reviewed. A gate the gated party can skip is not a
+ * gate. The caller runs this in code, so it isn't optional.
+ *
+ * Why it gets its own query(): independence is the point. The critic never sees
+ * why the drafting turn thought a claim was fine — only the copy and the
+ * workspace evidence. The context that wrote the sentence is the worst possible
+ * judge of whether it made the number up.
+ *
+ * Advisory only: the critic annotates, raises risk, and recommends. It never
+ * approves, declines, blocks, or unlocks. The human still decides.
+ */
+
+export type CriticVerdict = "grounded" | "unsupported" | "fabricated";
+
+export type CriticFinding = {
+  claim: string;
+  verdict: CriticVerdict;
+  note: string;
+};
+
+export type CriticReview = {
+  findings: CriticFinding[];
+  recommendation: string;
+  rationale: string;
+  suggestedEdits: string;
+};
+
+const CRITIC_SYSTEM_PROMPT = `You are a claims reviewer for an approval-gated marketing platform. You did NOT write the copy in front of you — someone else did, and your job is to find what's wrong with it before a human is asked to approve it.
+
+YOUR ONE QUESTION: for every factual claim, statistic, offer, guarantee, timeframe, credential, and proof point in this draft — can THIS BUSINESS substantiate it from its own evidence?
+
+That is not the same as "is this plausible" or "is this true in the world". A claim can be perfectly reasonable and still be one this business has no basis to make. You are checking substantiation, not plausibility. You have no web access on purpose: outside sources cannot substantiate a claim about this business.
+
+HOW TO WORK:
+1. Read the draft and list every checkable claim. Marketing adjectives ("fast", "trusted") are not claims. Numbers, guarantees, timeframes, outcomes, credentials, and comparisons are.
+2. For each, go looking for the evidence with your read tools — the brain (facts and proof points), brand documents (voice, rules, disallowed claims), performance data (real numbers), and the media library.
+3. Assign a verdict:
+   - grounded — you found the specific evidence. Name it in your note.
+   - unsupported — plausible, but you could not find evidence for it.
+   - fabricated — it contradicts evidence you DID find, or it promises an outcome outside the business's control.
+4. TRY TO REFUTE, don't try to confirm. Go looking for the reason each claim is wrong. If you cannot find evidence, the verdict is "unsupported" — the burden is on the draft, not on you. Defaulting to "grounded" because a claim sounds right is the exact failure you exist to prevent.
+5. Call submit_review exactly once with every claim you checked.
+
+RECOMMENDATION: "approve" only when every checkable claim is grounded. "request revision" when anything is unsupported or fabricated. "decline" when the draft's central premise is fabricated and a rewrite wouldn't save it.
+
+Be specific and short. "The 60-minute response time is not in any proof point; performance shows a 3.2h median" beats "this may be inaccurate". Your rationale is read by a busy operator deciding whether to ship this.
+
+You are ADVISORY. You never approve, decline, send, or unlock anything — you tell the human what you found. Do not comment on style, tone, or formatting unless it creates a factual or compliance risk.`;
+
+/** The critic's read-only surface: workspace evidence only.
+ *
+ *  research_web is deliberately excluded. The critic verifies what THIS business
+ *  can substantiate, and a web search can happily "confirm" a claim the business
+ *  itself has no basis to make — which would turn the reviewer into a rubber stamp. */
+const CRITIC_READ_TOOLS = new Set([
+  "query_brain",
+  "list_brand_documents",
+  "read_brand_document",
+  "read_performance",
+  "list_media",
+  "read_persona_intelligence",
+]);
+
+function submitReviewTool(collect: (review: CriticReview) => void) {
+  return tool(
+    "submit_review",
+    "Record your review. Call this exactly once, at the end, with every claim you checked.",
+    {
+      findings: z
+        .array(
+          z.object({
+            claim: z.string().describe("The exact sentence or phrase from the draft that makes the claim."),
+            verdict: z
+              .enum(["grounded", "unsupported", "fabricated"])
+              .describe("grounded = you found the evidence; unsupported = you could not; fabricated = it contradicts evidence."),
+            note: z.string().describe("The specific evidence that grounds it, or precisely why it doesn't."),
+          }),
+        )
+        .describe("Every checkable claim in the draft. Empty only if the draft makes no factual claims at all."),
+      recommendation: z
+        .enum(["approve", "request revision", "decline"])
+        .describe("approve only when every claim is grounded."),
+      rationale: z.string().describe("Short, specific reasoning a busy operator can act on."),
+      suggested_edits: z.string().optional().describe("Concrete changes that would make this approvable."),
+    },
+    async (args) => {
+      collect({
+        findings: args.findings,
+        recommendation: args.recommendation,
+        rationale: args.rationale,
+        suggestedEdits: args.suggested_edits ?? "",
+      });
+      return textResult("Review recorded.");
+    },
+  );
+}
+
+function criticTools(client: ArcClient, step: StepFn, collect: (review: CriticReview) => void) {
+  const readOnly = [
+    ...brainReadTools(client, step),
+    ...intelligenceTools(client, step),
+    ...performanceReadTools(client, step),
+    ...libraryReadTools(client, step),
+  ].filter((t) => CRITIC_READ_TOOLS.has(t.name));
+  return [...readOnly, submitReviewTool(collect)];
+}
+
+function criticPrompt(draft: DraftForReview, businessName: string): string {
+  return [
+    `Business: ${businessName}`,
+    `Draft asset type: ${draft.assetType}`,
+    `Draft title: ${draft.title}`,
+    "",
+    "Draft copy to review:",
+    "---",
+    draft.body,
+    "---",
+    "",
+    "Check every claim in the copy above against this workspace's evidence, then call submit_review.",
+  ].join("\n");
+}
+
+/**
+ * Review one draft. Returns the critic's verdict, or null when it produced none
+ * (no claims, an empty draft, or a run that failed) — the caller treats null as
+ * "not reviewed", never as "approved".
+ */
+export async function reviewDraft(
+  draft: DraftForReview,
+  client: ArcClient,
+  step: StepFn,
+  businessName: string,
+): Promise<CriticReview | null> {
+  if (!draft.body.trim()) return null;
+
+  let review: CriticReview | null = null;
+  const tools = criticTools(client, step, (r) => {
+    review = r;
+  });
+  const inference = inferenceForCritic();
+
+  await step(`Reviewing claims in "${draft.title}"`, "running");
+  try {
+    for await (const _message of query({
+      prompt: criticPrompt(draft, businessName),
+      options: buildQueryOptions({
+        inference,
+        systemPrompt: CRITIC_SYSTEM_PROMPT,
+        mcpServers: { critic: createSdkMcpServer({ name: "critic", version: "1.0.0", tools }) },
+        allowedTools: tools.map((t) => `mcp__critic__${t.name}`),
+      }),
+    })) {
+      // The verdict arrives through submit_review, not the reply text — the loop
+      // only needs to run to completion.
+      void _message;
+    }
+  } finally {
+    await step(`Reviewing claims in "${draft.title}"`, "done");
+  }
+
+  return review;
+}
+
+/** Map the critic's findings onto the approval queue's risk vocabulary.
+ *
+ *  `blocked` is deliberately NOT reachable here: it means "contains a banned
+ *  phrase", which the deterministic screen proves with certainty. The critic's
+ *  judgment is probabilistic, so its worst verdict is `high`. `low` is only
+ *  reachable here — it means a reviewer actually grounded every claim, which a
+ *  phrase match can never establish. */
+export function riskFromFindings(findings: CriticFinding[]): "low" | "medium" | "high" {
+  if (findings.some((f) => f.verdict === "fabricated")) return "high";
+  if (findings.some((f) => f.verdict === "unsupported")) return "medium";
+  return "low";
+}
+
+/** The problem types to surface as risk flags on the approval card. */
+export function riskFlagsFromFindings(findings: CriticFinding[]): string[] {
+  const flags = new Set<string>();
+  for (const finding of findings) {
+    if (finding.verdict === "fabricated") flags.add("claim_risk");
+    if (finding.verdict === "unsupported") flags.add("unsupported_claim");
+  }
+  return [...flags];
+}
+
+/**
+ * Review one draft and persist the result. Best-effort by contract: a critic
+ * failure must never break the drafting turn that produced the draft. The asset
+ * is already pending_approval + dispatch_locked either way, so the human gate
+ * holds whether or not the critique lands.
+ */
+export async function reviewAndRecordDraft(
+  draft: DraftForReview,
+  client: ArcClient,
+  step: StepFn,
+  businessName: string,
+): Promise<void> {
+  try {
+    const review = await reviewDraft(draft, client, step, businessName);
+    if (!review) return;
+    await client.apiPost("/api/v1/arc/drafts/review", {
+      asset_id: draft.assetId,
+      risk_level: riskFromFindings(review.findings),
+      recommendation: review.recommendation,
+      rationale: review.rationale,
+      risk_flags: riskFlagsFromFindings(review.findings),
+      suggested_edits: review.suggestedEdits,
+      findings: review.findings.map((f) => ({ claim: f.claim, verdict: f.verdict, note: f.note })),
+    });
+  } catch (error) {
+    console.error(`[arc-runner] draft critic failed for asset ${draft.assetId}:`, error);
+  }
+}
+
+/** Review every draft a turn produced, concurrently — one critic per asset, each
+ *  with its own context. A critic handed 7 assets degrades on the later ones for
+ *  the same reason the drafting agent does. */
+export async function reviewTurnDrafts(
+  drafts: DraftForReview[],
+  client: ArcClient,
+  step: StepFn,
+  businessName: string,
+): Promise<void> {
+  if (drafts.length === 0) return;
+  await Promise.all(drafts.map((draft) => reviewAndRecordDraft(draft, client, step, businessName)));
+}

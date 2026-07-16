@@ -2,9 +2,8 @@ import { tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 
 import type { ArcClient } from "../arc-client";
-import type { ArcActionCard } from "../types";
 import type { ToolContext } from "./index";
-import { runTool, textResult, type StepFn } from "./helpers";
+import { runTool, textResult, type StepFn, type TurnSink } from "./helpers";
 
 /**
  * Map an asset type to the card's channel/format so the chat thumbnail can render
@@ -46,9 +45,10 @@ function cardChannelFormat(assetType: string): { channel?: string; format?: stri
 export function draftWorkProductTools(
   client: ArcClient,
   step: StepFn,
-  collectCard: (card: ArcActionCard) => void,
+  sink: TurnSink,
   ctx: ToolContext = {},
 ) {
+  const collectCard = sink.card;
   const createCampaignDraft = tool(
     "create_campaign_draft",
     "Create an approval-gated campaign DRAFT asset (e.g. social_ad, email, sms, image_prompt, video_prompt, landing_page, one_pager). Attach to an existing campaign with campaign_id, or create a new draft campaign by giving name + persona (use a persona key) + restoration_focus (one of: flood | water_backup | burst_pipe | storm_surge | standing_water | mold | sewage | fire). The asset is created pending approval and surfaced with an inline Approve/Decline card — nothing is sent. Returns campaignId + assetId.",
@@ -92,6 +92,17 @@ export function draftWorkProductTools(
           ...(args.media_url ? { media: { kind: "image", url: args.media_url } } : {}),
           approval: { kind: "campaign", campaignId: r.campaignId, assetId: r.assetId },
         });
+        // Hand the full copy to the critic's work list. The card only carries a
+        // 280-char preview; the critic has to check what will actually ship.
+        if (args.body?.trim()) {
+          sink.draft({
+            assetId: r.assetId,
+            campaignId: r.campaignId,
+            title: args.title,
+            assetType: args.asset_type,
+            body: args.body,
+          });
+        }
         return textResult(
           JSON.stringify({ campaignId: r.campaignId, assetId: r.assetId, status: "draft created, pending approval" }),
         );

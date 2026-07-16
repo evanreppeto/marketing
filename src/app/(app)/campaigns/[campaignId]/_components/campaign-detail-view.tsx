@@ -505,6 +505,15 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
                               <span className="drv">{asset.recommendation.verdict}</span>
                             </div>
                             {asset.recommendation.rationale && <p className="drb">{asset.recommendation.rationale}</p>}
+                            {asset.findings.length > 0 && (
+                              <ul className="dfind">
+                                {asset.findings.map((f, i) => (
+                                  <li key={i} className={f.severity === "blocker" ? "dfb" : undefined}>
+                                    {f.claim && <q>{f.claim}</q>} {f.message}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
                             {asset.recommendation.riskFlags.length > 0 && (
                               <div className="flags">
                                 {asset.recommendation.riskFlags.map((f) => (

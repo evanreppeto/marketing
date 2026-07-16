@@ -27,6 +27,7 @@ function asset(overrides: Partial<CampaignWorkspaceAsset>): CampaignWorkspaceAss
     guardrailFlags: [],
     blockedPhrases: [],
     recommendation: null,
+    findings: [],
     dispatchLocked: true,
     toolSource: null,
     updatedAt: "",

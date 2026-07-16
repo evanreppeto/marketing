@@ -15,6 +15,7 @@ const OUTPUT_SELECT =
 const AGENT_TASK_SELECT = "id,objective,task_type,status,priority,metadata,created_at,updated_at";
 const DECISION_SELECT = "id,approval_item_id,decision,decided_by,decided_at,decision_notes,previous_status,next_status";
 const RECOMMENDATION_SELECT = "id,approval_item_id,agent,recommendation,rationale,risk_flags,suggested_edits,created_at";
+const FINDING_SELECT = "id,campaign_asset_id,severity,status,matched_text,finding_message,created_at";
 
 export type CampaignWorkspaceAssetCategory = "physical" | "virtual" | "ads" | "media" | "other";
 
@@ -144,6 +145,10 @@ export type CampaignWorkspaceAsset = {
    *  item. Advisory only: it never decides, it tells the operator what the agent
    *  would do and why. Null when the agent hasn't weighed in. */
   recommendation: CampaignAssetRecommendation | null;
+  /** Open claims the critic could not ground in workspace evidence. Empty when
+   *  the copy is clean OR when nothing has reviewed it yet — `recommendation`
+   *  is what distinguishes those two. */
+  findings: CampaignAssetFinding[];
 };
 
 export type CampaignAssetRecommendation = {
@@ -152,6 +157,12 @@ export type CampaignAssetRecommendation = {
   rationale: string;
   riskFlags: string[];
   suggestedEdits: string;
+};
+
+export type CampaignAssetFinding = {
+  claim: string;
+  severity: string;
+  message: string;
 };
 
 export type CampaignWorkspaceReasoning = {
@@ -443,6 +454,16 @@ type ApprovalRecommendationRow = {
   rationale: string | null;
   risk_flags: string[] | null;
   suggested_edits: string | null;
+  created_at: string;
+};
+
+type GuardrailFindingRow = {
+  id: string;
+  campaign_asset_id: string | null;
+  severity: string;
+  status: string;
+  matched_text: string | null;
+  finding_message: string;
   created_at: string;
 };
 
@@ -774,6 +795,7 @@ function demoDetailAsset(piece: DemoPiece): CampaignWorkspaceAsset {
     guardrailFlags: [],
     blockedPhrases: [],
     recommendation: null,
+    findings: [],
     // Approved demo pieces in a Live campaign are deployable; everything else
     // stays dispatch-locked so the gold "outbound locked" gate shows.
     dispatchLocked: !/approved/i.test(piece.rawStatus),
@@ -1552,6 +1574,19 @@ export async function getCampaignWorkspaceDetail(
         resolvedOrgId,
       ).catch(() => []),
     );
+    // NB no org scope: guardrail_findings has no org_id column, so passing one
+    // would query a column that doesn't exist. It's scoped transitively by
+    // campaign_asset_id, and these ids are already this org's assets.
+    const findings = groupFindingsByAsset(
+      await selectIn<GuardrailFindingRow>(
+        supabase,
+        "guardrail_findings",
+        FINDING_SELECT,
+        "campaign_asset_id",
+        assetIds,
+        "created_at",
+      ).catch(() => []),
+    );
     const relatedIds = collectRelatedIds(campaign, approvals);
     const [companies, contacts, leads] = await Promise.all([
       selectIn<CompanyRow>(supabase, "companies", "id,name,website_url,phone,email,partner_tier", "id", relatedIds.companyIds, undefined, resolvedOrgId),
@@ -1561,7 +1596,7 @@ export async function getCampaignWorkspaceDetail(
 
     const assetsView = addPreviewCampaignPieces(
       campaignId,
-      buildWorkspaceAssets(assets, approvals, outputs, agentName, recommendations),
+      buildWorkspaceAssets(assets, approvals, outputs, agentName, recommendations, findings),
       campaign.updated_at,
     );
     const media = renderableMedia(
@@ -1971,6 +2006,7 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
     blockedPhrases: asStringArray(guardrail.blocked_phrases),
     // attachApproval fills this in once the gating approval is known.
     recommendation: null,
+    findings: [],
     dispatchLocked: asset.dispatch_locked,
     toolSource: getString(asset.tool_source),
     updatedAt: formatDate(asset.updated_at),
@@ -1986,6 +2022,7 @@ function buildWorkspaceAssets(
   outputs: AgentOutputRow[],
   agentName: string,
   recommendations?: Map<string, ApprovalRecommendationRow[]>,
+  findings?: Map<string, CampaignAssetFinding[]>,
 ): CampaignWorkspaceAsset[] {
   const assetIds = new Set(assets.map((asset) => asset.id));
   const outputApprovalIds = new Set(outputs.map((output) => output.approval_item_id).filter((id): id is string => Boolean(id)));
@@ -2005,7 +2042,10 @@ function buildWorkspaceAssets(
   // become a second card for the same deliverable (the duplicate-email bug).
   const assetApprovalIds = new Set([...approvalByAssetId.values()].map((approval) => approval.id));
 
-  const mappedAssets = assets.map((asset) => attachApproval(mapAsset(asset), approvalByAssetId.get(asset.id), recommendations));
+  const mappedAssets = assets.map((asset) => ({
+    ...attachApproval(mapAsset(asset), approvalByAssetId.get(asset.id), recommendations),
+    findings: findings?.get(asset.id) ?? [],
+  }));
   const outputAssets = outputs
     .filter(
       (output) =>
@@ -2058,7 +2098,8 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       guardrailFlags: [],
       blockedPhrases: [],
       recommendation: null,
-      dispatchLocked: true,
+    findings: [],
+            dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
       media: [],
@@ -2078,7 +2119,8 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       guardrailFlags: [],
       blockedPhrases: [],
       recommendation: null,
-      dispatchLocked: true,
+    findings: [],
+            dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
       media: [
@@ -2111,7 +2153,8 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       guardrailFlags: [],
       blockedPhrases: [],
       recommendation: null,
-      dispatchLocked: true,
+    findings: [],
+            dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
       media: [],
@@ -2131,7 +2174,8 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       guardrailFlags: [],
       blockedPhrases: [],
       recommendation: null,
-      dispatchLocked: true,
+    findings: [],
+            dispatchLocked: true,
       toolSource: "Preview data",
       updatedAt: formattedUpdatedAt,
       media: [],
@@ -2166,6 +2210,24 @@ function groupByApprovalItem(rows: ApprovalRecommendationRow[]): Map<string, App
     else byId.set(row.approval_item_id, [row]);
   }
   return byId;
+}
+
+/** Only OPEN findings reach the card — an acknowledged or resolved one has been
+ *  dealt with and would just be noise on a deliverable awaiting a decision. */
+function groupFindingsByAsset(rows: GuardrailFindingRow[]): Map<string, CampaignAssetFinding[]> {
+  const byAsset = new Map<string, CampaignAssetFinding[]>();
+  for (const row of rows) {
+    if (!row.campaign_asset_id || row.status !== "open") continue;
+    const finding: CampaignAssetFinding = {
+      claim: row.matched_text ?? "",
+      severity: row.severity,
+      message: row.finding_message,
+    };
+    const group = byAsset.get(row.campaign_asset_id);
+    if (group) group.push(finding);
+    else byAsset.set(row.campaign_asset_id, [finding]);
+  }
+  return byAsset;
 }
 
 /** The agent's latest word on an approval item. Rows arrive newest-first, so the
@@ -2220,6 +2282,7 @@ function mapOutputAsAsset(output: AgentOutputRow, agentName: string): CampaignWo
     guardrailFlags: [],
     blockedPhrases: [],
     recommendation: null,
+    findings: [],
     dispatchLocked: true,
     toolSource: `${agentName} output`,
     updatedAt: formatDate(output.updated_at),
@@ -2253,6 +2316,7 @@ function mapApprovalAsAsset(approval: ApprovalItemRow, agentName: string): Campa
     blockedPhrases: asStringArray(approvalGuardrail.blocked_phrases),
     // buildWorkspaceAssets overlays the recommendation for these.
     recommendation: null,
+    findings: [],
     dispatchLocked: approval.locked_until_approved,
     toolSource: approval.requested_by ?? agentName,
     updatedAt: formatDate(approval.updated_at),

@@ -13,7 +13,7 @@ const stubClient = {
   postStep: vi.fn(),
 } as unknown as ArcClient;
 const step = vi.fn(async () => {});
-const sink = { card: () => {}, suggestion: () => {}, source: () => {}, question: () => {} };
+const sink = { card: () => {}, suggestion: () => {}, source: () => {}, question: () => {}, draft: () => {} };
 
 const READ = [
   "search_companies",

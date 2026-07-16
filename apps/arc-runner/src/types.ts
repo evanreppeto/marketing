@@ -141,3 +141,14 @@ export type ArcActionCard = {
   media?: ArcMedia;
   appState?: ArcAppState;
 };
+
+/** A draft the turn just created, carried to the critic for an independent
+ *  claims review. The full body (not the card's truncated preview) — the critic
+ *  has to check the copy that will actually ship. */
+export type DraftForReview = {
+  assetId: string;
+  campaignId: string;
+  title: string;
+  assetType: string;
+  body: string;
+};

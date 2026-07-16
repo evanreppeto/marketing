@@ -77,6 +77,10 @@
 .arc-campaign .drb b { color: var(--text); }
 .arc-campaign .drec .flags { margin-top: 7px; }
 .arc-campaign .drn { font-size: 10.5px; color: var(--muted); margin-top: 7px; }
+.arc-campaign .dfind { list-style: none; margin: 7px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.arc-campaign .dfind li { font-size: 11px; color: var(--text-2); line-height: 1.5; padding-left: 9px; border-left: 2px solid var(--warn); }
+.arc-campaign .dfind li.dfb { border-left-color: var(--red); }
+.arc-campaign .dfind q { color: var(--text); font-style: italic; }
 
 .arc-campaign .dctrls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .arc-campaign .cbtn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 13px; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-weight: 600; font-size: 12px; cursor: pointer; transition: 0.15s var(--ease); }

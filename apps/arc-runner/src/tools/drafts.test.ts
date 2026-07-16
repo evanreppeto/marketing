@@ -1,17 +1,32 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { ArcClient } from "../arc-client";
-import type { ArcActionCard } from "../types";
+import type { ArcActionCard, DraftForReview } from "../types";
+import type { TurnSink } from "./helpers";
 import { draftWorkProductTools } from "./drafts";
 
-function setup(apiPostImpl: () => Promise<unknown>) {
+/** A sink that records what the tools collect. */
+function testSink() {
   const cards: ArcActionCard[] = [];
+  const drafts: DraftForReview[] = [];
+  const sink: TurnSink = {
+    card: (c) => cards.push(c),
+    suggestion: () => {},
+    source: () => {},
+    question: () => {},
+    draft: (d) => drafts.push(d),
+  };
+  return { cards, drafts, sink };
+}
+
+function setup(apiPostImpl: () => Promise<unknown>) {
+  const { cards, drafts, sink } = testSink();
   const client = { apiPost: vi.fn(apiPostImpl) } as unknown as ArcClient;
   const step = vi.fn(async () => {});
-  const [createDraft] = draftWorkProductTools(client, step, (c) => cards.push(c));
+  const [createDraft] = draftWorkProductTools(client, step, sink);
   const call = (args: Record<string, unknown>) =>
     (createDraft.handler as (a: Record<string, unknown>, e?: unknown) => Promise<{ content: Array<{ type: string; text: string }> }>)(args);
-  return { cards, client, call, createDraft };
+  return { cards, drafts, client, call, createDraft };
 }
 
 describe("create_campaign_draft", () => {
@@ -56,7 +71,7 @@ describe("create_campaign_draft", () => {
   it("forwards conversation_id from ctx to the draft-asset route", async () => {
     const client = { apiPost: vi.fn(async () => ({ campaignId: "c1", assetId: "a1" })) } as unknown as ArcClient;
     const noStep = vi.fn(async () => {});
-    const [createDraft] = draftWorkProductTools(client, noStep, () => {}, { conversationId: "conv1" });
+    const [createDraft] = draftWorkProductTools(client, noStep, testSink().sink, { conversationId: "conv1" });
     await (createDraft.handler as (a: Record<string, unknown>, e?: unknown) => Promise<unknown>)({
       asset_type: "email",
       title: "x",
@@ -71,7 +86,7 @@ describe("create_campaign_draft", () => {
   it("defaults to the active campaign from ctx when Arc omits campaign_id", async () => {
     const client = { apiPost: vi.fn(async () => ({ campaignId: "campaign-ctx", assetId: "asset-1" })) } as unknown as ArcClient;
     const noStep = vi.fn(async () => {});
-    const [createDraft] = draftWorkProductTools(client, noStep, () => {}, { campaignId: "campaign-ctx" });
+    const [createDraft] = draftWorkProductTools(client, noStep, testSink().sink, { campaignId: "campaign-ctx" });
     await (createDraft.handler as (a: Record<string, unknown>, e?: unknown) => Promise<unknown>)({
       asset_type: "email",
       title: "Follow-up email",
@@ -88,7 +103,7 @@ describe("submit_draft", () => {
   function getSubmit(apiPostImpl: () => Promise<unknown>) {
     const client = { apiPost: vi.fn(apiPostImpl) } as unknown as ArcClient;
     const step = vi.fn(async () => {});
-    const submit = draftWorkProductTools(client, step, () => {}).find((t) => t.name === "submit_draft")!;
+    const submit = draftWorkProductTools(client, step, testSink().sink).find((t) => t.name === "submit_draft")!;
     const call = (args: Record<string, unknown>) =>
       (submit.handler as (a: Record<string, unknown>, e?: unknown) => Promise<{ content: Array<{ type: string; text: string }> }>)(args);
     return { client, call };
@@ -110,7 +125,7 @@ describe("submit_draft", () => {
   });
 
   it("is exposed alongside create_campaign_draft", () => {
-    const names = draftWorkProductTools({} as ArcClient, async () => {}, () => {}).map((t) => t.name);
+    const names = draftWorkProductTools({} as ArcClient, async () => {}, testSink().sink).map((t) => t.name);
     expect(names).toEqual(["create_campaign_draft", "submit_draft"]);
   });
 });
