@@ -17,6 +17,7 @@ export * from "./arc-message-format";
 export * from "./arc-canvas";
 export * from "./competitor-intel";
 export * from "./attribution";
+export * from "./journey";
 export * from "./campaign-drafts";
 export * from "./campaign-from-opportunity";
 export * from "./opportunity-package";
