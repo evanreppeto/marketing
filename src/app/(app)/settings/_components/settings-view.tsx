@@ -332,7 +332,7 @@ const DENSITY_LABEL: Record<AppSettings["appearanceDensity"], string> = { comfor
 const MOTION_LABEL: Record<AppSettings["appearanceMotion"], string> = { standard: "Standard", reduced: "Reduced" };
 const PROFILE_LABEL: Record<AppSettings["workspaceProfile"], string> = { individual: "Individual", company: "Company", agency: "Agency" };
 
-export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, billing = null, settings, connectors, workspaces, emailConnection = null, agentConnection = null }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; billing?: SettingsBillingView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null; agentConnection?: EffectiveAgentConnection | null }) {
+export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, billing = null, settings, connectors, workspaces, emailConnection = null, liveSendEnabled = true, agentConnection = null }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; billing?: SettingsBillingView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null; liveSendEnabled?: boolean; agentConnection?: EffectiveAgentConnection | null }) {
   const [cur, setCur] = useState("overview");
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
@@ -559,7 +559,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
               <div style={{ fontFamily: "var(--mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)", margin: "2px 2px 10px" }}>All connectors</div>
             )}
             <div className="conngrid">
-              {emailConnection && <ResendCard view={emailConnection} onOpen={() => openConnector("resend")} />}
+              {emailConnection && <ResendCard view={emailConnection} liveSendEnabled={liveSendEnabled} onOpen={() => openConnector("resend")} />}
               {connectors.connectors.map((v) => <ConnectorCard key={v.key} view={v} onOpen={() => openConnector(v.key)} />)}
             </div>
           </>
@@ -751,7 +751,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
       {selectedConnector && (
         <ConnectorModal view={selectedConnector} configured={connectors.configured} onClose={closeConnector} />
       )}
-      {resendModalOpen && emailConnection && <ResendModal view={emailConnection} onClose={closeConnector} />}
+      {resendModalOpen && emailConnection && <ResendModal view={emailConnection} liveSendEnabled={liveSendEnabled} onClose={closeConnector} />}
       {modelSel && <ModelModal model={modelSel} onClose={() => setModelSel(null)} />}
     </div>
   );
@@ -1550,8 +1550,24 @@ const EMAIL_PILL: Record<ConnectionView["status"], { kind: string; label: string
   error: { kind: "err", label: "Error" },
 };
 
-function ResendCard({ view, onOpen }: { view: ConnectionView; onOpen: () => void }) {
-  const pill = EMAIL_PILL[view.status];
+// Two independent switches gate a send: this workspace's connection (`view.enabled`,
+// which the modal toggles) and the deployment kill-switch ARC_SEND_ENABLED. Only the
+// first was ever visible, so a fully-configured-but-dark deployment read "Connected"
+// while every Confirm-send refused. When the connection is otherwise ready and the
+// deployment is dark, say THAT instead — it's the binding constraint.
+function emailPill(view: ConnectionView, liveSendEnabled: boolean): { kind: string; label: string; title?: string } {
+  if (view.status === "connected" && !liveSendEnabled) {
+    return {
+      kind: "warn",
+      label: "Not armed",
+      title: "Resend is configured, but live sending is turned off for this deployment (ARC_SEND_ENABLED). Approved campaigns won't send until it's armed.",
+    };
+  }
+  return EMAIL_PILL[view.status];
+}
+
+function ResendCard({ view, liveSendEnabled, onOpen }: { view: ConnectionView; liveSendEnabled: boolean; onOpen: () => void }) {
+  const pill = emailPill(view, liveSendEnabled);
   const cta = view.status === "not_configured" ? "Set up" : "Manage";
   const keyBadge = view.credentialPresent
     ? { label: "Workspace key", title: "Uses this workspace's own Resend key." }
@@ -1566,7 +1582,7 @@ function ResendCard({ view, onOpen }: { view: ConnectionView; onOpen: () => void
       </div>
       <div className="cdsc">Send approved campaign &amp; transactional email. Sending stays off until you turn it on.</div>
       <div className="cfoot">
-        <Pill kind={pill.kind}>{pill.label}</Pill>
+        <span title={pill.title}><Pill kind={pill.kind}>{pill.label}</Pill></span>
         {keyBadge ? <span className="badge" title={keyBadge.title}>{keyBadge.label}</span> : null}
         <span className="grow" />
         <span className="cb-open">{cta} →</span>
@@ -1575,12 +1591,12 @@ function ResendCard({ view, onOpen }: { view: ConnectionView; onOpen: () => void
   );
 }
 
-function ResendModal({ view, onClose }: { view: ConnectionView; onClose: () => void }) {
+function ResendModal({ view, liveSendEnabled, onClose }: { view: ConnectionView; liveSendEnabled: boolean; onClose: () => void }) {
   const [from, setFrom] = useState(view.fromEmail ?? "");
   const [apiKey, setApiKey] = useState("");
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<SaveStatus>(null);
-  const pill = EMAIL_PILL[view.status];
+  const pill = emailPill(view, liveSendEnabled);
   const keyPresent = view.status !== "not_configured";
   // A stored workspace key vs. falling back to the deployment env key — the send
   // path prefers the stored one, so say plainly which is in effect.
@@ -1647,6 +1663,14 @@ function ResendModal({ view, onClose }: { view: ConnectionView; onClose: () => v
         <div className="cxm-sec">
           <div className="cxm-label">Sending</div>
           <p className="cxm-hint">Turn on to let approved campaigns send through Resend. Off is a hard stop — the send path refuses immediately.</p>
+          {/* This toggle is per-workspace; ARC_SEND_ENABLED is the whole deployment.
+              Both must be on, so surface the second here rather than letting
+              Confirm-send be the first place anyone finds out. */}
+          {!liveSendEnabled ? (
+            <div className="cxm-note">
+              Live sending is turned off for this deployment, so nothing sends even with this connection on. Set <code>ARC_SEND_ENABLED=1</code> in the environment to arm it.
+            </div>
+          ) : null}
           <button className="btn gold" disabled={pending} onClick={() => run(() => setEmailConnectionEnabled({ enabled: !view.enabled, fromEmail: from.trim() || undefined }), view.enabled ? "Sending disabled." : "Sending enabled.")}>
             {view.enabled ? "Turn off sending" : "Turn on sending"}
           </button>

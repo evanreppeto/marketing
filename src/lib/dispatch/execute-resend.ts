@@ -210,10 +210,18 @@ export async function executeResendDispatch(
  * material for last-touch attribution on inbound leads. Best-effort: the send has
  * already succeeded, so a logging failure must never surface as a send failure,
  * and engagement_events is a tolerated-optional table.
+ *
+ * Best-effort means "never fails the send" — NOT "fails invisibly". This row is
+ * the only fuel the journey/attribution layer ever gets, so a lost write means a
+ * campaign that looks sent but is unattributable, with nothing anywhere to say
+ * why. Both failure shapes are logged: postgrest returns `{ error }` rather than
+ * rejecting, so the error check — not the catch — is what actually catches a
+ * constraint violation (e.g. engagement_events_subject_check, which needs at
+ * least one subject FK: a bare send with no campaign_id AND no contact_id).
  */
 async function recordOutboundTouch(client: SupabaseClient, dispatch: DispatchRow, providerMessageId: string) {
   try {
-    await client.from("engagement_events").insert({
+    const { error } = await client.from("engagement_events").insert({
       org_id: dispatch.org_id,
       event_type: "outbound_send",
       direction: "outbound",
@@ -226,8 +234,11 @@ async function recordOutboundTouch(client: SupabaseClient, dispatch: DispatchRow
       summary: "Campaign email dispatched via Resend.",
       metadata: { provider: "resend" },
     });
-  } catch {
-    // swallowed — see doc comment
+    if (error) {
+      console.warn(`[dispatch] engagement_events insert failed for dispatch ${dispatch.id} (${providerMessageId}): ${error.message}`);
+    }
+  } catch (err) {
+    console.warn(`[dispatch] engagement_events insert threw for dispatch ${dispatch.id} (${providerMessageId}): ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
