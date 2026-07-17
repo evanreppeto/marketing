@@ -7,7 +7,7 @@ describe("buildArcRunContract", () => {
     expect(buildArcRunContract({})).toMatchObject({
       mode: "ask",
       modeLabel: "Read only",
-      modelLabel: "Fast",
+      modelLabel: "Arc Spark",
       workspaceEffect: "No workspace changes",
       externalEffect: "No external sends or spend",
       approval: "Not needed for read-only work",
@@ -28,7 +28,7 @@ describe("buildArcRunContract", () => {
       agentTaskId: "abc12345-6789",
     })).toMatchObject({
       modeLabel: "Draft only",
-      modelLabel: "Deep",
+      modelLabel: "Arc Forge",
       workspaceEffect: "May create reviewable drafts",
       approval: "Required before any outbound action",
       receiptId: "ABC12345",
