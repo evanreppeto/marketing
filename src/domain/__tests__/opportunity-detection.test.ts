@@ -71,7 +71,7 @@ function weather(over: Partial<WeatherEventInput> = {}): WeatherEventInput {
 }
 
 describe("detectWeatherEventOpportunities", () => {
-  it("emits a geo-targeted storm-response opportunity from an active alert", () => {
+  it("emits a geo-targeted damage-response opportunity from an active alert", () => {
     const out = detectWeatherEventOpportunities([weather()], { now: NOW });
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({
@@ -82,15 +82,59 @@ describe("detectWeatherEventOpportunities", () => {
     });
     expect(out[0].title).toContain("Flash Flood Warning");
     expect(out[0].recommendedAction).toContain("Riverside / Brookfield");
-    // Evidence carries persona + event type/area/source URLs for the card.
+    // Evidence carries the weather facts for the card.
     expect(out[0].evidence).toMatchObject({
-      persona: "persona_homeowner_emergency",
       eventType: "Flash Flood Warning",
       area: "Riverside / Brookfield",
       severity: "warning",
       zipCodes: ["60546", "60513"],
     });
     expect(out[0].evidence.evidence_urls).toEqual(["https://www.weather.gov/lot/", "https://water.noaa.gov/"]);
+  });
+
+  // Every workspace shares this detector, so it must not name one of them or assume
+  // their customers. It used to say "puts BSR's emergency response in front of
+  // homeowners" — wrong company for all but one tenant, wrong customer for any
+  // commercial one.
+  it("writes tenant-neutral copy — no company name, no assumed customer type", () => {
+    const [o] = detectWeatherEventOpportunities([weather()], { now: NOW });
+    const copy = `${o.title} ${o.summary} ${o.recommendedAction}`;
+    expect(copy).not.toMatch(/BSR|Big Shoulders/i);
+    expect(copy).not.toMatch(/homeowner/i);
+    expect(o.summary).toContain("property owners");
+  });
+
+  it("omits the persona unless the caller supplies one from its own taxonomy", () => {
+    expect(detectWeatherEventOpportunities([weather()], { now: NOW })[0].evidence.persona).toBeUndefined();
+    expect(
+      detectWeatherEventOpportunities([weather()], { now: NOW, persona: "persona_facilities_lead" })[0].evidence.persona,
+    ).toBe("persona_facilities_lead");
+    // Blank/whitespace is not an audience.
+    for (const p of ["", "   ", null]) {
+      expect(detectWeatherEventOpportunities([weather()], { now: NOW, persona: p })[0].evidence.persona).toBeUndefined();
+    }
+  });
+
+  // The bug this filter exists for: two live Air Quality Alerts over Chicago would
+  // have been filed as damage opportunities asserting that response demand spikes.
+  it("skips real alerts that put no property in play", () => {
+    for (const eventType of ["Air Quality Alert", "Heat Advisory", "Excessive Heat Warning", "Dense Fog Advisory", "Rip Current Statement", "Beach Hazards Statement", "Air Stagnation Advisory"]) {
+      expect(detectWeatherEventOpportunities([weather({ id: "x", eventType })], { now: NOW })).toEqual([]);
+    }
+  });
+
+  it("keeps property-damaging weather across every vertical this connector serves", () => {
+    const damaging = [
+      "Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning", "High Wind Warning",
+      "Winter Storm Warning", "Ice Storm Warning", "Blizzard Warning", "Hurricane Warning",
+      "Tropical Storm Warning", "Storm Surge Warning", "Snow Squall Warning", "Freezing Rain Advisory",
+      // freeze -> burst pipes (plumbing/restoration); fire -> fire damage. Red Flag is
+      // NWS's fire-weather product and contains the word "fire" nowhere.
+      "Hard Freeze Warning", "Freeze Warning", "Extreme Cold Warning", "Fire Weather Watch", "Red Flag Warning",
+    ];
+    for (const eventType of damaging) {
+      expect(detectWeatherEventOpportunities([weather({ id: "x", eventType })], { now: NOW })).toHaveLength(1);
+    }
   });
 
   it("maps severity to urgency + confidence (advisory→low … emergency→high)", () => {
