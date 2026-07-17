@@ -39,7 +39,12 @@ describe("needsOperatorApproval", () => {
  * one predicate, and neither reconstructs the rule itself.
  */
 describe("the tab and its footer count the same thing", () => {
-  const read = (p: string) => readFileSync(join(__dirname, p), "utf8");
+  // Comments are stripped: these files discuss the old bug at length, and prose
+  // about a bug must not satisfy an assertion looking for the bug's absence. My
+  // first cut of these guards matched its own comment and passed against the
+  // reverted code.
+  const strip = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const read = (p: string) => strip(readFileSync(join(__dirname, p), "utf8"));
   const BOARD = read("campaigns-board.tsx");
   const PAGE = read("../page.tsx");
 
@@ -66,5 +71,33 @@ describe("the tab and its footer count the same thing", () => {
     for (const [name, src] of [["board", BOARD], ["page", PAGE]] as const) {
       expect(/=== "review"\s*\|\|\s*\w+ === "revise"/.test(src), name).toBe(false);
     }
+  });
+
+  /**
+   * The footer carries a SECOND fact the tab structurally cannot show: a package
+   * can be Approved and still hold an undecided piece, so it sits under "Approved"
+   * while its row reads "Approve 1 piece". Prod has two such packages.
+   *
+   * Both numbers were always real. The original bug was that they were worded as
+   * one claim ("Arc has 9 packages awaiting your approval" under a tab reading 4).
+   * Two facts, said as two things — never one claim with two answers.
+   */
+  it("counts undecided pieces from data, not from the rendered label", () => {
+    expect(PAGE).toMatch(/rows\.reduce\(\(sum, r\) => sum \+ r\.pendingCount, 0\)/);
+    expect(PAGE).toMatch(/rows\.filter\(\(r\) => r\.pendingCount > 0\)/);
+  });
+
+  it("keeps the package count and the piece count as separate claims", () => {
+    // The package half must still use the tab's own predicate...
+    expect(PAGE).toMatch(/rows\.filter\(\(r\) => needsOperatorApproval\(r\.tone\)\)/);
+    // ...and the two must not be joined into one "awaiting your approval" number.
+    expect(PAGE).not.toMatch(/awaiting your approval/);
+  });
+
+  it("does not claim an undecided piece is waiting on the operator", () => {
+    // A revision_requested piece has no decision but is waiting on Arc to
+    // re-draft. "Undecided" is true of it; "awaiting your decision" is not.
+    expect(PAGE).toMatch(/undecided/);
+    expect(PAGE).not.toMatch(/pieces?[^\n]{0,40}await(s|ing)? your/i);
   });
 });

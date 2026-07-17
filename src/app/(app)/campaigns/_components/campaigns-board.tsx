@@ -17,6 +17,8 @@ export type CampaignRow = {
   statusLabel: string;
   next: string;
   nextTone: "" | "go" | "warn";
+  /** Deliverables on this package with no decision recorded yet. */
+  pendingCount: number;
   audience: string;
   dot: string;
   channels: string;
@@ -68,6 +70,9 @@ function buildOptimisticCampaign(id: string, v: NewCampaignInput): CampaignRow {
     brief: v.restorationFocus || "Campaign package",
     tone: "draft",
     statusLabel: "Draft",
+    // A package created seconds ago has no deliverables yet, so nothing is
+    // undecided — Arc drafts them after this row appears.
+    pendingCount: 0,
     next: "Draft in progress",
     nextTone: "",
     audience,

@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { getOrgPersonaOptions, type PersonaOption } from "../personas/read-model";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 export type PersonaTone = "amber" | "green" | "red" | "blue";
@@ -48,6 +49,14 @@ export type PersonaIntelligenceData =
   | {
       status: "live";
       stats: PersonaStat[];
+      /**
+       * The workspace's persona roster — who it sells to. Distinct from
+       * `personas` below, which is per-record snapshot memory and can be empty
+       * while the roster is full. This route is Arc-only, and Arc is told to use
+       * it to decide "which persona to target": without the roster it was being
+       * asked to choose from a list it never received.
+       */
+      roster: PersonaOption[];
       personas: PersonaTrackerRow[];
       contentSignals: PersonaContentSignal[];
       guardrailSignals: PersonaContentSignal[];
@@ -227,14 +236,26 @@ export async function getPersonaIntelligenceData(
     const guardrailRows = (guardrails.data ?? []) as GuardrailRuleRow[];
     const personas = buildPersonaRows(snapshotRows, knowledgeRows);
 
+    // Who the workspace sells to. persona_snapshots is per-record memory and is
+    // empty here; the roster is not. Arc reported "0 tracked personas ... persona
+    // intelligence is running blind" on an operator-facing card because this
+    // response said 0 without saying 0 OF WHAT, while 10 personas were defined.
+    const roster = await getOrgPersonaOptions(orgId);
+
     return {
       status: "live",
       stats: [
-        { label: "Tracked personas", value: personas.length, delta: "Supabase persona memory" },
+        // Roster first: it is the answer to "which persona", and it makes the
+        // zero below legible instead of alarming.
+        { label: "Defined personas", value: roster.length, delta: "The workspace's persona roster" },
+        // Renamed delta: "Supabase persona memory" read as "we have no personas".
+        // It means no RECORD has a current snapshot — a different, smaller claim.
+        { label: "Tracked personas", value: personas.length, delta: "Records with a current persona snapshot" },
         { label: "Ready to convert", value: personas.filter((persona) => persona.score >= 85).length, delta: "High confidence" },
         { label: "Partner candidates", value: personas.filter((persona) => persona.segment === "Partner").length, delta: "Referral focus" },
         { label: "Content briefs", value: knowledgeRows.filter((entry) => isContentSignal(entry.entry_type)).length, delta: "Knowledge feed" },
       ],
+      roster,
       personas,
       contentSignals: knowledgeRows.filter((entry) => isContentSignal(entry.entry_type)).slice(0, 8).map(mapKnowledgeSignal),
       guardrailSignals: guardrailRows.slice(0, 8).map(mapGuardrailSignal),
