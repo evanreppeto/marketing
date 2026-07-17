@@ -12,7 +12,9 @@ import {
   connectorMatchesIndustry,
   describeConnectorCost,
   findConnector,
+  formatFeedsInput,
   formatServicePointsInput,
+  parseFeedsInput,
   parseServicePointsInput,
   parseWeatherServiceArea,
   type ConnectorCostTier,
@@ -224,6 +226,12 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
     credLabel: "",
     credHint: "No credential — reads live NWS/NOAA alerts (public API) and proposes storm-response opportunities. Configure the states to watch.",
   },
+  "rss-signals": {
+    c: "#8a9bd8",
+    l: "Fd",
+    credLabel: "",
+    credHint: "No credential — reads the public RSS/Atom feeds you list and proposes a timely-response opportunity per fresh item. Add the feed URLs to watch.",
+  },
   "reviews-signals": {
     c: "#e0a94a",
     l: "Rv",
@@ -283,7 +291,9 @@ const CONNECTOR_KIND_LABEL: Record<string, string> = {
 //   csv    — a comma-separated list
 //   points — one "lat,lng [label]" per line (a point contains a comma, so it can't
 //            live in a csv field; this is why points were unreachable before)
-type ConfigFieldKind = "text" | "csv" | "points";
+//   feeds  — one feed URL per line, optional "kind:" prefix + label (a URL can't
+//            live in a csv field for the same reason)
+type ConfigFieldKind = "text" | "csv" | "points" | "feeds";
 type ConfigField = { key: string; kind: ConfigFieldKind; label: string; placeholder: string; hint: string };
 
 const CONFIG_FIELDS: Record<string, ConfigField[]> = {
@@ -308,6 +318,22 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       label: "Audience persona (optional)",
       placeholder: "persona_homeowner_emergency",
       hint: "A persona key from your workspace's own taxonomy — who a damage-response campaign should target. Leave blank and the opportunity still carries the weather evidence; you pick the audience when you draft.",
+    },
+  ],
+  "rss-signals": [
+    {
+      key: "feeds",
+      kind: "feeds",
+      label: "Feeds to watch",
+      placeholder: "brand: https://www.google.com/alerts/feeds/…  My brand alerts\ncompetitor: https://competitor.com/blog/feed\nhttps://news.example.com/rss  Industry news",
+      hint: "One feed URL per line. Optional prefix — brand:, competitor:, or industry: (default) — sets the angle, and any text after the URL is a label. A fresh item in any of them becomes a timely-response opportunity.",
+    },
+    {
+      key: "keywords",
+      kind: "csv",
+      label: "Only surface items mentioning… (optional)",
+      placeholder: "roof, storm, water damage",
+      hint: "Comma-separated. When set, only feed items mentioning one of these words become opportunities — the way to tame a noisy industry feed. Leave blank to surface every fresh item.",
     },
   ],
   "webhook-dispatch": [
@@ -1623,12 +1649,36 @@ function CsvImportSection({ view }: { view: ConnectorView }) {
   );
 }
 
+// One-value-per-line fields (points, feeds) share a shape: a stacked textarea, a
+// parse that reports unreadable lines, and a save that stores the parsed value.
+// Each kind supplies its own parse/format + error hint so the editor stays generic.
+type LineField = {
+  toText: (v: unknown) => string;
+  parse: (text: string) => { value: unknown; invalid: string[] };
+  errorHint: string;
+};
+const LINE_FIELDS: Record<"points" | "feeds", LineField> = {
+  points: {
+    toText: (v) => formatServicePointsInput(parseWeatherServiceArea({ points: v }).points),
+    parse: (text) => { const r = parseServicePointsInput(text); return { value: r.points, invalid: r.invalid }; },
+    errorHint: "each line needs lat,lng (e.g. 41.88,-87.63 Chicago)",
+  },
+  feeds: {
+    toText: (v) => formatFeedsInput(parseFeedsInput(typeof v === "string" ? v : "").feeds),
+    parse: (text) => { const r = parseFeedsInput(text); return { value: formatFeedsInput(r.feeds), invalid: r.invalid }; },
+    errorHint: "each line needs a feed URL (e.g. competitor: https://blog.example.com/feed)",
+  },
+};
+function isLineField(kind: ConfigFieldKind): kind is "points" | "feeds" {
+  return kind === "points" || kind === "feeds";
+}
+
 // Per-workspace, non-secret config editor inside the connector popup (a signal
-// source's watched locations, a channel's endpoint, an import's default persona).
+// source's watched locations/feeds, a channel's endpoint, an import's default persona).
 function configToInput(config: Record<string, unknown>, field: ConfigField): string {
   const v = config[field.key];
   if (field.kind === "csv") return Array.isArray(v) ? v.filter((x) => typeof x === "string").join(", ") : "";
-  if (field.kind === "points") return formatServicePointsInput(parseWeatherServiceArea({ points: v }).points);
+  if (isLineField(field.kind)) return LINE_FIELDS[field.kind].toText(v);
   return typeof v === "string" ? v : "";
 }
 
@@ -1637,16 +1687,16 @@ function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: C
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<SaveStatus>(null);
 
-  // Only meaningful for `points`: the lines we couldn't read. Shown rather than
-  // dropped — silently discarding a typo'd coordinate would leave the operator
-  // believing they're watching somewhere they aren't.
-  const invalid = field.kind === "points" ? parseServicePointsInput(value).invalid : [];
+  const line = isLineField(field.kind) ? LINE_FIELDS[field.kind] : null;
+  // Lines we couldn't read. Shown rather than dropped — silently discarding a typo'd
+  // entry leaves the operator believing they're watching something they aren't.
+  const invalid = line ? line.parse(value).invalid : [];
 
   async function save() {
     setPending(true); setStatus(null);
     let next: unknown;
     if (field.kind === "csv") next = value.split(",").map((s) => s.trim()).filter(Boolean);
-    else if (field.kind === "points") next = parseServicePointsInput(value).points;
+    else if (line) next = line.parse(value).value;
     else next = value.trim();
     const res = await saveConnectorConfig({ connectorKey: view.key, config: { [field.key]: next } });
     setPending(false);
@@ -1657,8 +1707,8 @@ function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: C
     <div className="cxm-sec">
       <div className="cxm-label">{field.label}</div>
       <p className="cxm-hint">{field.hint}</p>
-      <div className={field.kind === "points" ? "cxm-field stack" : "cxm-field"}>
-        {field.kind === "points" ? (
+      <div className={line ? "cxm-field stack" : "cxm-field"}>
+        {line ? (
           <textarea
             className="inp"
             rows={4}
@@ -1674,9 +1724,9 @@ function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: C
           {pending ? "Saving…" : "Save"}
         </button>
       </div>
-      {invalid.length > 0 ? (
+      {invalid.length > 0 && line ? (
         <div className="cxm-statusline">
-          <Status status={{ tone: "err", text: `Can't read: ${invalid.join(" · ")} — each line needs lat,lng (e.g. 41.88,-87.63 Chicago).` }} />
+          <Status status={{ tone: "err", text: `Can't read: ${invalid.join(" · ")} — ${line.errorHint}.` }} />
         </div>
       ) : null}
       {status ? <div className="cxm-statusline"><Status status={status} /></div> : null}

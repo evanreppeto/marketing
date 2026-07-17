@@ -44,6 +44,9 @@ export const OPPORTUNITY_KINDS = [
   "attribution_gap", // revenue that can't be learned from (unassigned persona, data holes)
   // Emitted by a detector in src/domain/opportunity-detection.ts:
   "next_iteration", // a campaign worth repeating — the inbox calls it "Repeat a winner"
+  // Emitted by the rss-signals connector: a fresh item in a watched feed (brand
+  // mention, competitor post, industry news) worth a timely response.
+  "news_signal",
 ] as const;
 
 export type OpportunityKind = (typeof OPPORTUNITY_KINDS)[number];
@@ -66,6 +69,7 @@ export const OPPORTUNITY_SUBJECT_TYPES = [
   "campaign", // the source campaign a next_iteration opportunity learned from
   "weather_event", // a weather alert row, not a CRM record
   "competitor_signal", // a competitor activity signal, not a CRM record
+  "feed_item", // a syndicated feed item (RSS/Atom), not a CRM record
 ] as const;
 
 export type OpportunitySubjectType = (typeof OPPORTUNITY_SUBJECT_TYPES)[number];
