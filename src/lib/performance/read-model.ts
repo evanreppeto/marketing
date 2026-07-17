@@ -240,11 +240,19 @@ export async function getPerformanceReadModel(
     const eventRows = optionalEventsMissing ? [] : ((events.data ?? []) as EngagementEventRow[]);
 
     const wonOutcomes = outcomeRows.filter((outcome) => ["won", "closed_won", "paid"].includes(outcome.status ?? ""));
-    const linkedRevenue = outcomeRows.reduce((sum, outcome) => sum + (outcome.gross_revenue_cents ?? 0), 0);
+    // Won revenue counts won outcomes. Both sums below used to read outcomeRows —
+    // every status — while the tile beside them captioned itself
+    // "${wonOutcomes.length} won/paid outcomes": the number and its own label were
+    // computed from different sets. It has been invisible because revenue happens
+    // to be booked only on won/paid rows today, so the two agree by luck. The
+    // moment anyone records what a LOST deal was worth — ordinary CRM practice —
+    // the headline revenue silently inflates, and a lost deal is exactly the kind
+    // of thing you want the value of.
+    const linkedRevenue = wonOutcomes.reduce((sum, outcome) => sum + (outcome.gross_revenue_cents ?? 0), 0);
     const now = Date.now();
     const leadPeriods = sumTwoPeriods(leadRows.map((lead) => ({ at: lead.created_at, weight: 1 })), now, rangeDays);
     const revenuePeriods = sumTwoPeriods(
-      outcomeRows.map((outcome) => ({ at: outcome.closed_at ?? outcome.created_at, weight: outcome.gross_revenue_cents ?? 0 })),
+      wonOutcomes.map((outcome) => ({ at: outcome.closed_at ?? outcome.created_at, weight: outcome.gross_revenue_cents ?? 0 })),
       now,
       rangeDays,
     );
