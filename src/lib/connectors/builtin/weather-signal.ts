@@ -33,7 +33,10 @@ export async function detectWeatherOpportunities(input: WeatherDetectInput): Pro
   const area = parseWeatherServiceArea(input.config);
   const source = input.source ?? nwsWeatherEventSource(area);
   const events = await source.listActiveEvents(now);
-  return detectWeatherEventOpportunities(events, { now });
+  // The audience comes from the workspace's own config — the detector never invents
+  // one. Absent is fine: the opportunity still carries the weather facts.
+  const persona = typeof input.config?.persona === "string" ? input.config.persona : null;
+  return detectWeatherEventOpportunities(events, { now, persona });
 }
 
 export const weatherSignalConnector: SignalSourceConnector = {

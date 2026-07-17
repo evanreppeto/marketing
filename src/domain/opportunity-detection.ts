@@ -138,10 +138,45 @@ export type WeatherEventInput = {
   sourceUrls?: string[];
 };
 
-export type WeatherDetectionConfig = { now: string };
+export type WeatherDetectionConfig = {
+  now: string;
+  /**
+   * The audience a damage-response flight should target, from the WORKSPACE's own
+   * persona taxonomy — supplied by the caller, never invented here.
+   *
+   * This used to be a hardcoded `persona_homeowner_emergency` ("BSR's
+   * emergency-response persona"). Personas are per-org now, so for any other tenant
+   * that was a dangling reference to a persona they don't have. A pure detector
+   * cannot know who a workspace sells to; omitted is the honest answer, and the
+   * opportunity carries the weather facts either way.
+   */
+  persona?: string | null;
+};
 
-/** BSR's emergency-response persona — the audience a storm-response flight targets. */
-export const WEATHER_EVENT_PERSONA = "persona_homeowner_emergency";
+/**
+ * Weather that puts property in play — the only kind this connector exists for.
+ *
+ * NWS also publishes Air Quality, Heat, Dense Fog, Rip Current and Beach Hazard
+ * alerts. They are real, but nothing about them damages a building, and the
+ * opportunity written below asserts that response demand spikes — so filing one is a
+ * fabricated claim wearing genuine NWS evidence, which is the hardest kind to catch.
+ * Two live Air Quality Alerts over Chicago are what surfaced this.
+ *
+ * Deliberately broad across the connector's verticals rather than "storms": a roofer
+ * cares about hail and wind, a plumber about a hard freeze bursting pipes, a
+ * restoration firm about fire and flood. Weather damages property regardless of who
+ * gets called to fix it — which is the whole point of a tenant-agnostic connector.
+ * Matched word-boundaried on the NWS event name, so "Ice Storm Warning" hits and
+ * "Air Quality Alert" does not. `red flag` is spelled out because NWS's fire-weather
+ * product is "Red Flag Warning" — the word "fire" appears nowhere in it.
+ */
+const PROPERTY_DAMAGE_EVENT =
+  /\b(tornado|thunderstorm|hail|flood|flooding|wind|storm|squall|hurricane|typhoon|tropical|blizzard|ice|icy|freezing|freeze|snow|sleet|winter|cold|surge|tsunami|fire)\b|red flag/i;
+
+/** True when an NWS event name describes weather that can damage property. */
+export function isPropertyDamageWeather(eventType: string | null | undefined): boolean {
+  return PROPERTY_DAMAGE_EVENT.test((eventType ?? "").trim());
+}
 
 const WEATHER_SEVERITY_RANK: Record<WeatherSeverity, number> = {
   advisory: 1,
@@ -166,15 +201,21 @@ function cleanUrls(urls: string[] | undefined): string[] {
 }
 
 /**
- * Weather-event opportunities: active storm/flood/hail alerts in the coverage
- * area. Severity drives both urgency (warning+ = high) and confidence. Expired
- * alerts (endsAt in the past) are skipped so the inbox only shows live weather.
+ * Weather-event opportunities: active property-damaging alerts in the coverage area.
+ * Severity drives both urgency (warning+ = high) and confidence. Expired alerts
+ * (endsAt in the past) and non-damaging alerts (see isPropertyDamageWeather) are
+ * skipped, so the inbox only shows live weather this business could be called out to.
+ *
+ * The copy is deliberately tenant-neutral: "property owners", not "homeowners", and
+ * no company name. Every workspace shares this detector — a roofer, a plumber, a
+ * property manager and an insurer all read the same card.
  */
 export function detectWeatherEventOpportunities(
   events: WeatherEventInput[],
   config: WeatherDetectionConfig,
 ): OpportunityCandidate[] {
   const now = Date.parse(config.now);
+  const persona = typeof config.persona === "string" && config.persona.trim() ? config.persona.trim() : null;
   const out: OpportunityCandidate[] = [];
   for (const ev of events) {
     if (!ev.id) continue;
@@ -184,6 +225,7 @@ export function detectWeatherEventOpportunities(
     }
     const severity: WeatherSeverity = WEATHER_SEVERITY_RANK[ev.severity] ? ev.severity : "advisory";
     const eventType = ev.eventType?.trim() || "Weather alert";
+    if (!isPropertyDamageWeather(eventType)) continue; // real alert, no property in play
     const area = ev.area?.trim() || "the coverage area";
     const zips = (ev.zipCodes ?? []).filter((z) => typeof z === "string" && z.trim().length > 0);
 
@@ -193,12 +235,12 @@ export function detectWeatherEventOpportunities(
       subjectId: ev.id,
       title: `${eventType} — ${area}`,
       summary:
-        `${eventType} in effect for ${area}. Storm-response demand typically spikes in the affected area within days; ` +
-        `a geo-targeted campaign puts BSR's emergency response in front of homeowners before competitors reach them.`,
+        `${eventType} in effect for ${area}. Damage-response demand typically spikes in the affected area within days; ` +
+        `a geo-targeted campaign reaches affected property owners before competitors do.`,
       confidence: WEATHER_SEVERITY_CONFIDENCE[severity],
       urgency: weatherUrgency(severity),
       evidence: {
-        persona: WEATHER_EVENT_PERSONA,
+        ...(persona ? { persona } : {}),
         eventType,
         area,
         severity,
@@ -207,7 +249,7 @@ export function detectWeatherEventOpportunities(
         ...(ev.endsAt ? { endsAt: ev.endsAt } : {}),
         evidence_urls: cleanUrls(ev.sourceUrls),
       },
-      recommendedAction: `Launch a geo-targeted storm-response campaign to ${area} homeowners`,
+      recommendedAction: `Launch a geo-targeted damage-response campaign for ${area}`,
       recommendedCampaignType: "storm_response",
     });
   }
