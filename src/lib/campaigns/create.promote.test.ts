@@ -59,6 +59,19 @@ function promote(supabase: MockSupabase, body: string | null) {
   });
 }
 
+function promoteEmail(supabase: MockSupabase, body: string | null) {
+  return promoteAssetToCampaign({
+    operator: "op",
+    campaignId: "camp-1",
+    assetType: "email",
+    title: "Referral email",
+    body,
+    mediaUrl: null,
+    client: supabase,
+    tenant: { org_id: "org-1", workspace_id: "workspace-1" },
+  });
+}
+
 function promoteMocks(profile: MockResponse) {
   return createSupabaseQueryMock({
     business_profiles: profile,
@@ -146,5 +159,39 @@ describe("promoteAssetToCampaign", () => {
     const [asset, gate] = inserts(supabase);
     expect(asset.dispatch_locked).toBe(true);
     expect(gate.status).toBe("pending_approval");
+  });
+
+  it("resolves an email CTA placeholder to a link to the brand site and persists THAT body", async () => {
+    const supabase = promoteMocks({ data: profileRow({ website_url: "https://bigshouldersrestoration.com" }), error: null });
+
+    await promoteEmail(supabase, "Hi Jordan,\n\n[ Book a no-obligation assessment ]");
+
+    const [asset] = inserts(supabase);
+    // dispatch/stampCampaignLinks has a real link to tag now, instead of a dead placeholder.
+    expect(asset.draft_body).toContain("Book a no-obligation assessment: https://bigshouldersrestoration.com");
+  });
+
+  it("flags (not blocks) an email CTA when the brand site is unset — prod today", async () => {
+    // website_url null is exactly BSR's current state. The asset still lands in the
+    // queue; it carries a compliance flag so the operator sees the CTA has nowhere to go.
+    const supabase = promoteMocks({ data: profileRow({ website_url: null }), error: null });
+
+    await promoteEmail(supabase, "Hi Jordan,\n\n[ Book a no-obligation assessment ]");
+
+    const [asset, gate] = inserts(supabase);
+    expect(asset.draft_body).toContain("[ Book a no-obligation assessment ]"); // unchanged — no link to insert
+    expect(gate.status).toBe("pending_approval"); // flagged, not blocked
+    expect(asset.audit_payload).toHaveProperty("guardrail");
+    expect((asset.audit_payload as { guardrail: { flags: string[] } }).guardrail.flags).toContain("cta_missing_destination");
+    expect(gate.compliance_notes).toMatch(/brand website|destination/i);
+  });
+
+  it("does not touch a social_ad CTA — only click channels get links", async () => {
+    const supabase = promoteMocks({ data: profileRow({ website_url: "https://bigshouldersrestoration.com" }), error: null });
+
+    await promote(supabase, "Big Shoulders Restoration\n\n[ Book a no-obligation assessment ]");
+
+    const [asset] = inserts(supabase);
+    expect(asset.draft_body).toBe("Big Shoulders Restoration\n\n[ Book a no-obligation assessment ]");
   });
 });
