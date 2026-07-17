@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 
 import { createCampaign, type NewCampaignInput } from "../actions";
 import { NewCampaignModal } from "./new-campaign-modal";
+import { needsOperatorApproval, type CampaignTone } from "./tone";
 
-export type CampaignTone = "live" | "review" | "revise" | "approved" | "draft" | "archived";
+export type { CampaignTone } from "./tone";
 
 export type CampaignRow = {
   id: string;
@@ -42,7 +43,7 @@ const TABS: { key: string; label: string }[] = [
 
 function inTab(tone: CampaignTone, tab: string): boolean {
   if (tab === "all") return true;
-  if (tab === "needs") return tone === "review" || tone === "revise";
+  if (tab === "needs") return needsOperatorApproval(tone);
   return tone === tab;
 }
 
@@ -102,7 +103,7 @@ export function CampaignsBoard({
     const by = (fn: (t: CampaignTone) => boolean) => allRows.filter((r) => fn(r.tone)).length;
     return {
       all: allRows.length,
-      needs: by((t) => t === "review" || t === "revise"),
+      needs: by(needsOperatorApproval),
       live: by((t) => t === "live"),
       approved: by((t) => t === "approved"),
       draft: by((t) => t === "draft"),

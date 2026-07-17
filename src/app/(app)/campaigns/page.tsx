@@ -3,6 +3,7 @@ import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/
 import { getOrgPersonaOptions } from "@/lib/personas/read-model";
 
 import { CampaignsBoard, type CampaignRow, type CampaignTone } from "./_components/campaigns-board";
+import { needsOperatorApproval } from "./_components/tone";
 
 export const metadata = { title: "Campaigns — Arc" };
 
@@ -111,7 +112,11 @@ export default async function CampaignsPage() {
   ]);
   const rows = list.status === "live" ? list.campaigns.map(toRow) : [];
 
-  const pendingTotal = rows.reduce((sum, r) => sum + (r.nextTone === "go" && /Approve/.test(r.next) ? 1 : 0), 0);
+  // The same rule the "Needs approval" tab uses — this line is a summary of that
+  // tab and sits directly beneath it, so it must not answer differently. It used
+  // to regex the rendered next-action label, which both disagreed (9 vs 4) and
+  // would have silently zeroed if that label were reworded.
+  const pendingTotal = rows.filter((r) => needsOperatorApproval(r.tone)).length;
   const arcNote =
     pendingTotal > 0
       ? `Arc has ${pendingTotal} package${pendingTotal === 1 ? "" : "s"} awaiting your approval`
