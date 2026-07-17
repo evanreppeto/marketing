@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -29,6 +28,8 @@ import {
   Copy,
   Database,
   FileText,
+  Gauge,
+  Hammer,
   LoaderCircle,
   LayoutTemplate,
   Link2,
@@ -49,6 +50,7 @@ import {
   Share2,
   ShieldCheck,
   Slash,
+  Sparkles,
   Smartphone,
   Square,
   Target,
@@ -76,7 +78,7 @@ import {
   type SharePermission,
   type ShareVisibility,
 } from "@/domain";
-import { CONTEXT_WINDOW_TOKENS, contextUsage } from "@/lib/arc-chat/context-usage";
+import { contextUsage } from "@/lib/arc-chat/context-usage";
 import type {
   ArcAttachment,
   ArcMessage,
@@ -87,8 +89,9 @@ import type { MentionGroup } from "@/lib/arc-chat/mention-search";
 import type { ArcThreadGroupVM } from "@/lib/arc-chat/read-model";
 import { filterThreadGroups } from "@/lib/arc-chat/thread-filter";
 import type { ArcWaitingOpp } from "@/lib/arc-chat/waiting-opps";
+import { resolveArcModelRoute, type ArcModelPreference } from "@/lib/arc-chat/model-routing";
 import { buildArcRunContract, type ArcRunContract } from "@/lib/arc-chat/run-contract";
-import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
+import { buildArcRunProfile, inferArcRunIntent } from "@/lib/arc-chat/run-profile";
 
 import {
   archiveArcConversationAction,
@@ -237,7 +240,7 @@ const DEMO_RECALL: ArcRecall[] = [
 ];
 
 type DemoTurn = { id: string; role: "operator" | "arc"; body: string; outcome?: "complete" | "canceled"; mode?: ArcMode; command?: string | null };
-type ComposerMenu = "tools" | "model" | "mode" | "context" | "mentions" | "commands" | null;
+type ComposerMenu = "tools" | "model" | "mentions" | "commands" | null;
 type RunKind = "think" | "search" | "match" | "draft" | "media" | "tool";
 type RunRow = {
   id: string;
@@ -249,23 +252,13 @@ type RunRow = {
   kind: RunKind;
 };
 
-const MODEL_OPTIONS: Array<{ id: ArcRoute; label: string; description: string }> = [
-  { id: "fast", label: "Fast", description: "Quick answers and everyday work" },
-  { id: "standard", label: "Deep", description: "Complex planning and careful reasoning" },
+const MODEL_OPTIONS: Array<{ id: ArcModelPreference; label: string; description: string }> = [
+  { id: "auto", label: "Arc Auto", description: "Chooses Spark or Forge for every prompt" },
+  { id: "fast", label: "Arc Spark", description: "Fast answers and everyday requests" },
+  { id: "standard", label: "Arc Forge", description: "Deeper reasoning for complex work" },
 ];
 
-const MODE_OPTIONS: Array<{ id: ArcMode; label: string; description: string }> = [
-  { id: "ask", label: "Ask", description: "Answer without changing workspace data" },
-  { id: "draft", label: "Draft", description: "Prepare work and keep it behind approval" },
-  { id: "act", label: "Act", description: "Use workspace tools; outbound remains locked" },
-];
-
-const CONTEXT_OPTIONS = [
-  { id: "workspace", label: "Workspace knowledge", icon: Brain },
-  { id: "brand", label: "Brand profile", icon: Bookmark },
-  { id: "crm", label: "CRM records", icon: Users },
-  { id: "campaigns", label: "Campaigns and assets", icon: MessageSquareText },
-] as const;
+const ARC_CONTEXT_SCOPES = ["workspace", "brand", "crm", "campaigns"];
 
 const COMMAND_OPTIONS: Array<{ id: string; label: string; description: string; mode: ArcMode }> = [
   { id: "find-leads", label: "Find leads", description: "Search and rank opportunities", mode: "act" },
@@ -273,6 +266,22 @@ const COMMAND_OPTIONS: Array<{ id: string; label: string; description: string; m
   { id: "draft-campaign", label: "Draft campaign", description: "Build a multi-channel package", mode: "draft" },
   { id: "summarize", label: "Summarize", description: "Condense the selected context", mode: "ask" },
 ];
+
+function inferComposerMode(request: string, command: string | null): ArcMode {
+  const commandMode = COMMAND_OPTIONS.find((option) => option.id === command)?.mode;
+  if (commandMode) return commandMode;
+
+  const intent = inferArcRunIntent({ request });
+  if (intent === "create") return "draft";
+  if (intent === "action") return "act";
+  return "ask";
+}
+
+function ArcModelIcon({ model, size }: { model: ArcModelPreference; size: number }) {
+  if (model === "auto") return <Sparkles size={size} />;
+  if (model === "fast") return <Gauge size={size} />;
+  return <Hammer size={size} />;
+}
 
 function formatToolName(name: string) {
   return name.replace(/[._-]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
@@ -647,7 +656,7 @@ function RunTrace({
       data-state={stopping ? "stopping" : hasError ? "error" : "running"}
     >
       <div className="arc-run-live-head">
-        <span className="arc-run-spinner arc-luma" aria-hidden="true"><span /><span /></span>
+        <ThinkingIndicator />
         <span><b aria-hidden="true" className={!stopping && !hasError ? "arc-shimmer" : undefined}>{stopping ? "Stopping safely…" : hasError ? `Needs attention after ${elapsedLabel}` : liveText?.trim() ? `Responding · ${elapsedLabel}` : `Thinking · ${elapsedLabel}`}</b><span className="sr-only" role="status" aria-live="polite">{stopping ? "Arc is stopping safely" : hasError ? "Arc needs attention" : "Arc is working"}</span></span>
         <button type="button" className="arc-stop" aria-label="Stop Arc" onClick={onStop} disabled={!onStop || stopping}><Square size={11} /> {stopping ? "Stopping…" : "Stop"}</button>
       </div>
@@ -701,10 +710,10 @@ function RunTrace({
   );
 }
 
-function ArcAvatar() {
+function ThinkingIndicator() {
   return (
-    <span className="arc-avatar">
-      <Image src="/brand/arc-mark.png" alt="" width={30} height={30} priority />
+    <span className="arc-thinking-indicator" aria-hidden="true">
+      <Sparkles />
     </span>
   );
 }
@@ -802,7 +811,6 @@ function AssistantMessage({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
     >
-      <ArcAvatar />
       <div className="arc-assistant-content">
         <div className="arc-assistant-meta"><b>Arc</b>{time ? <span>{time}</span> : null}</div>
         {children}
@@ -1102,7 +1110,6 @@ function RecallRow({ recall }: { recall: ArcRecall[] }) {
 function QuestionPrompt({ question, onChoose, onDismiss }: { question: ArcQuestion; onChoose: (value: string) => void; onDismiss: () => void }) {
   return (
     <div className="arc-question">
-      <ArcAvatar />
       <div><b>{question.prompt}</b><div className="arc-question-options">{question.options.map((option, index) => <button type="button" key={`${option}-${index}`} onClick={() => onChoose(option)}>{option}</button>)}</div></div>
       <button type="button" className="arc-icon-button" onClick={onDismiss} aria-label="Dismiss question"><X size={15} /></button>
     </div>
@@ -1233,7 +1240,6 @@ function ArcLauncher({ brandName, waiting, onPick }: { brandName: string; waitin
 
   return (
     <div className="arc-launcher">
-      <ArcAvatar />
       <h2>{greeting}, {brandName}</h2>
       <p>Ask me to find an audience, draft a campaign, or check a signal. I’ll show the work — and nothing goes out until you approve it.</p>
       {waiting && (waiting.approvals > 0 || waiting.opportunities > 0) ? (
@@ -1705,12 +1711,12 @@ export function ArcView({
   const [isSending, startSend] = useTransition();
   const [draft, setDraft] = useState(initialDraft ?? "");
   const [mode, setMode] = useState<ArcMode>("ask");
+  const [modelPreference, setModelPreference] = useState<ArcModelPreference>("auto");
   const [route, setRoute] = useState<ArcRoute>("fast");
   const [composerMenu, setComposerMenu] = useState<ComposerMenu>(null);
   const [selectedMentions, setSelectedMentions] = useState<ArcMention[]>([]);
   const [attachments, setAttachments] = useState<ArcAttachment[]>([]);
   const [command, setCommand] = useState<string | null>(null);
-  const [contextScopes, setContextScopes] = useState<string[]>(["workspace", "brand", "crm", "campaigns"]);
   const [uploading, setUploading] = useState(false);
   const [composerNotice, setComposerNotice] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -1900,8 +1906,16 @@ export function ArcView({
     ? contextUsage(messages.map((message) => message.body ?? ""))
     : { tokens: 4_320, pct: 18, level: "ok" as const };
   const mentionItems = mentionGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label }))).slice(0, 12);
-  const currentModel = MODEL_OPTIONS.find((option) => option.id === route) ?? MODEL_OPTIONS[0];
-  const currentMode = MODE_OPTIONS.find((option) => option.id === mode) ?? MODE_OPTIONS[0];
+  const currentModel = MODEL_OPTIONS.find((option) => option.id === modelPreference) ?? MODEL_OPTIONS[0];
+  const contextScopes = ARC_CONTEXT_SCOPES;
+
+  const updateDraft = (value: string) => {
+    setDraft(value);
+    setMode(inferComposerMode(value, command));
+    if (modelPreference === "auto") {
+      setRoute(resolveArcModelRoute({ preference: modelPreference, request: value, command }));
+    }
+  };
 
   const closeComposerMenu = (restoreFocus = false) => {
     setComposerMenu(null);
@@ -1945,12 +1959,17 @@ export function ArcView({
   const chooseCommand = (nextCommand: (typeof COMMAND_OPTIONS)[number]) => {
     setCommand(nextCommand.id);
     setMode(nextCommand.mode);
+    if (modelPreference === "auto") {
+      setRoute(resolveArcModelRoute({ preference: modelPreference, request: draft, command: nextCommand.id }));
+    }
     setDraft((current) => current.replace(/^\s*\/\s*$/, ""));
     closeComposerMenu(true);
   };
 
-  const toggleContextScope = (scope: string) => {
-    setContextScopes((current) => current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope]);
+  const chooseModel = (preference: ArcModelPreference) => {
+    setModelPreference(preference);
+    setRoute(resolveArcModelRoute({ preference, request: draft, command }));
+    closeComposerMenu(true);
   };
 
   const handleAttachmentFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1989,12 +2008,16 @@ export function ArcView({
   const submitDraft = () => {
     const body = draft.trim();
     if (!body || isSending || demoPending || uploading) return;
+    const resolvedMode = inferComposerMode(body, command);
+    const resolvedRoute = resolveArcModelRoute({ preference: modelPreference, request: body, command });
+    setMode(resolvedMode);
+    setRoute(resolvedRoute);
     setComposerMenu(null);
     setComposerNotice(null);
     if (!live) {
-      const demoContract = buildArcRunContract({ mode, route, contextScopes });
-      const demoProfile = buildArcRunProfile({ request: body, mode, command, sources: demoContract.readScopes });
-      const operatorTurn: DemoTurn = { id: `operator-${Date.now()}`, role: "operator", body, mode, command };
+      const demoContract = buildArcRunContract({ mode: resolvedMode, route: resolvedRoute, contextScopes });
+      const demoProfile = buildArcRunProfile({ request: body, mode: resolvedMode, command, sources: demoContract.readScopes });
+      const operatorTurn: DemoTurn = { id: `operator-${Date.now()}`, role: "operator", body, mode: resolvedMode, command };
       setDemoTurns((current) => [...current, operatorTurn]);
       setDraft("");
       setSelectedMentions([]);
@@ -2007,7 +2030,7 @@ export function ArcView({
           id: `arc-${Date.now()}`,
           role: "arc",
           body: demoProfile.completedSummary,
-          mode,
+          mode: resolvedMode,
           command,
         }]);
       }, 6000);
@@ -2019,8 +2042,8 @@ export function ArcView({
         body,
         mentions: selectedMentions,
         attachments,
-        mode,
-        route,
+        mode: resolvedMode,
+        route: resolvedRoute,
         command,
         contextScopes,
       });
@@ -2103,12 +2126,15 @@ export function ArcView({
   // Demo-only: simulate edit-and-resend by re-running the edited turn locally.
   const demoEditResend = (body: string) => {
     if (demoPending) return;
-    const profile = buildArcRunProfile({ request: body, mode, command, sources: buildArcRunContract({ mode, route, contextScopes }).readScopes });
-    setDemoTurns((current) => [...current, { id: `operator-edit-${Date.now()}`, role: "operator", body, mode, command }]);
+    const resolvedMode = inferComposerMode(body, command);
+    const resolvedRoute = resolveArcModelRoute({ preference: modelPreference, request: body, command });
+    setRoute(resolvedRoute);
+    const profile = buildArcRunProfile({ request: body, mode: resolvedMode, command, sources: buildArcRunContract({ mode: resolvedMode, route: resolvedRoute, contextScopes }).readScopes });
+    setDemoTurns((current) => [...current, { id: `operator-edit-${Date.now()}`, role: "operator", body, mode: resolvedMode, command }]);
     setDemoPending(true);
     demoTimer.current = window.setTimeout(() => {
       setDemoPending(false);
-      setDemoTurns((current) => [...current, { id: `arc-edit-${Date.now()}`, role: "arc", body: profile.completedSummary, mode, command }]);
+      setDemoTurns((current) => [...current, { id: `arc-edit-${Date.now()}`, role: "arc", body: profile.completedSummary, mode: resolvedMode, command }]);
     }, 4500);
   };
 
@@ -2142,7 +2168,7 @@ export function ArcView({
 
       <main className="arc-conversation-scroll" ref={scrollRef}>
         <div className="arc-conversation-column">
-          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={setDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <ArcLauncher brandName={brandName} waiting={DEMO_WAITING} onPick={setDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
+          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={updateDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <ArcLauncher brandName={brandName} waiting={DEMO_WAITING} onPick={updateDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
           <div ref={endRef} />
         </div>
       </main>
@@ -2165,7 +2191,7 @@ export function ArcView({
               </motion.button>
             ) : null}
           </AnimatePresence>
-          {visibleQuestion ? <QuestionPrompt question={visibleQuestion} onChoose={(value) => { setDraft(value); setDismissedQuestionId(visibleQuestion.id); }} onDismiss={() => setDismissedQuestionId(visibleQuestion.id)} /> : null}
+          {visibleQuestion ? <QuestionPrompt question={visibleQuestion} onChoose={(value) => { updateDraft(value); setDismissedQuestionId(visibleQuestion.id); }} onDismiss={() => setDismissedQuestionId(visibleQuestion.id)} /> : null}
           <div className="arc-composer" data-busy={isSending || demoPending ? "true" : "false"}>
             <input ref={fileInputRef} type="file" hidden multiple accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,text/plain,text/markdown,text/csv" onChange={handleAttachmentFiles} />
 
@@ -2183,27 +2209,10 @@ export function ArcView({
 
                   {composerMenu === "model" ? (
                     <>
-                      <div className="arc-composer-menu-head"><b>Response model</b><small>Choose speed or deeper reasoning</small></div>
-                      {MODEL_OPTIONS.map((option) => <button type="button" role="menuitemradio" aria-checked={route === option.id} key={option.id} onClick={() => { setRoute(option.id); closeComposerMenu(true); }}>{option.id === "fast" ? <Zap size={16} /> : <Brain size={16} />}<span><b>{option.label}</b><small>{option.description}</small></span>{route === option.id ? <Check size={15} /> : null}</button>)}
-                    </>
-                  ) : null}
-
-                  {composerMenu === "mode" ? (
-                    <>
-                      <div className="arc-composer-menu-head"><b>Mode</b><small>Outbound always stays behind approval</small></div>
-                      {MODE_OPTIONS.map((option) => <button type="button" role="menuitemradio" aria-checked={mode === option.id} key={option.id} onClick={() => { setMode(option.id); closeComposerMenu(true); }}><FileText size={16} /><span><b>{option.label}</b><small>{option.description}</small></span>{mode === option.id ? <Check size={15} /> : null}</button>)}
-                    </>
-                  ) : null}
-
-                  {composerMenu === "context" ? (
-                    <>
-                      <div className="arc-composer-menu-head"><b>Context</b><small>{contextState.pct}% of this conversation window used</small></div>
-                      {CONTEXT_OPTIONS.map((option) => {
-                        const Icon = option.icon;
-                        const active = contextScopes.includes(option.id);
-                        return <button type="button" role="menuitemcheckbox" aria-checked={active} key={option.id} onClick={() => toggleContextScope(option.id)}><Icon size={16} /><span><b>{option.label}</b><small>{active ? "Included for this turn" : "Not included"}</small></span>{active ? <Check size={15} /> : <Circle size={14} />}</button>;
-                      })}
-                      <div className="arc-composer-menu-foot">≈{(contextState.tokens / 1_000).toFixed(1)}k of {(CONTEXT_WINDOW_TOKENS / 1_000).toFixed(0)}k tokens · {selectedMentions.length} pinned · {attachments.length} attached</div>
+                      <div className="arc-model-menu-label">Model</div>
+                      <div className="arc-model-options">
+                        {MODEL_OPTIONS.map((option) => <button type="button" className="arc-model-option" data-model={option.id} role="menuitemradio" aria-checked={modelPreference === option.id} key={option.id} onClick={() => chooseModel(option.id)}><i className="arc-model-symbol" aria-hidden="true"><ArcModelIcon model={option.id} size={16} /></i><span><b>{option.label}</b><small>{option.description}</small></span><i className="arc-model-check" aria-hidden="true">{modelPreference === option.id ? <Check size={14} /> : null}</i></button>)}
+                      </div>
                     </>
                   ) : null}
 
@@ -2226,21 +2235,21 @@ export function ArcView({
 
             {selectedMentions.length > 0 || attachments.length > 0 || command || composerNotice ? (
               <div className="arc-composer-chips">
-                {command ? <span className="arc-composer-chip is-command"><Slash size={12} />{command}<button type="button" onClick={() => setCommand(null)} aria-label={`Remove ${command} command`}><X size={11} /></button></span> : null}
+                {command ? <span className="arc-composer-chip is-command"><Slash size={12} />{command}<button type="button" onClick={() => { setCommand(null); setMode(inferComposerMode(draft, null)); }} aria-label={`Remove ${command} command`}><X size={11} /></button></span> : null}
                 {selectedMentions.map((mention) => <span className="arc-composer-chip" key={`${mention.type}-${mention.id}`}><AtSign size={12} />{mention.label}<button type="button" onClick={() => setSelectedMentions((current) => current.filter((item) => !(item.type === mention.type && item.id === mention.id)))} aria-label={`Remove ${mention.label}`}><X size={11} /></button></span>)}
                 {attachments.map((attachment) => <span className={`arc-composer-chip${attachment.contentType.startsWith("image/") ? " has-thumb" : ""}`} key={attachment.objectPath}>{attachment.contentType.startsWith("image/") ? <ChipThumb url={attachment.url} /> : <Paperclip size={12} />}{attachment.name}<button type="button" onClick={() => setAttachments((current) => current.filter((item) => item.objectPath !== attachment.objectPath))} aria-label={`Remove ${attachment.name}`}><X size={11} /></button></span>)}
                 {composerNotice ? <span className="arc-composer-notice">{composerNotice}</span> : null}
               </div>
             ) : null}
 
-            <textarea aria-label="Message Arc" placeholder={command ? `Tell Arc what to do with /${command}…` : "Message Arc…"} value={draft} rows={2} disabled={isSending || demoPending} onChange={(event) => { const value = event.target.value; setDraft(value); if (value.endsWith("@")) { composerMenuTriggerRef.current = null; setComposerMenu("mentions"); } else if (value.trim() === "/") { composerMenuTriggerRef.current = null; setComposerMenu("commands"); } }} onKeyDown={(event) => { if (event.key === "Escape") closeComposerMenu(); if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submitDraft(); } }} />
+            <textarea aria-label="Message Arc" placeholder={command ? `Tell Arc what to do with /${command}…` : "Message Arc…"} value={draft} rows={2} disabled={isSending || demoPending} onChange={(event) => { const value = event.target.value; updateDraft(value); if (value.endsWith("@")) { composerMenuTriggerRef.current = null; setComposerMenu("mentions"); } else if (value.trim() === "/") { composerMenuTriggerRef.current = null; setComposerMenu("commands"); } }} onKeyDown={(event) => { if (event.key === "Escape") closeComposerMenu(); if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submitDraft(); } }} />
             <div className="arc-composer-toolbar">
               <div className="arc-composer-tools">
                 <button type="button" className="arc-composer-add" aria-label="Add attachment, mention, or command" aria-haspopup="menu" aria-controls={composerMenu === "tools" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "tools"} onClick={(event) => toggleComposerMenu("tools", event.currentTarget)}><Plus size={18} /></button>
-                <button type="button" className="arc-composer-pill arc-model-button" aria-label={`Model: ${currentModel.label}`} aria-haspopup="menu" aria-controls={composerMenu === "model" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "model"} onClick={(event) => toggleComposerMenu("model", event.currentTarget)}>{route === "fast" ? <Zap size={14} /> : <Brain size={14} />}<span>{currentModel.label}</span><ChevronDown size={12} /></button>
-                <button type="button" className="arc-context-button" data-level={contextState.level} data-tooltip={`Context ${contextState.pct}% used`} aria-label={`Context: ${contextState.pct}% used`} title={`Context · ${contextState.pct}% used`} aria-haspopup="menu" aria-controls={composerMenu === "context" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "context"} onClick={(event) => toggleComposerMenu("context", event.currentTarget)}><CircularProgress className="arc-context-progress" variant="determinate" value={contextState.pct} size={30} thickness={2.4} role="presentation" aria-hidden="true" /><Brain size={14} /></button>
+                <button type="button" className="arc-composer-pill arc-model-button" aria-label={`Model: ${currentModel.label}`} aria-haspopup="menu" aria-controls={composerMenu === "model" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "model"} onClick={(event) => toggleComposerMenu("model", event.currentTarget)}><ArcModelIcon model={modelPreference} size={14} /><span>{currentModel.label}</span><ChevronDown size={12} /></button>
+                <span className="arc-context-meter" data-level={contextState.level} data-tooltip={`Context ${contextState.pct}% used · full workspace memory on`} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={contextState.pct} aria-label={`Context window: ${contextState.pct}% used. Full workspace memory is always on.`} tabIndex={0}><CircularProgress className="arc-context-progress" variant="determinate" value={contextState.pct} size={30} thickness={2.4} role="presentation" aria-hidden="true" /></span>
               </div>
-              <div className="arc-composer-send"><button type="button" className="arc-composer-pill" aria-label={`Mode: ${currentMode.label}`} aria-haspopup="menu" aria-controls={composerMenu === "mode" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "mode"} onClick={(event) => toggleComposerMenu("mode", event.currentTarget)}><FileText size={14} /><span>{currentMode.label}</span><ChevronDown size={13} /></button><button type="button" className="arc-send-button" onClick={submitDraft} disabled={!draft.trim() || isSending || demoPending || uploading} aria-label="Send message">{isSending || demoPending || uploading ? <LoaderCircle size={18} className="is-spinning" /> : <ArrowUp size={18} />}</button></div>
+              <div className="arc-composer-send"><button type="button" className="arc-send-button" onClick={submitDraft} disabled={!draft.trim() || isSending || demoPending || uploading} aria-label="Send message">{isSending || demoPending || uploading ? <LoaderCircle size={18} className="is-spinning" /> : <ArrowUp size={18} />}</button></div>
             </div>
           </div>
         </div>
