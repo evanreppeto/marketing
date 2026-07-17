@@ -28,6 +28,7 @@ const OPPORTUNITY_KINDS = [
   "partner_network",
   "attribution_gap",
   "next_iteration",
+  "news_signal",
 ] as const;
 
 const OPPORTUNITY_SUBJECT_TYPES = [
@@ -40,6 +41,7 @@ const OPPORTUNITY_SUBJECT_TYPES = [
   "campaign",
   "weather_event",
   "competitor_signal",
+  "feed_item",
 ] as const;
 
 /**

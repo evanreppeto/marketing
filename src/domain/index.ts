@@ -52,6 +52,7 @@ export * from "./creative-templates";
 export * from "./dispatch-scheduling";
 export * from "./opportunity-detection";
 export * from "./nws-weather";
+export * from "./rss-signals";
 export * from "./review-signals";
 export * from "./competitor-ads";
 export * from "./crm-import";
