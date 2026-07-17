@@ -95,6 +95,7 @@ function toRow(item: CampaignWorkspaceListItem): CampaignRow {
     statusLabel: TONE_LABEL[tone],
     next,
     nextTone,
+    pendingCount: item.pendingCount,
     audience,
     dot: personaDot(item.persona || audience),
     channels: item.channels.join(" · "),
@@ -112,15 +113,32 @@ export default async function CampaignsPage() {
   ]);
   const rows = list.status === "live" ? list.campaigns.map(toRow) : [];
 
-  // The same rule the "Needs approval" tab uses — this line is a summary of that
-  // tab and sits directly beneath it, so it must not answer differently. It used
-  // to regex the rendered next-action label, which both disagreed (9 vs 4) and
-  // would have silently zeroed if that label were reworded.
-  const pendingTotal = rows.filter((r) => needsOperatorApproval(r.tone)).length;
-  const arcNote =
-    pendingTotal > 0
-      ? `Arc has ${pendingTotal} package${pendingTotal === 1 ? "" : "s"} awaiting your approval`
-      : "Arc drafts approval-gated packages here as opportunities come in";
+  // Two different facts, said as two different things. They used to be one claim
+  // with two answers — a tab reading 4 above a footer reading 9 — because the
+  // footer regexed the rendered next-action label to find packages with an
+  // undecided piece. Both numbers were real; only the wording pretended they were
+  // the same number.
+  //
+  // - submitted: packages whose STATUS is on your desk. Matches the tab exactly
+  //   (same predicate), because the tab is what it summarises.
+  // - pieces: deliverables with no decision recorded. This is the count the tab
+  //   cannot show: a package can be Approved and still hold an undecided piece,
+  //   so it sits under "Approved" while its row reads "Approve 1 piece".
+  //
+  // "Undecided" rather than "awaiting you" on purpose: a revision-requested piece
+  // has no decision but is waiting on ARC to re-draft, not on you.
+  const submitted = rows.filter((r) => needsOperatorApproval(r.tone)).length;
+  const pendingPieces = rows.reduce((sum, r) => sum + r.pendingCount, 0);
+  const packagesWithPieces = rows.filter((r) => r.pendingCount > 0).length;
+
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const parts = [
+    pendingPieces > 0
+      ? `${plural(pendingPieces, "piece")} across ${plural(packagesWithPieces, "package")} undecided`
+      : null,
+    submitted > 0 ? `${plural(submitted, "package")} submitted for approval` : null,
+  ].filter(Boolean);
+  const arcNote = parts.length > 0 ? parts.join(" · ") : "Arc drafts approval-gated packages here as opportunities come in";
 
   return <CampaignsBoard rows={rows} arcNote={arcNote} personaOptions={personaOptions} />;
 }
