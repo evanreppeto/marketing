@@ -116,6 +116,52 @@ export async function executeResendDispatch(
     return { ok: false, message: "The linked approval isn't approved yet." };
   }
 
+  // The approval ROW is not the lock, and until here nothing checked anything else.
+  // Every gate in the chain decides "approved" from approval_items.status alone --
+  // this one, launch.ts's deploy gate (which falls back to the row when the asset's
+  // own status disagrees, then clears dispatch_locked), and the enqueue that builds
+  // these dispatches. So one row reading `approved` unlocks the whole path to the
+  // outside world, and `dispatch_locked` -- the flag the rest of the codebase treats
+  // as the outbound lock, and that revisions.ts is careful to leave alone -- was
+  // never consulted by the code that actually sends.
+  //
+  // Not hypothetical. Prod holds three approval_items marked `approved` whose assets
+  // are still pending_approval, dispatch_locked = true, approved_at NULL: seeded
+  // rows no operator ever decided on. They satisfy every check above. The one action
+  // needed to send for the first time (ARC_SEND_ENABLED=1) is the same action that
+  // would arm them.
+  //
+  // So require the asset to agree. approved_at/approved_by are written ONLY by
+  // campaigns/decisions.ts when an operator approves, and cleared when a decision is
+  // undone or a revision requested -- they are the human's signature, and a seed or a
+  // stray `approved` row does not carry one. dispatch_locked = false additionally
+  // means it was deployed, not merely approved.
+  if (!dispatch.campaign_asset_id) {
+    return { ok: false, message: "Dispatch isn't linked to a campaign asset, so its approval can't be verified." };
+  }
+
+  const { data: asset, error: assetError } = await client
+    .from("campaign_assets")
+    .select("status,dispatch_locked,approved_at")
+    .eq("org_id", dispatch.org_id)
+    .eq("id", dispatch.campaign_asset_id)
+    .maybeSingle<{ status: string; dispatch_locked: boolean; approved_at: string | null }>();
+  assertOk("campaign_assets lookup", assetError);
+  if (!asset) {
+    return { ok: false, message: "The dispatch's campaign asset no longer exists, so it can't be sent." };
+  }
+  if (!asset.approved_at) {
+    return {
+      ok: false,
+      message:
+        "No operator approval is recorded on this asset, so it can't be sent — the linked approval says approved, " +
+        "but the asset itself was never approved by a human.",
+    };
+  }
+  if (asset.dispatch_locked) {
+    return { ok: false, message: "This asset is still locked for dispatch. Deploy it from the campaign first." };
+  }
+
   // Scope the connection to THIS dispatch's org. On the RLS-bypassing admin
   // client an unscoped `.eq("provider","resend")` would (with >1 org) either
   // throw on multiple rows or grab another tenant's from-address/kill-switch.
