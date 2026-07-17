@@ -504,6 +504,44 @@
 .arc-code pre { margin: 0; border: 0; border-radius: 0; background: transparent; padding: 12px 13px; overflow-x: auto; }
 .arc-code pre code { font-size: 12px; line-height: 1.6; }
 
+/* Restrained syntax highlighting — rehype-highlight emits .hljs-* token spans and
+   we read them through the obsidian/gold palette: gold for language structure,
+   a soft green for strings/data, muted for comments, ivory for identifiers. Warm,
+   three-to-four hues, no rainbow — code stays legible without breaking the system.
+   No highlight.js stylesheet is imported, so these rules are the whole theme. */
+.arc-code pre code.hljs { color: var(--text); }
+.arc-code .hljs-comment,
+.arc-code .hljs-quote { color: var(--muted); font-style: italic; }
+.arc-code .hljs-keyword,
+.arc-code .hljs-selector-tag,
+.arc-code .hljs-literal,
+.arc-code .hljs-type,
+.arc-code .hljs-name,
+.arc-code .hljs-tag,
+.arc-code .hljs-doctag { color: var(--accent-contrast); }
+.arc-code .hljs-string,
+.arc-code .hljs-regexp,
+.arc-code .hljs-attr,
+.arc-code .hljs-attribute,
+.arc-code .hljs-symbol,
+.arc-code .hljs-bullet,
+.arc-code .hljs-addition { color: var(--ok-text); }
+.arc-code .hljs-number,
+.arc-code .hljs-built_in,
+.arc-code .hljs-meta { color: var(--warn-text); }
+.arc-code .hljs-title,
+.arc-code .hljs-title.function_,
+.arc-code .hljs-section { color: var(--text); font-weight: 550; }
+.arc-code .hljs-variable,
+.arc-code .hljs-template-variable,
+.arc-code .hljs-params,
+.arc-code .hljs-property { color: var(--text-2); }
+.arc-code .hljs-punctuation,
+.arc-code .hljs-operator { color: var(--muted); }
+.arc-code .hljs-deletion { color: var(--red-text); }
+.arc-code .hljs-emphasis { font-style: italic; }
+.arc-code .hljs-strong { font-weight: 650; }
+
 .arc-table-wrap { margin: 13px 0; overflow-x: auto; border: 1px solid var(--line-2); border-radius: 10px; }
 .arc-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .arc-table-wrap th, .arc-table-wrap td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
