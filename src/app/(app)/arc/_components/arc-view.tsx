@@ -33,7 +33,6 @@ import {
   LoaderCircle,
   LayoutTemplate,
   Link2,
-  LockKeyhole,
   Mail,
   Menu,
   Megaphone,
@@ -242,6 +241,7 @@ const DEMO_RECALL: ArcRecall[] = [
 
 type DemoTurn = { id: string; role: "operator" | "arc"; body: string; outcome?: "complete" | "canceled"; mode?: ArcMode; command?: string | null };
 type ComposerMenu = "tools" | "model" | "mentions" | "commands" | null;
+type WorkPanelTab = "work" | "created" | "audience";
 type RunKind = "think" | "search" | "match" | "draft" | "media" | "tool";
 type RunRow = {
   id: string;
@@ -324,12 +324,12 @@ function buildDemoLiveWork(request?: string | null): { commentary: string; rows:
 
   if (/(email|sms|campaign|draft|write|create|landing)/.test(normalized)) {
     return {
-      commentary: "I’m reading the approved Storm Rapid Response package and brand profile before I draft. I’ll keep the message inspection-first, use only approved claims, and leave outbound locked for review.",
+      commentary: "I’m reading the approved Storm Rapid Response package and brand profile before I draft. I’ll keep the message inspection-first, use only approved claims, and prepare everything for review.",
       rows: [
         { id: "demo-campaign", label: "Read Storm Rapid Response campaign package", detail: "4 approved channel assets", status: "queued", kind: "draft" },
         { id: "demo-brand", label: "Loaded Big Shoulders brand voice", detail: "Approved proof points and messaging rules", status: "queued", kind: "tool" },
         { id: "demo-audience", label: "Reading the 142-home approved audience", detail: "Naperville hailstorm segment", status: "queued", kind: "match" },
-        { id: "demo-draft", label: "Drafting the inspection-first message", detail: "Outbound remains locked", status: "queued", kind: "draft" },
+        { id: "demo-draft", label: "Drafting the inspection-first message", detail: "Preparing a review-ready draft", status: "queued", kind: "draft" },
       ],
     };
   }
@@ -502,7 +502,7 @@ function RunContract({ contract, pending, outcome = "complete" }: { contract: Ar
       <details className="arc-run-contract arc-run-contract-compact" data-state="planned">
         <summary>
           <ShieldCheck size={14} />
-          <span><b>{contract.modeLabel}</b><small>{sourceLabel} · Outbound locked</small></span>
+          <span><b>{contract.modeLabel}</b><small>{sourceLabel}</small></span>
           <ChevronDown size={14} />
         </summary>
         {contractGrid}
@@ -846,7 +846,7 @@ function DraftPackageCard({ cards, statuses, onReview }: { cards: ArcActionCard[
       <div className="arc-package-kicker">Campaign package · {approvedCount}/{cards.length} approved</div>
       <div className="arc-package-row">
         <span className="arc-package-icon"><MessageSquareText size={18} /></span>
-        <span className="arc-package-title"><b>{cards.length} assets ready for review</b><small>Outbound stays locked until you approve</small></span>
+        <span className="arc-package-title"><b>{cards.length} assets ready for review</b><small>Review each channel in the workspace</small></span>
         <div className="arc-package-channels">
           {cards.slice(0, 4).map((card, index) => {
             const meta = assetStatusMeta(statusOf(card));
@@ -856,6 +856,169 @@ function DraftPackageCard({ cards, statuses, onReview }: { cards: ArcActionCard[
         <button type="button" className="arc-review-button" data-arc-review-trigger="true" onClick={onReview}>Review package <PanelRightOpen size={15} /></button>
       </div>
     </div>
+  );
+}
+
+function ArcWorkPanel({
+  message,
+  cards,
+  statuses,
+  demoSeed,
+  demoPending,
+  demoRequest,
+  onReview,
+  onClose,
+}: {
+  message?: ArcMessage;
+  cards: ArcActionCard[];
+  statuses: Record<string, ArcAssetStatus>;
+  demoSeed: boolean;
+  demoPending: boolean;
+  demoRequest?: string;
+  onReview: (cards: ArcActionCard[]) => void;
+  onClose: () => void;
+}) {
+  const reduceMotion = useReducedMotion();
+  const [tab, setTab] = useState<WorkPanelTab>("work");
+  const demoWork = demoPending ? buildDemoLiveWork(demoRequest) : null;
+  const reasoning = message?.reasoning?.trim()
+    || demoWork?.commentary
+    || (demoSeed ? "Arc matched storm exposure against CRM history, ranked the strongest opportunities, and used those signals to shape a review-ready campaign package." : null);
+  const activityRows: RunRow[] = message
+    ? [
+        ...message.steps.map((step, index) => ({
+          id: `panel-step-${index}`,
+          label: step.label,
+          detail: step.detail?.join(" · "),
+          status: step.status === "done" ? "done" as const : "running" as const,
+          kind: step.kind ?? "think",
+        })),
+        ...(message.toolCalls ?? []).map((tool, index) => ({
+          id: `panel-tool-${index}`,
+          label: formatToolName(tool.name),
+          detail: tool.output ?? tool.input,
+          status: tool.status === "complete" ? "done" as const : tool.status === "error" ? "error" as const : "running" as const,
+          kind: getToolKind(tool.name),
+        })),
+      ]
+    : demoWork?.rows
+      ?? (demoSeed
+        ? [
+            ...DEMO_STEPS.map((step, index) => ({ id: `demo-panel-step-${index}`, label: step.label, detail: step.detail?.join(" · "), status: "done" as const, kind: step.kind ?? "think" })),
+            ...DEMO_TOOLS.map((tool, index) => ({ id: `demo-panel-tool-${index}`, label: formatToolName(tool.name), detail: tool.output, status: "done" as const, kind: getToolKind(tool.name) })),
+          ]
+        : []);
+  const audienceRows = cards.flatMap((card) => card.rows
+    .filter((row) => /(audience|persona|segment)/i.test(row.name))
+    .map((row) => ({ label: card.channel ?? card.title, value: row.meta ?? row.badge ?? row.name })));
+  const reviewableCards = cards.filter((card) => card.approval);
+
+  const tabs: Array<{ id: WorkPanelTab; label: string; icon: typeof Brain }> = [
+    { id: "work", label: "Work", icon: Brain },
+    { id: "created", label: "Created", icon: LayoutTemplate },
+    { id: "audience", label: "Audience", icon: Target },
+  ];
+
+  return (
+    <motion.aside
+      className="arc-artifact-workspace arc-work-panel"
+      aria-label="Conversation workspace"
+      initial={reduceMotion ? false : { opacity: 0, x: 24 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={reduceMotion ? undefined : { opacity: 0, x: 18 }}
+      transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <header className="arc-artifact-header">
+        <div><span>Conversation workspace</span><h2>Arc’s work</h2><p>Reasoning, outputs, and audience context</p></div>
+        <button type="button" onClick={onClose} aria-label="Close conversation workspace"><PanelRightClose size={17} /></button>
+      </header>
+      <div className="arc-artifact-shell">
+        <div className="arc-artifact-tabs" role="tablist" aria-label="Conversation workspace views">
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button type="button" role="tab" key={id} aria-selected={tab === id} className={tab === id ? "is-active" : ""} onClick={() => setTab(id)}>
+              <Icon size={17} />
+              <span>{label}</span>
+              {id === "created" && cards.length > 0 ? <i className="arc-work-count">{cards.length}</i> : null}
+            </button>
+          ))}
+        </div>
+        <div className="arc-artifact-content">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={tab} role="tabpanel" className="arc-work-view" initial={reduceMotion ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: 0.16 }}>
+              {tab === "work" ? (
+                <>
+                  <div className="arc-work-heading"><span>Reasoning</span><h3>{demoPending || message?.status === "pending" ? "Working through the request" : "How Arc approached this"}</h3></div>
+                  {reasoning ? <p className="arc-work-reasoning">{reasoning}</p> : <div className="arc-work-empty">Reasoning and decisions will appear here as Arc works.</div>}
+                  <section className="arc-artifact-section">
+                    <h4>Activity</h4>
+                    {activityRows.length > 0 ? (
+                      <div className="arc-work-activity">
+                        {activityRows.map((row) => (
+                          <div key={row.id} className={`is-${row.status}`}>
+                            <span><RunIcon kind={row.kind} size={14} /></span>
+                            <div><b>{row.label}</b>{row.detail || row.result ? <small>{row.detail ?? row.result}</small> : null}</div>
+                            {row.status === "done" ? <Check size={13} /> : row.status === "running" ? <LoaderCircle size={14} /> : row.status === "error" ? <X size={13} /> : <Circle size={9} />}
+                          </div>
+                        ))}
+                      </div>
+                    ) : <div className="arc-work-empty">Activity will collect here during the next run.</div>}
+                  </section>
+                </>
+              ) : null}
+
+              {tab === "created" ? (
+                <>
+                  <div className="arc-work-heading"><span>Created</span><h3>{cards.length > 0 ? `${cards.length} deliverable${cards.length === 1 ? "" : "s"}` : "No deliverables yet"}</h3></div>
+                  {cards.length > 0 ? (
+                    <div className="arc-created-list">
+                      {cards.map((card, index) => {
+                        const status = statuses[card.approval?.assetId ?? ""] ?? card.status ?? null;
+                        const meta = assetStatusMeta(status);
+                        return (
+                          <div key={`${card.title}-${index}`}>
+                            <span className="arc-created-icon"><ChannelIcon channel={card.channel} size={15} /></span>
+                            <span><b>{card.title}</b><small>{[card.channel, card.format].filter(Boolean).join(" · ")}</small></span>
+                            <em className={`is-${meta.tone}`}>{meta.label}</em>
+                          </div>
+                        );
+                      })}
+                      {reviewableCards.length > 0 ? <button type="button" className="arc-work-review" onClick={() => onReview(reviewableCards)}>Review package <ArrowRight size={14} /></button> : null}
+                    </div>
+                  ) : <div className="arc-work-empty">Drafts, files, and campaign assets from this chat will collect here.</div>}
+                </>
+              ) : null}
+
+              {tab === "audience" ? (
+                <>
+                  <div className="arc-work-heading"><span>Audience</span><h3>{demoSeed ? "142 storm-zone homes" : audienceRows.length > 0 ? "Audience context" : "No audience selected"}</h3></div>
+                  {demoSeed ? (
+                    <>
+                      <div className="arc-audience-stats">
+                        <div><b>142</b><span>target homes</span></div>
+                        <div><b>$1.4M</b><span>est. value</span></div>
+                        <div><b>23%</b><span>of storm zone</span></div>
+                      </div>
+                      <section className="arc-artifact-section"><h4>Persona mix</h4>
+                        {[
+                          ["Insured · fresh damage", "64 · 45%", 45],
+                          ["Aging roof · out-of-pocket", "41 · 29%", 29],
+                          ["Property manager · multi-unit", "37 · 26%", 26],
+                        ].map(([label, value, width]) => (
+                          <div className="arc-audience-row" key={String(label)}><div><b>{label}</b><span>{value}</span></div><div className="arc-audience-bar"><i style={{ width: `${width}%` }} /></div></div>
+                        ))}
+                      </section>
+                      <div className="arc-artifact-note"><Users size={15} /><div><b>58 lookalike homes found</b><p>Same storm swath and roof profile as the strongest past jobs.</p></div></div>
+                    </>
+                  ) : audienceRows.length > 0 ? (
+                    <section className="arc-artifact-section arc-live-audience"><h4>Used in this chat</h4>{audienceRows.map((row, index) => <div className="arc-asset-row" key={`${row.label}-${index}`}><b>{row.label}</b><span>{row.value}</span></div>)}</section>
+                  ) : <div className="arc-work-empty">Audiences, segments, and persona signals from this chat will appear here.</div>}
+                </>
+              ) : null}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+    </motion.aside>
   );
 }
 
@@ -889,7 +1052,7 @@ function AssetReviewPanel({ cards, statuses, onStatus, onClose }: { cards: ArcAc
       setBusy(false);
       if (!result.ok) return setNotice(result.error);
       onStatus(approval.assetId, decision === "approved" ? "approved" : "rejected");
-      setNotice(result.persisted ? (decision === "approved" ? "Approved · outbound stays locked" : "Declined") : "Preview — decision not saved");
+      setNotice(result.persisted ? (decision === "approved" ? "Approved" : "Declined") : "Preview — decision not saved");
     });
   };
 
@@ -935,7 +1098,7 @@ function AssetReviewPanel({ cards, statuses, onStatus, onClose }: { cards: ArcAc
           })}
         </div>
         <div className="arc-artifact-content">
-          <div className="arc-artifact-status" aria-live="polite"><span className={`is-${meta.tone}`}><CheckCircle2 size={14} />{meta.label}</span><span><LockKeyhole size={13} />Outbound locked</span></div>
+          <div className="arc-artifact-status" aria-live="polite"><span className={`is-${meta.tone}`}><CheckCircle2 size={14} />{meta.label}</span></div>
           <AnimatePresence mode="wait" initial={false}>
             <motion.div key={active} role="tabpanel" className="arc-artifact-view" initial={reduceMotion ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: 0.16 }}>
               <div className="arc-artifact-title"><span>{card.channel ?? "Asset"}</span><h3>{card.title}</h3>{card.format ? <p>{card.format}</p> : null}</div>
@@ -959,7 +1122,7 @@ function AssetReviewPanel({ cards, statuses, onStatus, onClose }: { cards: ArcAc
           </form>
         ) : (
           <>
-            <div role="status" aria-live="polite">{notice ?? "Approve, revise, or decline each asset. Sending stays locked."}</div>
+            <div role="status" aria-live="polite">{notice ?? "Approve, revise, or decline each asset."}</div>
             <button type="button" onClick={() => setReviseOpen(true)} disabled={busy || decided}>Revise</button>
             <button type="button" onClick={() => decide("declined")} disabled={busy || decided}>Decline</button>
             <button type="button" className="is-primary" onClick={() => decide("approved")} disabled={busy || decided}><Check size={14} />{status === "approved" ? "Approved" : "Approve"}</button>
@@ -981,9 +1144,9 @@ const DRAFT_STATUS_META: Record<ArcAssetStatus | "review", { label: string; tone
 /**
  * An Arc-drafted deliverable, in-flow: title + channel + status, the draft preview
  * (so it never reads empty when an asset exists), structured detail, guardrail
- * checks, an always-on "Outbound locked" badge, and — when the card is
- * approval-gated — Approve / Revise / Decline wired to the real campaign decision
- * flow. Cards without an approval hook fall back to a compact deep-link.
+ * checks, and — when the card is approval-gated — Approve / Revise / Decline
+ * wired to the real campaign decision flow. Cards without an approval hook fall
+ * back to a compact deep-link.
  */
 function ArcDraftCard({ card }: { card: ArcActionCard }) {
   const [status, setStatus] = useState<ArcAssetStatus | null>(card.status ?? null);
@@ -1003,7 +1166,7 @@ function ArcDraftCard({ card }: { card: ArcActionCard }) {
       const result = await decideArcDraftAction({ campaignId: approval.campaignId, assetId: approval.assetId, decision });
       if (!result.ok) return setNotice(result.error);
       setStatus(decision === "approved" ? "approved" : "rejected");
-      setNotice(result.persisted ? (decision === "approved" ? "Approved · outbound stays locked" : "Declined") : "Preview — decision not saved");
+      setNotice(result.persisted ? (decision === "approved" ? "Approved" : "Declined") : "Preview — decision not saved");
     });
   };
 
@@ -1048,7 +1211,6 @@ function ArcDraftCard({ card }: { card: ArcActionCard }) {
         </form>
       ) : (
         <div className="arc-draft-foot">
-          <span className="arc-draft-lock"><LockKeyhole size={13} /> Outbound locked</span>
           {notice ? <span className="arc-draft-notice" role="status" aria-live="polite">{notice}</span> : null}
           <div className="arc-draft-actions">
             {destination?.startsWith("/") ? <Link className="arc-draft-open" href={destination}>Open <ArrowRight size={13} /></Link> : null}
@@ -1243,7 +1405,7 @@ function ArcLauncher({ brandName, waiting, onPick }: { brandName: string; waitin
   return (
     <div className="arc-launcher">
       <h2>{greeting}, {brandName}</h2>
-      <p>Ask me to find an audience, draft a campaign, or check a signal. I’ll show the work — and nothing goes out until you approve it.</p>
+      <p>Ask me to find an audience, draft a campaign, or check a signal. I’ll show the work and keep every draft ready for your review.</p>
       {waiting && (waiting.approvals > 0 || waiting.opportunities > 0) ? (
         <div className="arc-launcher-waiting">
           <span className="arc-launcher-waiting-label">Waiting on you</span>
@@ -1292,7 +1454,6 @@ function ArcLauncher({ brandName, waiting, onPick }: { brandName: string; waitin
           );
         })}
       </div>
-      <span className="arc-launcher-lock"><LockKeyhole size={12} /> Outbound stays locked</span>
     </div>
   );
 }
@@ -1424,7 +1585,7 @@ function DemoConversation({
           </AssistantMessage>
           <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." onEdit={editable} />
           <AssistantMessage time="9:45 AM">
-            <div className="arc-answer"><p>Here’s the inspection email for the 64 insured, fresh-damage homes. Approve it when it looks right — it stays locked until you do.</p></div>
+            <div className="arc-answer"><p>Here’s the inspection email for the 64 insured, fresh-damage homes. Review it when it looks right, then approve or revise it from the workspace.</p></div>
             <div className="arc-action-list"><ArcDraftCard card={DEMO_DRAFT_CARD} /></div>
           </AssistantMessage>
         </>
@@ -1443,7 +1604,7 @@ function DemoConversation({
               pending={false}
               thoughtSeconds={turn.outcome === "canceled" ? undefined : 5}
               outcome={turn.outcome ?? "complete"}
-              reasoning={turn.outcome === "canceled" ? "The run ended at your request. Completed work remains visible, and no outbound action was taken." : turnProfile.completedSummary}
+              reasoning={turn.outcome === "canceled" ? "The run ended at your request. Completed work remains visible, and no external action was taken." : turnProfile.completedSummary}
               steps={completedSteps}
               contract={turnContract}
             />
@@ -1730,6 +1891,7 @@ export function ArcView({
   const [contextInfoOpen, setContextInfoOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [workPanelOpen, setWorkPanelOpen] = useState(false);
   // The assets open in the review workspace (null = closed), plus a per-asset
   // decision map so approvals persist while the panel is open and reflect back on
   // the inline package summary.
@@ -1754,6 +1916,18 @@ export function ArcView({
   const awaitingReply = live && messages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim()));
   const isStreaming = awaitingReply || demoPending;
   const turnCount = live ? messages.length : demoTurns.length;
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("arc.workPanelOpen");
+      if (window.matchMedia("(min-width: 1180px)").matches && saved !== "0") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- restored after hydration so server and client markup stay identical
+        setWorkPanelOpen(true);
+      }
+    } catch {
+      /* localStorage unavailable — leave the panel closed */
+    }
+  }, []);
 
   // Default to "instant": the scroll container sets `scroll-behavior: smooth`, so
   // an animated follow would restart a new tween every tick toward a moving
@@ -2107,7 +2281,18 @@ export function ArcView({
   const openReview = (cards: ArcActionCard[]) => {
     setComposerMenu(null);
     setContextInfoOpen(false);
+    setWorkPanelOpen(true);
     setReviewCards(cards.filter((card) => card.approval));
+  };
+
+  const setWorkPanelVisibility = (open: boolean) => {
+    setWorkPanelOpen(open);
+    if (!open) setReviewCards(null);
+    try {
+      window.localStorage.setItem("arc.workPanelOpen", open ? "1" : "0");
+    } catch {
+      /* localStorage unavailable — the in-session state still works */
+    }
   };
 
   const recordAssetStatus = (assetId: string, status: ArcAssetStatus) => {
@@ -2191,15 +2376,20 @@ export function ArcView({
           : message,
       )
     : messages;
+  const latestArcMessage = [...renderedMessages].reverse().find((message) => message.role === "arc");
+  const latestDemoRequest = [...demoTurns].reverse().find((turn) => turn.role === "operator")?.body;
+  const demoSeed = !live && selectedDemoId !== "new";
+  const workCards = live ? latestArcMessage?.actions ?? [] : demoSeed ? DEMO_PACKAGE_CARDS : [];
+  const panelVisible = workPanelOpen || Boolean(reviewCards?.length);
 
   return (
-    <div className="arc-chat" data-workspace-open={reviewCards ? "true" : "false"}>
+    <div className="arc-chat" data-workspace-open={panelVisible ? "true" : "false"}>
       <header className="arc-conversation-header">
         <button type="button" className="arc-history-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversation history"><Menu size={17} /><span>History</span></button>
         <div className="arc-conversation-title"><h1>{header.title}</h1><p>{header.subtitle}</p></div>
         <div className="arc-conversation-actions">
           <button type="button" onClick={() => setShareOpen(true)} disabled={!activeConversationId} title={!activeConversationId ? "Start a real conversation before sharing" : "Share conversation"}><Share2 size={15} /> Share</button>
-          <span className="arc-lock"><LockKeyhole size={14} /> Outbound locked</span>
+          <button type="button" className="arc-header-work" aria-expanded={panelVisible} aria-label={panelVisible ? "Close conversation workspace" : "Open conversation workspace"} onClick={() => setWorkPanelVisibility(!panelVisible)}>{panelVisible ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}<span>Workspace</span></button>
         </div>
       </header>
 
@@ -2306,7 +2496,11 @@ export function ArcView({
       </footer>
 
       <AnimatePresence>
-        {reviewCards && reviewCards.length > 0 ? <AssetReviewPanel key="asset-review" cards={reviewCards} statuses={assetStatuses} onStatus={recordAssetStatus} onClose={() => setReviewCards(null)} /> : null}
+        {reviewCards && reviewCards.length > 0
+          ? <AssetReviewPanel key="asset-review" cards={reviewCards} statuses={assetStatuses} onStatus={recordAssetStatus} onClose={() => setReviewCards(null)} />
+          : workPanelOpen
+            ? <ArcWorkPanel key="work-panel" message={latestArcMessage} cards={workCards} statuses={assetStatuses} demoSeed={demoSeed} demoPending={demoPending} demoRequest={latestDemoRequest} onReview={openReview} onClose={() => setWorkPanelVisibility(false)} />
+            : null}
         {historyOpen ? <Fragment key="conversation-history"><motion.button type="button" className="arc-drawer-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setHistoryOpen(false)} aria-label="Close conversation history" /><ThreadDrawer live={live} groups={threadGroups} activeConversationId={activeConversationId} selectedDemoId={selectedDemoId} onSelectDemo={selectDemoThread} onClose={() => setHistoryOpen(false)} /></Fragment> : null}
         {shareOpen ? <ShareDialog key="share-dialog" conversationId={activeConversationId} onClose={() => setShareOpen(false)} /> : null}
       </AnimatePresence>
