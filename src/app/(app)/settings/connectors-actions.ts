@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { findConnector, isWeatherServiceAreaConfigured, parseWeatherServiceArea } from "@/domain";
+import { connectorIsAvailable, findConnector, isWeatherServiceAreaConfigured, parseWeatherServiceArea } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config";
@@ -40,6 +40,9 @@ export async function connectConnector(input: {
 
   const connector = findConnector(input.connectorKey);
   if (!connector) return { ok: false, error: "Unknown connector." };
+  if (!connectorIsAvailable(connector)) {
+    return { ok: false, error: `${connector.label} isn't built yet — it can't be connected or switched on.` };
+  }
   const credential = (input.credential ?? "").trim();
   if (!credential) return { ok: false, error: "Paste a credential to connect." };
 
@@ -75,6 +78,10 @@ export async function disconnectConnector(input: { connectorKey: string }): Prom
 
   const connector = findConnector(input.connectorKey);
   if (!connector) return { ok: false, error: "Unknown connector." };
+  // Deliberately NOT availability-gated. Every other mutation here refuses a
+  // `planned` connector, but disconnect is the undo direction: if a stale row from
+  // before it was marked planned still says enabled, the operator must be able to
+  // clear it. A guard here would lock that row in place with no way out.
 
   if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
 
@@ -104,6 +111,9 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
 
   const connector = findConnector(input.connectorKey);
   if (!connector) return { ok: false, error: "Unknown connector." };
+  if (!connectorIsAvailable(connector)) {
+    return { ok: false, error: `${connector.label} isn't built yet — it can't be connected or switched on.` };
+  }
   if (!isSupabaseAdminConfigured()) return { ok: false, error: "Connect this workspace to test the connection." };
 
   const ctx = await getCurrentWorkspaceContext();
@@ -187,6 +197,9 @@ export async function toggleConnectorEnabled(input: {
 
   const connector = findConnector(input.connectorKey);
   if (!connector) return { ok: false, error: "Unknown connector." };
+  if (!connectorIsAvailable(connector)) {
+    return { ok: false, error: `${connector.label} isn't built yet — it can't be connected or switched on.` };
+  }
 
   if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
 
@@ -223,6 +236,9 @@ export async function saveConnectorConfig(input: {
 
   const connector = findConnector(input.connectorKey);
   if (!connector) return { ok: false, error: "Unknown connector." };
+  if (!connectorIsAvailable(connector)) {
+    return { ok: false, error: `${connector.label} isn't built yet — it can't be connected or switched on.` };
+  }
 
   if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
 
