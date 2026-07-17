@@ -9,6 +9,9 @@ function findCalls(supabase: { calls: Array<[string, ...unknown[]]> }, method: s
 }
 
 const APPROVED = { status: "approved" };
+// An asset an operator actually approved (approved_at is written only by
+// campaigns/decisions.ts) and then deployed (dispatch_locked cleared by launch).
+const DEPLOYED_ASSET = { status: "approved", dispatch_locked: false, approved_at: "2026-07-01T00:00:00.000Z" };
 const ENABLED_RESEND = { enabled: true, env_var: "RESEND_API_KEY", config: { fromEmail: "Arc <mark@bsg.com>" } };
 
 function queuedDispatch(overrides: Record<string, unknown> = {}) {
@@ -19,6 +22,7 @@ function queuedDispatch(overrides: Record<string, unknown> = {}) {
     approval_item_id: "appr-1",
     channel: "email",
     campaign_id: "c1",
+    campaign_asset_id: "a1",
     provider_message_id: null,
     payload: { to: "lead@example.com", subject: "Roof inspection", html: "<p>Hello</p>" },
     ...overrides,
@@ -37,6 +41,7 @@ describe("executeResendDispatch", () => {
     const supabase = createSupabaseQueryMock({
       campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: DEPLOYED_ASSET, error: null },
       connections: { data: ENABLED_RESEND, error: null },
     });
 
@@ -52,6 +57,7 @@ describe("executeResendDispatch", () => {
     const supabase = createSupabaseQueryMock({
       campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: DEPLOYED_ASSET, error: null },
       connections: { data: ENABLED_RESEND, error: null },
       campaign_events: { data: null, error: null },
     });
@@ -89,6 +95,7 @@ describe("executeResendDispatch", () => {
         error: null,
       },
       approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: DEPLOYED_ASSET, error: null },
       connections: { data: ENABLED_RESEND, error: null },
       campaign_events: { data: null, error: null },
       engagement_events: { data: null, error: null },
@@ -120,6 +127,7 @@ describe("executeResendDispatch", () => {
     const supabase = createSupabaseQueryMock({
       campaign_dispatches: { data: queuedDispatch({ status: "scheduled" }), error: null },
       approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: DEPLOYED_ASSET, error: null },
       connections: { data: ENABLED_RESEND, error: null },
       campaign_events: { data: null, error: null },
     });
@@ -177,6 +185,7 @@ describe("executeResendDispatch", () => {
     const supabase = createSupabaseQueryMock({
       campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: { status: "pending" }, error: null },
+      campaign_assets: { data: DEPLOYED_ASSET, error: null },
     });
 
     const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { apiKey: "re_test", send });
@@ -192,6 +201,7 @@ describe("executeResendDispatch", () => {
     const supabase = createSupabaseQueryMock({
       campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: DEPLOYED_ASSET, error: null },
       connections: { data: ENABLED_RESEND, error: null },
     });
 
@@ -209,6 +219,7 @@ describe("executeResendDispatch", () => {
     const supabase = createSupabaseQueryMock({
       campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: DEPLOYED_ASSET, error: null },
       connections: { data: { ...ENABLED_RESEND, credential_ref: "vault-ref-1" }, error: null },
       campaign_events: { data: null, error: null },
     });
@@ -227,6 +238,7 @@ describe("executeResendDispatch", () => {
     const supabase = createSupabaseQueryMock({
       campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: DEPLOYED_ASSET, error: null },
       connections: { data: ENABLED_RESEND, error: null }, // no credential_ref
       campaign_events: { data: null, error: null },
     });
@@ -243,6 +255,7 @@ describe("executeResendDispatch", () => {
     const supabase = createSupabaseQueryMock({
       campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: DEPLOYED_ASSET, error: null },
       connections: { data: { ...ENABLED_RESEND, enabled: false }, error: null },
     });
 
@@ -258,6 +271,7 @@ describe("executeResendDispatch", () => {
     const supabase = createSupabaseQueryMock({
       campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: DEPLOYED_ASSET, error: null },
       connections: { data: ENABLED_RESEND, error: null },
       campaign_events: { data: null, error: null },
     });
@@ -280,6 +294,7 @@ describe("executeResendDispatch", () => {
     const supabase = createSupabaseQueryMock({
       campaign_dispatches: { data: queuedDispatch({ contact_id: "ct-1", campaign_asset_id: "as-1" }), error: null },
       approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: DEPLOYED_ASSET, error: null },
       connections: { data: ENABLED_RESEND, error: null },
       campaign_events: { data: null, error: null },
       engagement_events: { data: null, error: null },
@@ -307,6 +322,7 @@ describe("executeResendDispatch", () => {
     const supabase = createSupabaseQueryMock({
       campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: DEPLOYED_ASSET, error: null },
       connections: { data: ENABLED_RESEND, error: null },
       campaign_events: { data: null, error: null },
       engagement_events: { data: null, error: { message: 'violates check constraint "engagement_events_subject_check"' } },
@@ -319,5 +335,84 @@ describe("executeResendDispatch", () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("engagement_events insert failed"));
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("engagement_events_subject_check"));
     warn.mockRestore();
+  });
+
+  // The three below are the gap this file previously had no opinion on: the send
+  // path decided "approved" from approval_items.status alone and never looked at the
+  // asset. The first reproduces prod exactly.
+  it("refuses a seeded approval whose asset no operator ever approved", async () => {
+    // Prod's actual shape (3 rows like this): the approval row says approved, while
+    // the asset is still pending_approval, dispatch_locked, approved_at NULL. Nobody
+    // decided anything. Asserting `approved_at: null` is the whole point — with the
+    // old code this sent.
+    const send = vi.fn().mockResolvedValue({ id: "resend-should-not-happen" });
+    const supabase = createSupabaseQueryMock({
+      campaign_dispatches: { data: queuedDispatch(), error: null },
+      approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: { status: "pending_approval", dispatch_locked: true, approved_at: null }, error: null },
+      connections: { data: ENABLED_RESEND, error: null },
+    });
+
+    const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { apiKey: "re_test", send });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/never approved by a human|no operator approval/i);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("refuses an approved asset that has not been deployed (still dispatch_locked)", async () => {
+    const send = vi.fn().mockResolvedValue({ id: "resend-should-not-happen" });
+    const supabase = createSupabaseQueryMock({
+      campaign_dispatches: { data: queuedDispatch(), error: null },
+      approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: { status: "approved", dispatch_locked: true, approved_at: "2026-07-01T00:00:00.000Z" }, error: null },
+      connections: { data: ENABLED_RESEND, error: null },
+    });
+
+    const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { apiKey: "re_test", send });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/locked for dispatch|deploy it/i);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("refuses a dispatch with no asset to verify, rather than trusting the approval row", async () => {
+    const send = vi.fn().mockResolvedValue({ id: "resend-should-not-happen" });
+    const supabase = createSupabaseQueryMock({
+      campaign_dispatches: { data: queuedDispatch({ campaign_asset_id: null }), error: null },
+      approval_items: { data: APPROVED, error: null },
+      connections: { data: ENABLED_RESEND, error: null },
+    });
+
+    const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { apiKey: "re_test", send });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/isn't linked to a campaign asset/i);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("scopes the asset lookup to the dispatch's org", async () => {
+    // The admin client bypasses RLS, so an unscoped .eq("id", …) would happily read
+    // another tenant's asset and take its approval as this dispatch's.
+    //
+    // Asserting a bare ["eq","org_id","org-1"] anywhere would pass without the asset
+    // lookup existing at all — the connections read scopes by org too. So look for it
+    // specifically between `from("campaign_assets")` and the next `from`.
+    const send = vi.fn().mockResolvedValue({ id: "resend-1" });
+    const supabase = createSupabaseQueryMock({
+      campaign_dispatches: { data: queuedDispatch(), error: null },
+      approval_items: { data: APPROVED, error: null },
+      campaign_assets: { data: DEPLOYED_ASSET, error: null },
+      connections: { data: ENABLED_RESEND, error: null },
+    });
+
+    await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { apiKey: "re_test", send });
+
+    const from = supabase.calls.findIndex(([m, t]) => m === "from" && t === "campaign_assets");
+    expect(from).toBeGreaterThan(-1);
+    const next = supabase.calls.findIndex(([m], i) => m === "from" && i > from);
+    const scopedTo = supabase.calls.slice(from, next === -1 ? undefined : next);
+    expect(scopedTo).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(scopedTo).toContainEqual(["eq", "id", "a1"]);
   });
 });
