@@ -47,7 +47,7 @@ import {
   saveUserAvatarAction,
   saveWorkspaceLogoAction,
 } from "../branding-actions";
-import { connectConnector, disconnectConnector, runConnectorImport, runCsvImportAction, saveConnectorConfig, testConnector, toggleConnectorEnabled } from "../connectors-actions";
+import { connectConnector, disconnectConnector, runConnectorImport, runCsvImportAction, saveConnectorConfig, sendSlackDigestAction, testConnector, toggleConnectorEnabled } from "../connectors-actions";
 import { removeResendKey, saveResendKey, setEmailConnectionEnabled, testEmailConnection } from "../connections-actions";
 import type { ConnectionView } from "@/lib/connections/read-model";
 import { setConnectorSpendCap } from "../spend-actions";
@@ -238,6 +238,12 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
     l: "Nw",
     credLabel: "GNews API key",
     credHint: "A free key from gnews.io. Stored encrypted in your Vault — never shown again. Then add the search terms to watch below.",
+  },
+  "slack-alerts": {
+    c: "#4a154b",
+    l: "Sl",
+    credLabel: "Slack Incoming Webhook URL",
+    credHint: "Create an Incoming Webhook in Slack (Apps → Incoming Webhooks), pick the channel, and paste the https://hooks.slack.com/… URL. Stored in your Vault; used only for the alerts you send.",
   },
   "reviews-signals": {
     c: "#e0a94a",
@@ -1614,6 +1620,9 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
         {/* CSV import — the data is pasted here, not fetched from a connected source */}
         {view.key === "csv-import" && !isPlanned ? <CsvImportSection view={view} /> : null}
 
+        {/* Slack alerts — operator-triggered posts to the team channel */}
+        {view.key === "slack-alerts" && !isPlanned ? <SlackAlertsSection view={view} /> : null}
+
         {/* Other import sources — an explicit, deliberate pull from a connected source */}
         {view.kind === "import_source" && view.key !== "csv-import" && !isPlanned ? (
           <div className="cxm-sec">
@@ -1640,6 +1649,37 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
         {status ? <div className="cxm-statusline"><Status status={status} /></div> : null}
       </div>
     </Modal>
+  );
+}
+
+// Slack alerts: once connected, the operator can post a test message or an
+// opportunity digest to their team channel. Buttons only — nothing automatic, so it
+// stays inside "no outbound without a human". Internal alerts, never customer-facing.
+function SlackAlertsSection({ view }: { view: ConnectorView }) {
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState<SaveStatus>(null);
+  const ready = view.status === "connected";
+
+  async function post() {
+    setPending(true); setStatus(null);
+    const res = await sendSlackDigestAction();
+    setPending(false);
+    setStatus(res.ok ? { tone: "ok", text: res.message ?? "Posted." } : { tone: "err", text: res.error });
+  }
+
+  return (
+    <div className="cxm-sec">
+      <div className="cxm-label">Post a digest</div>
+      <p className="cxm-hint">
+        {ready
+          ? "Post a summary of your current open opportunities to Slack on demand — nothing is sent automatically, this button is the only trigger. (Use Test connection above to post a quick check.)"
+          : "Paste your Slack webhook URL above and switch this on first — then you can post from here."}
+      </p>
+      <div className="cxm-actions">
+        <button className="btn sm gold" disabled={!ready || pending} onClick={post}>{pending ? "Posting…" : "Post opportunity digest"}</button>
+      </div>
+      {status ? <div className="cxm-statusline"><Status status={status} /></div> : null}
+    </div>
   );
 }
 
