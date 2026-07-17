@@ -181,6 +181,68 @@ export async function listNodes(
   }
 }
 
+/**
+ * Exact tier counts for the Brain's summary tiles.
+ *
+ * listNodes caps at 200 rows ordered by updated_at, which is right for a browsable
+ * list and wrong for a count. The Brain page derived all four tiles from that
+ * capped list, so on a 422-node brain it read:
+ *
+ *   Knowledge nodes 200 (of 422) · Trusted 0 (of 37) · Observed 200 (of 384)
+ *   · Awaiting review 0 (of 1)
+ *
+ * Every tile wrong, and not merely truncated: the cap is a recency window, so the
+ * 37 trusted nodes — updated longer ago — fell outside it entirely and the tile
+ * reported that Arc has NO knowledge approved for outbound. A page size rendered
+ * as a total is a lie the number itself can't reveal; it looks like a plausible
+ * count, and 200 looks like a fact rather than a limit.
+ *
+ * Counts are exact and O(1) on the wire (head requests), and exclude archived —
+ * matching what listNodes shows by default.
+ */
+export type BrainTierCounts = { total: number; trusted: number; observed: number; proposed: number };
+
+export async function countNodesByTier(
+  client?: TypedSupabaseClient,
+  orgId?: string,
+  options: ListNodesOptions = {},
+): Promise<Live<{ counts: BrainTierCounts }> | Unavailable> {
+  const resolved = await resolveRead(client, orgId);
+  const demoFallback = options.demoFallback !== false && isDemoDataEnabled();
+  if (!resolved) {
+    const nodes = demoFallback ? filterDemoNodes({}) : [];
+    return { status: "live", counts: countTiers(nodes) };
+  }
+  try {
+    const base = () => resolved.client.from("knowledge_nodes").select("id", { count: "exact", head: true }).eq("org_id", resolved.orgId);
+    const [total, trusted, observed, proposed] = await Promise.all([
+      base().neq("trust_tier", "archived"),
+      base().eq("trust_tier", "trusted"),
+      base().eq("trust_tier", "observed"),
+      base().eq("trust_tier", "proposed"),
+    ]);
+    const firstError = [total, trusted, observed, proposed].find((r) => r.error);
+    if (firstError?.error) return { status: "unavailable", message: firstError.error.message };
+    const counts: BrainTierCounts = {
+      total: total.count ?? 0,
+      trusted: trusted.count ?? 0,
+      observed: observed.count ?? 0,
+      proposed: proposed.count ?? 0,
+    };
+    // An empty brain falls back to the demo memory only in demo mode, mirroring listNodes.
+    if (counts.total === 0 && demoFallback) return { status: "live", counts: countTiers(filterDemoNodes({})) };
+    return { status: "live", counts };
+  } catch (error) {
+    return { status: "unavailable", message: error instanceof Error ? error.message : "Brain is unavailable." };
+  }
+}
+
+/** Tier counts over an in-memory list (demo mode), mirroring the SQL above. */
+function countTiers(nodes: BrainNode[]): BrainTierCounts {
+  const tier = (t: string) => nodes.filter((n) => (n.trustTier ?? "").toLowerCase() === t).length;
+  return { total: nodes.filter((n) => (n.trustTier ?? "").toLowerCase() !== "archived").length, trusted: tier("trusted"), observed: tier("observed"), proposed: tier("proposed") };
+}
+
 /** All edges for the workspace graph (Knowledge Web). Empty when unconfigured. */
 export async function listGraphEdges(
   client?: TypedSupabaseClient,
