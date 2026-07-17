@@ -92,6 +92,7 @@ import type { ArcWaitingOpp } from "@/lib/arc-chat/waiting-opps";
 import { resolveArcModelRoute, type ArcModelPreference } from "@/lib/arc-chat/model-routing";
 import { buildArcRunContract, type ArcRunContract } from "@/lib/arc-chat/run-contract";
 import { buildArcRunProfile, inferArcRunIntent } from "@/lib/arc-chat/run-profile";
+import { getArcConversationHeader, shouldShowDemoLauncher } from "@/lib/arc-chat/view-state";
 
 import {
   archiveArcConversationAction,
@@ -475,7 +476,6 @@ function LiveReasoning({ text, streaming }: { text: string; streaming: boolean }
   }, [shown]);
   return (
     <div className="arc-live-reasoning">
-      <span className="arc-live-reasoning-label"><Brain size={12} /> Thinking</span>
       <div className="arc-live-reasoning-scroll" ref={scrollRef}>
         <div className={`arc-stream${streaming ? " is-streaming" : ""} arc-markdown`}>
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{shown}</ReactMarkdown>
@@ -798,21 +798,23 @@ function OperatorMessage({ body, time, attachments, onEdit }: { body: string; ti
 
 function AssistantMessage({
   time,
+  active = false,
   children,
 }: {
   time?: string;
+  active?: boolean;
   children: React.ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
   return (
     <motion.article
-      className="arc-assistant-message"
+      className={`arc-assistant-message${active ? " is-active" : ""}`}
       initial={reduceMotion ? false : { opacity: 0, y: 9 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="arc-assistant-content">
-        <div className="arc-assistant-meta"><b>Arc</b>{time ? <span>{time}</span> : null}</div>
+        {!active ? <div className="arc-assistant-meta"><b>Arc</b>{time ? <span>{time}</span> : null}</div> : null}
         {children}
       </div>
     </motion.article>
@@ -1348,7 +1350,7 @@ function LiveConversation({
           agentTaskId: message.agentTaskId,
         });
         return (
-          <AssistantMessage key={message.id} time={formatMessageTime(message.createdAt)}>
+          <AssistantMessage key={message.id} time={formatMessageTime(message.createdAt)} active={pending}>
             <RunTrace pending={pending} liveText={pending ? message.body : null} reasoning={message.reasoning} steps={message.steps} toolCalls={message.toolCalls} contract={contract} thoughtSeconds={thoughtSeconds} onStop={pending && message.agentTaskId ? () => onCancelRun(message.agentTaskId as string, message.conversationId) : undefined} stopping={stoppingTaskId === message.agentTaskId} outcome={message.status === "failed" ? (message.body.startsWith("Stopped by you") ? "canceled" : "failed") : "complete"} />
             {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div> : null}
             {!pending && message.mentions.length ? <SourcesRow mentions={message.mentions} /> : null}
@@ -1376,6 +1378,7 @@ function LiveConversation({
 function DemoConversation({
   turns,
   pending,
+  includeSeed,
   packageStatuses,
   pendingContract,
   onReview,
@@ -1384,6 +1387,7 @@ function DemoConversation({
 }: {
   turns: DemoTurn[];
   pending: boolean;
+  includeSeed: boolean;
   packageStatuses: Record<string, ArcAssetStatus>;
   pendingContract: ArcRunContract;
   onReview: (cards: ArcActionCard[]) => void;
@@ -1396,31 +1400,35 @@ function DemoConversation({
 
   return (
     <>
-      <div className="arc-day"><span>July 14, 2026</span></div>
-      <OperatorMessage time="9:34 AM" body="Here’s a reference photo from our last storm job — match this look in the creative." attachments={DEMO_ATTACHMENTS} onEdit={editable} />
-      <OperatorMessage time="9:35 AM" body="Which homeowners should we reach first after the Naperville hailstorm?" onEdit={editable} />
-      <AssistantMessage time="9:38 AM">
-        <div className="arc-answer">
-          <h2>142 homes took the heaviest hail and still haven’t booked an inspection.</h2>
-          <p>That’s 23% of the storm zone and about $1.4M in estimated restoration work. The clearest urgency signals across them:</p>
-          <ul><li>Sit in the <b>worst-hit hail swath</b>, with no inspection on file — <b>3.1× more likely</b> to have hidden damage</li><li>No inspection booked in the six days since the storm</li><li>Roof age 8+ years or prior claim history</li></ul>
-        </div>
-        <RunTrace pending={false} thoughtSeconds={8} reasoning="I combined the storm footprint with property condition and recent CRM activity, then favored an inspection-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "ask", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
-        <SourcesRow mentions={DEMO_SOURCES} />
-        <RecallRow recall={DEMO_RECALL} />
-      </AssistantMessage>
-      <AssistantMessage time="9:40 AM">
-        <div className="arc-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{DEMO_BREAKDOWN_MD}</ReactMarkdown></div>
-      </AssistantMessage>
-      <AssistantMessage time="9:42 AM">
-        <div className="arc-answer"><p>I built the Storm Rapid Response package for the 142 highest-urgency homes.</p></div>
-        <DraftPackageCard cards={DEMO_PACKAGE_CARDS} statuses={packageStatuses} onReview={() => onReview(DEMO_PACKAGE_CARDS)} />
-      </AssistantMessage>
-      <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." onEdit={editable} />
-      <AssistantMessage time="9:45 AM">
-        <div className="arc-answer"><p>Here’s the inspection email for the 64 insured, fresh-damage homes. Approve it when it looks right — it stays locked until you do.</p></div>
-        <div className="arc-action-list"><ArcDraftCard card={DEMO_DRAFT_CARD} /></div>
-      </AssistantMessage>
+      {includeSeed ? (
+        <>
+          <div className="arc-day"><span>July 14, 2026</span></div>
+          <OperatorMessage time="9:34 AM" body="Here’s a reference photo from our last storm job — match this look in the creative." attachments={DEMO_ATTACHMENTS} onEdit={editable} />
+          <OperatorMessage time="9:35 AM" body="Which homeowners should we reach first after the Naperville hailstorm?" onEdit={editable} />
+          <AssistantMessage time="9:38 AM">
+            <div className="arc-answer">
+              <h2>142 homes took the heaviest hail and still haven’t booked an inspection.</h2>
+              <p>That’s 23% of the storm zone and about $1.4M in estimated restoration work. The clearest urgency signals across them:</p>
+              <ul><li>Sit in the <b>worst-hit hail swath</b>, with no inspection on file — <b>3.1× more likely</b> to have hidden damage</li><li>No inspection booked in the six days since the storm</li><li>Roof age 8+ years or prior claim history</li></ul>
+            </div>
+            <RunTrace pending={false} thoughtSeconds={8} reasoning="I combined the storm footprint with property condition and recent CRM activity, then favored an inspection-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "ask", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
+            <SourcesRow mentions={DEMO_SOURCES} />
+            <RecallRow recall={DEMO_RECALL} />
+          </AssistantMessage>
+          <AssistantMessage time="9:40 AM">
+            <div className="arc-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{DEMO_BREAKDOWN_MD}</ReactMarkdown></div>
+          </AssistantMessage>
+          <AssistantMessage time="9:42 AM">
+            <div className="arc-answer"><p>I built the Storm Rapid Response package for the 142 highest-urgency homes.</p></div>
+            <DraftPackageCard cards={DEMO_PACKAGE_CARDS} statuses={packageStatuses} onReview={() => onReview(DEMO_PACKAGE_CARDS)} />
+          </AssistantMessage>
+          <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." onEdit={editable} />
+          <AssistantMessage time="9:45 AM">
+            <div className="arc-answer"><p>Here’s the inspection email for the 64 insured, fresh-damage homes. Approve it when it looks right — it stays locked until you do.</p></div>
+            <div className="arc-action-list"><ArcDraftCard card={DEMO_DRAFT_CARD} /></div>
+          </AssistantMessage>
+        </>
+      ) : null}
       {turns.map((turn, index) => {
         if (turn.role === "operator") return <OperatorMessage key={turn.id} body={turn.body} onEdit={editable} />;
         const operatorTurn = [...turns.slice(0, index)].reverse().find((candidate) => candidate.role === "operator");
@@ -1443,7 +1451,7 @@ function DemoConversation({
           </AssistantMessage>
         );
       })}
-      {pending ? <AssistantMessage time="now"><RunTrace pending reasoning={demoLiveWork.commentary} demoRows={demoLiveWork.rows} contract={pendingContract} onStop={onStop} /></AssistantMessage> : null}
+      {pending ? <AssistantMessage active><RunTrace pending reasoning={demoLiveWork.commentary} demoRows={demoLiveWork.rows} contract={pendingContract} onStop={onStop} /></AssistantMessage> : null}
     </>
   );
 }
@@ -1719,6 +1727,7 @@ export function ArcView({
   const [command, setCommand] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [composerNotice, setComposerNotice] = useState<string | null>(null);
+  const [contextInfoOpen, setContextInfoOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   // The assets open in the review workspace (null = closed), plus a per-asset
@@ -1865,6 +1874,19 @@ export function ArcView({
     scrollToEnd();
   }, [turnCount, scrollToEnd]);
 
+  // Opening or switching conversations should resume at the latest turn. This
+  // is separate from turnCount because the seeded demo thread has no local turns.
+  useEffect(() => {
+    pinnedRef.current = true;
+    if (!live && selectedDemoId === "new") {
+      window.requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
+      });
+      return;
+    }
+    scrollToEnd();
+  }, [activeConversationId, live, selectedDemoId, scrollToEnd]);
+
   useEffect(() => () => {
     if (demoTimer.current != null) window.clearTimeout(demoTimer.current);
   }, []);
@@ -1878,7 +1900,7 @@ export function ArcView({
   }, [composerMenu]);
 
   useEffect(() => {
-    if (!composerMenu && !reviewCards) return;
+    if (!composerMenu && !reviewCards && !contextInfoOpen) return;
 
     const dismissOpenSurface = (event: PointerEvent) => {
       const target = event.target;
@@ -1888,6 +1910,10 @@ export function ArcView({
         setComposerMenu(null);
       }
 
+      if (contextInfoOpen && !target.closest(".arc-context-control")) {
+        setContextInfoOpen(false);
+      }
+
       if (reviewCards && !target.closest(".arc-artifact-workspace") && !target.closest('[data-arc-review-trigger="true"]')) {
         setReviewCards(null);
       }
@@ -1895,11 +1921,16 @@ export function ArcView({
 
     document.addEventListener("pointerdown", dismissOpenSurface);
     return () => document.removeEventListener("pointerdown", dismissOpenSurface);
-  }, [composerMenu, reviewCards]);
+  }, [composerMenu, contextInfoOpen, reviewCards]);
 
   const activeThread = threadGroups.flatMap((group) => group.items).find((thread) => thread.id === activeConversationId);
   const selectedDemoThread = DEMO_THREADS.flatMap((group) => group.items).find((thread) => thread.id === selectedDemoId);
-  const title = live ? activeThread?.title ?? "New conversation" : selectedDemoId === "storm" ? "Storm Rapid Response" : selectedDemoThread?.title ?? "New conversation";
+  const header = getArcConversationHeader({
+    live,
+    activeTitle: activeThread?.title,
+    selectedDemoId,
+    selectedDemoTitle: selectedDemoThread?.title,
+  });
   const latestQuestion = live ? [...messages].reverse().find((message) => message.role === "arc")?.questions?.[0] ?? null : null;
   const visibleQuestion = latestQuestion && latestQuestion.id !== dismissedQuestionId ? latestQuestion : null;
   const contextState = messages.length > 0
@@ -1907,6 +1938,8 @@ export function ArcView({
     : { tokens: 4_320, pct: 18, level: "ok" as const };
   const mentionItems = mentionGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label }))).slice(0, 12);
   const currentModel = MODEL_OPTIONS.find((option) => option.id === modelPreference) ?? MODEL_OPTIONS[0];
+  const resolvedModelName = route === "fast" ? "Spark" : "Forge";
+  const showDemoLauncher = shouldShowDemoLauncher({ selectedDemoId, turnCount: demoTurns.length, pending: demoPending });
   const contextScopes = ARC_CONTEXT_SCOPES;
 
   const updateDraft = (value: string) => {
@@ -1924,6 +1957,7 @@ export function ArcView({
 
   const toggleComposerMenu = (menu: Exclude<ComposerMenu, null>, trigger: HTMLButtonElement) => {
     composerMenuTriggerRef.current = trigger;
+    setContextInfoOpen(false);
     setComposerMenu((current) => current === menu ? null : menu);
     setComposerNotice(null);
   };
@@ -2013,6 +2047,7 @@ export function ArcView({
     setMode(resolvedMode);
     setRoute(resolvedRoute);
     setComposerMenu(null);
+    setContextInfoOpen(false);
     setComposerNotice(null);
     if (!live) {
       const demoContract = buildArcRunContract({ mode: resolvedMode, route: resolvedRoute, contextScopes });
@@ -2064,12 +2099,14 @@ export function ArcView({
     setSelectedDemoId(id);
     setHistoryOpen(false);
     setReviewCards(null);
+    setContextInfoOpen(false);
     setDemoTurns([]);
     setDemoPending(false);
   };
 
   const openReview = (cards: ArcActionCard[]) => {
     setComposerMenu(null);
+    setContextInfoOpen(false);
     setReviewCards(cards.filter((card) => card.approval));
   };
 
@@ -2159,7 +2196,7 @@ export function ArcView({
     <div className="arc-chat" data-workspace-open={reviewCards ? "true" : "false"}>
       <header className="arc-conversation-header">
         <button type="button" className="arc-history-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversation history"><Menu size={17} /><span>History</span></button>
-        <div className="arc-conversation-title"><h1>{title}</h1><p>{live ? "Private conversation" : "Storm-damage homeowners · 4 assets · Naperville, IL"}</p></div>
+        <div className="arc-conversation-title"><h1>{header.title}</h1><p>{header.subtitle}</p></div>
         <div className="arc-conversation-actions">
           <button type="button" onClick={() => setShareOpen(true)} disabled={!activeConversationId} title={!activeConversationId ? "Start a real conversation before sharing" : "Share conversation"}><Share2 size={15} /> Share</button>
           <span className="arc-lock"><LockKeyhole size={14} /> Outbound locked</span>
@@ -2168,7 +2205,7 @@ export function ArcView({
 
       <main className="arc-conversation-scroll" ref={scrollRef}>
         <div className="arc-conversation-column">
-          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={updateDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <ArcLauncher brandName={brandName} waiting={DEMO_WAITING} onPick={updateDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
+          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={updateDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : showDemoLauncher ? <ArcLauncher brandName={brandName} waiting={DEMO_WAITING} onPick={updateDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} includeSeed={selectedDemoId !== "new"} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
           <div ref={endRef} />
         </div>
       </main>
@@ -2246,8 +2283,21 @@ export function ArcView({
             <div className="arc-composer-toolbar">
               <div className="arc-composer-tools">
                 <button type="button" className="arc-composer-add" aria-label="Add attachment, mention, or command" aria-haspopup="menu" aria-controls={composerMenu === "tools" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "tools"} onClick={(event) => toggleComposerMenu("tools", event.currentTarget)}><Plus size={18} /></button>
-                <button type="button" className="arc-composer-pill arc-model-button" aria-label={`Model: ${currentModel.label}`} aria-haspopup="menu" aria-controls={composerMenu === "model" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "model"} onClick={(event) => toggleComposerMenu("model", event.currentTarget)}><ArcModelIcon model={modelPreference} size={14} /><span>{currentModel.label}</span><ChevronDown size={12} /></button>
-                <span className="arc-context-meter" data-level={contextState.level} data-tooltip={`Context ${contextState.pct}% used · full workspace memory on`} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={contextState.pct} aria-label={`Context window: ${contextState.pct}% used. Full workspace memory is always on.`} tabIndex={0}><CircularProgress className="arc-context-progress" variant="determinate" value={contextState.pct} size={30} thickness={2.4} role="presentation" aria-hidden="true" /></span>
+                <button type="button" className="arc-composer-pill arc-model-button" aria-label={`Model: ${currentModel.label}${modelPreference === "auto" ? `. Currently routes to Arc ${resolvedModelName}.` : ""}`} aria-haspopup="menu" aria-controls={composerMenu === "model" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "model"} onClick={(event) => toggleComposerMenu("model", event.currentTarget)}><ArcModelIcon model={modelPreference} size={14} /><span>{currentModel.label}{modelPreference === "auto" ? <small> · {resolvedModelName}</small> : null}</span><ChevronDown size={12} /></button>
+                <div className="arc-context-control">
+                  <button type="button" className="arc-context-meter" data-level={contextState.level} aria-label={`Context window: ${contextState.pct}% used. Full workspace memory is always on.`} aria-expanded={contextInfoOpen} aria-controls="arc-context-info" onClick={() => { setComposerMenu(null); setContextInfoOpen((current) => !current); }} onKeyDown={(event) => { if (event.key === "Escape") setContextInfoOpen(false); }}>
+                    <CircularProgress className="arc-context-progress" variant="determinate" value={contextState.pct} size={30} thickness={2.4} role="presentation" aria-hidden="true" />
+                  </button>
+                  <AnimatePresence>
+                    {contextInfoOpen ? (
+                      <motion.div id="arc-context-info" className="arc-context-popover" role="status" initial={{ opacity: 0, y: 5, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4, scale: 0.99 }} transition={{ duration: 0.14 }}>
+                        <b>Context</b>
+                        <span>{contextState.pct}% used</span>
+                        <p>Arc remembers your full workspace automatically.</p>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                </div>
               </div>
               <div className="arc-composer-send"><button type="button" className="arc-send-button" onClick={submitDraft} disabled={!draft.trim() || isSending || demoPending || uploading} aria-label="Send message">{isSending || demoPending || uploading ? <LoaderCircle size={18} className="is-spinning" /> : <ArrowUp size={18} />}</button></div>
             </div>
