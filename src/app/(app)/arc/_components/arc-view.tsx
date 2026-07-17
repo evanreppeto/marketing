@@ -814,7 +814,7 @@ function AssistantMessage({
       transition={{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="arc-assistant-content">
-        {!active ? <div className="arc-assistant-meta"><b>Arc</b>{time ? <span>{time}</span> : null}</div> : null}
+        {!active ? <div className="arc-assistant-meta"><span className="arc-assistant-avatar" aria-hidden><Sparkles size={12} /></span><b>Arc</b>{time ? <span>{time}</span> : null}</div> : null}
         {children}
       </div>
     </motion.article>
@@ -1052,53 +1052,84 @@ function ArcWorkPanel({
 }
 
 /**
- * Card-driven review workspace: the assets Arc drafted, one tab each, with the
- * full draft content and per-asset Approve / Revise / Decline wired to the real
- * campaign decision flow. Decisions are lifted to the parent (keyed by asset id)
- * so they persist while the panel is open and reflect back on the package summary.
+ * Shared Approve / Revise / Decline state machine for an Arc-drafted, approval-
+ * gated asset. Owns the ephemeral interaction state (busy, notice, the revise
+ * textarea) and the two server-action calls, then hands the resolved status back
+ * through `onResolved` so each surface keeps its own status ownership — the inline
+ * card holds it locally, the review panel lifts it to the parent so it reflects on
+ * the package summary. Both surfaces consume this hook so the decision flow (the
+ * actions, the status transitions, the notice copy, and the disabled gating) can
+ * never drift between them; only the surrounding layout differs.
  */
-function AssetReviewPanel({ cards, statuses, onStatus, onClose }: { cards: ArcActionCard[]; statuses: Record<string, ArcAssetStatus>; onStatus: (assetId: string, status: ArcAssetStatus) => void; onClose: () => void }) {
-  const reduceMotion = useReducedMotion();
-  const [active, setActive] = useState(0);
+function useDraftDecision({
+  approval,
+  status,
+  onResolved,
+}: {
+  approval: ArcActionCard["approval"];
+  status: ArcAssetStatus | null;
+  onResolved: (assetId: string, status: ArcAssetStatus) => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [reviseOpen, setReviseOpen] = useState(false);
   const [reviseText, setReviseText] = useState("");
-  const card = cards[Math.min(active, cards.length - 1)];
-  const assetId = card.approval?.assetId ?? "";
-  const status = statuses[assetId] ?? card.status ?? null;
-  const meta = assetStatusMeta(status);
   const decided = status === "approved" || status === "rejected";
-  const approvedCount = cards.filter((c) => (statuses[c.approval?.assetId ?? ""] ?? c.status) === "approved").length;
-
-  const selectTab = (index: number) => { setActive(index); setReviseOpen(false); setReviseText(""); setNotice(null); };
 
   const decide = (decision: "approved" | "declined") => {
-    const approval = card.approval;
     if (!approval || busy) return;
-    setBusy(true); setNotice(null);
+    setBusy(true);
+    setNotice(null);
     decideArcDraftAction({ campaignId: approval.campaignId, assetId: approval.assetId, decision }).then((result) => {
       setBusy(false);
       if (!result.ok) return setNotice(result.error);
-      onStatus(approval.assetId, decision === "approved" ? "approved" : "rejected");
+      onResolved(approval.assetId, decision === "approved" ? "approved" : "rejected");
       setNotice(result.persisted ? (decision === "approved" ? "Approved" : "Declined") : "Preview — decision not saved");
     });
   };
 
   const submitRevision = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const approval = card.approval;
     const instruction = reviseText.trim();
     if (!approval || !instruction || busy) return;
-    setBusy(true); setNotice(null);
+    setBusy(true);
+    setNotice(null);
     requestArcDraftRevisionAction({ campaignId: approval.campaignId, assetId: approval.assetId, instruction }).then((result) => {
       setBusy(false);
       if (!result.ok) return setNotice(result.error);
-      onStatus(approval.assetId, "revision");
-      setReviseOpen(false); setReviseText("");
+      onResolved(approval.assetId, "revision");
+      setReviseOpen(false);
+      setReviseText("");
       setNotice(result.persisted ? "Revision requested — Arc is updating it" : "Preview — revision not saved");
     });
   };
+
+  const openRevise = () => setReviseOpen(true);
+  const cancelRevise = () => { setReviseOpen(false); setReviseText(""); };
+  // Clear the ephemeral state when the panel moves to a different asset.
+  const reset = () => { setReviseOpen(false); setReviseText(""); setNotice(null); };
+
+  return { busy, notice, reviseOpen, reviseText, setReviseText, decided, decide, submitRevision, openRevise, cancelRevise, reset } as const;
+}
+
+/**
+ * Card-driven review workspace: the assets Arc drafted, one tab each, with the
+ * full draft content and per-asset Approve / Revise / Decline wired (via
+ * `useDraftDecision`) to the real campaign decision flow. Decisions are lifted to
+ * the parent (keyed by asset id) so they persist while the panel is open and
+ * reflect back on the package summary.
+ */
+function AssetReviewPanel({ cards, statuses, onStatus, onClose }: { cards: ArcActionCard[]; statuses: Record<string, ArcAssetStatus>; onStatus: (assetId: string, status: ArcAssetStatus) => void; onClose: () => void }) {
+  const reduceMotion = useReducedMotion();
+  const [active, setActive] = useState(0);
+  const card = cards[Math.min(active, cards.length - 1)];
+  const assetId = card.approval?.assetId ?? "";
+  const status = statuses[assetId] ?? card.status ?? null;
+  const meta = assetStatusMeta(status);
+  const approvedCount = cards.filter((c) => (statuses[c.approval?.assetId ?? ""] ?? c.status) === "approved").length;
+  const { busy, notice, reviseOpen, reviseText, setReviseText, decided, decide, submitRevision, openRevise, cancelRevise, reset } = useDraftDecision({ approval: card.approval, status, onResolved: onStatus });
+
+  const selectTab = (index: number) => { setActive(index); reset(); };
 
   return (
     <motion.aside
@@ -1147,12 +1178,12 @@ function AssetReviewPanel({ cards, statuses, onStatus, onClose }: { cards: ArcAc
           <form className="arc-revision-form" onSubmit={submitRevision}>
             <label htmlFor="arc-revision-request">What should Arc change in the {(card.channel ?? "asset").toLowerCase()}?</label>
             <textarea id="arc-revision-request" autoFocus value={reviseText} onChange={(event) => setReviseText(event.target.value)} placeholder="Describe the change…" rows={2} />
-            <div><button type="button" onClick={() => { setReviseOpen(false); setReviseText(""); }}>Cancel</button><button type="submit" className="is-primary" disabled={!reviseText.trim() || busy}>Send revision</button></div>
+            <div><button type="button" onClick={cancelRevise}>Cancel</button><button type="submit" className="is-primary" disabled={!reviseText.trim() || busy}>Send revision</button></div>
           </form>
         ) : (
           <>
             <div role="status" aria-live="polite">{notice ?? "Approve, revise, or decline each asset."}</div>
-            <button type="button" onClick={() => setReviseOpen(true)} disabled={busy || decided}>Revise</button>
+            <button type="button" onClick={openRevise} disabled={busy || decided}>Revise</button>
             <button type="button" onClick={() => decide("declined")} disabled={busy || decided}>Decline</button>
             <button type="button" className="is-primary" onClick={() => decide("approved")} disabled={busy || decided}><Check size={14} />{status === "approved" ? "Approved" : "Approve"}</button>
           </>
@@ -1178,41 +1209,17 @@ const DRAFT_STATUS_META: Record<ArcAssetStatus | "review", { label: string; tone
  * back to a compact deep-link.
  */
 function ArcDraftCard({ card }: { card: ArcActionCard }) {
+  // The inline card owns its status locally (it isn't part of a package summary);
+  // the shared hook drives the decision flow and hands the resolved status back.
   const [status, setStatus] = useState<ArcAssetStatus | null>(card.status ?? null);
-  const [reviseOpen, setReviseOpen] = useState(false);
-  const [reviseText, setReviseText] = useState("");
-  const [notice, setNotice] = useState<string | null>(null);
-  const [busy, start] = useTransition();
   const approval = card.approval;
   const destination = card.appState?.href ?? card.href;
   const meta = DRAFT_STATUS_META[status ?? "review"] ?? DRAFT_STATUS_META.review;
-  const decided = status === "approved" || status === "rejected";
-
-  const decide = (decision: "approved" | "declined") => {
-    if (!approval || busy) return;
-    setNotice(null);
-    start(async () => {
-      const result = await decideArcDraftAction({ campaignId: approval.campaignId, assetId: approval.assetId, decision });
-      if (!result.ok) return setNotice(result.error);
-      setStatus(decision === "approved" ? "approved" : "rejected");
-      setNotice(result.persisted ? (decision === "approved" ? "Approved" : "Declined") : "Preview — decision not saved");
-    });
-  };
-
-  const submitRevision = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const instruction = reviseText.trim();
-    if (!approval || !instruction || busy) return;
-    setNotice(null);
-    start(async () => {
-      const result = await requestArcDraftRevisionAction({ campaignId: approval.campaignId, assetId: approval.assetId, instruction });
-      if (!result.ok) return setNotice(result.error);
-      setStatus("revision");
-      setReviseOpen(false);
-      setReviseText("");
-      setNotice(result.persisted ? "Revision requested — Arc is updating it" : "Preview — revision not saved");
-    });
-  };
+  const { busy, notice, reviseOpen, reviseText, setReviseText, decided, decide, submitRevision, openRevise, cancelRevise } = useDraftDecision({
+    approval,
+    status,
+    onResolved: (_assetId, next) => setStatus(next),
+  });
 
   return (
     <div className="arc-draft" data-status={status ?? "review"}>
@@ -1234,7 +1241,7 @@ function ArcDraftCard({ card }: { card: ArcActionCard }) {
         <form className="arc-draft-revise" onSubmit={submitRevision}>
           <textarea autoFocus rows={2} value={reviseText} onChange={(event) => setReviseText(event.target.value)} placeholder={`What should Arc change in the ${(card.channel ?? "draft").toLowerCase()}?`} />
           <div>
-            <button type="button" onClick={() => { setReviseOpen(false); setReviseText(""); }}>Cancel</button>
+            <button type="button" onClick={cancelRevise}>Cancel</button>
             <button type="submit" className="is-primary" disabled={!reviseText.trim() || busy}>Send revision</button>
           </div>
         </form>
@@ -1245,7 +1252,7 @@ function ArcDraftCard({ card }: { card: ArcActionCard }) {
             {destination?.startsWith("/") ? <Link className="arc-draft-open" href={destination}>Open <ArrowRight size={13} /></Link> : null}
             {approval ? (
               <>
-                <button type="button" className="arc-draft-btn" onClick={() => setReviseOpen(true)} disabled={busy || decided}><PencilLine size={13} /> Revise</button>
+                <button type="button" className="arc-draft-btn" onClick={openRevise} disabled={busy || decided}><PencilLine size={13} /> Revise</button>
                 <button type="button" className="arc-draft-btn" onClick={() => decide("declined")} disabled={busy || decided}><X size={13} /> Decline</button>
                 <button type="button" className="arc-draft-btn is-approve" onClick={() => decide("approved")} disabled={busy || decided}><Check size={14} /> {status === "approved" ? "Approved" : "Approve"}</button>
               </>
@@ -1409,7 +1416,7 @@ const LAUNCHER_SHORTCUTS: Array<{ icon: typeof Target; label: string; prompt: st
 /** The new-conversation "work launcher": a time-of-day greeting and tappable
  *  workflow starters that prefill the composer, so a blank chat proposes work
  *  instead of a bare prompt. */
-function ArcLauncher({ brandName, waiting, onPick }: { brandName: string; waiting?: ArcWaiting | null; onPick: (prompt: string) => void }) {
+function ArcLauncher({ greetName, waiting, onPick }: { greetName: string; waiting?: ArcWaiting | null; onPick: (prompt: string) => void }) {
   // Neutral on the server, resolved to the local time-of-day after mount — keeps
   // SSR/client markup identical (no hydration mismatch) and greets by the reader's
   // own clock, not the server's.
@@ -1433,7 +1440,7 @@ function ArcLauncher({ brandName, waiting, onPick }: { brandName: string; waitin
 
   return (
     <div className="arc-launcher">
-      <h2>{greeting}, {brandName}</h2>
+      <h2>{greeting}, {greetName}</h2>
       <p>Ask me to find an audience, draft a campaign, or check a signal. I’ll show the work and keep every draft ready for your review.</p>
       {waiting && (waiting.approvals > 0 || waiting.opportunities > 0) ? (
         <div className="arc-launcher-waiting">
@@ -1489,7 +1496,7 @@ function ArcLauncher({ brandName, waiting, onPick }: { brandName: string; waitin
 
 function LiveConversation({
   messages,
-  brandName,
+  operatorName,
   waiting,
   assetStatuses,
   onSuggestion,
@@ -1500,7 +1507,7 @@ function LiveConversation({
   stoppingTaskId,
 }: {
   messages: ArcMessage[];
-  brandName: string;
+  operatorName: string;
   waiting?: ArcWaiting | null;
   assetStatuses: Record<string, ArcAssetStatus>;
   onSuggestion: (value: string) => void;
@@ -1511,7 +1518,7 @@ function LiveConversation({
   stoppingTaskId: string | null;
 }) {
   if (messages.length === 0) {
-    return <ArcLauncher brandName={brandName} waiting={waiting} onPick={onSuggestion} />;
+    return <ArcLauncher greetName={operatorName} waiting={waiting} onPick={onSuggestion} />;
   }
 
   // While a reply is in flight, hide edit/regenerate — the turn is already running.
@@ -1888,6 +1895,7 @@ function ShareDialog({ conversationId, onClose }: { conversationId: string | nul
 
 export function ArcView({
   brandName,
+  operatorName,
   live = false,
   threadGroups = [],
   messages = [],
@@ -1897,6 +1905,7 @@ export function ArcView({
   initialDraft,
 }: {
   brandName: string;
+  operatorName?: string;
   live?: boolean;
   threadGroups?: ArcThreadGroupVM[];
   messages?: ArcMessage[];
@@ -1905,6 +1914,9 @@ export function ArcView({
   waiting?: ArcWaiting | null;
   initialDraft?: string;
 }) {
+  // Prefer the operator's first name for the greeting; fall back to the brand in
+  // open/demo mode where there's no signed-in person.
+  const greetName = operatorName?.trim() || brandName;
   const router = useRouter();
   const [isSending, startSend] = useTransition();
   const [draft, setDraft] = useState(initialDraft ?? "");
@@ -2081,14 +2093,18 @@ export function ArcView({
   // is separate from turnCount because the seeded demo thread has no local turns.
   useEffect(() => {
     pinnedRef.current = true;
-    if (!live && selectedDemoId === "new") {
+    // An empty conversation shows the launcher — its greeting is the moment that
+    // makes opening Arc feel personal, so rest at the top instead of auto-scrolling
+    // down to the composer and hiding it. Once a turn exists (or a run is in
+    // flight) we resume at the latest message.
+    if (turnCount === 0 && !isStreaming) {
       window.requestAnimationFrame(() => {
         scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
       });
       return;
     }
     scrollToEnd();
-  }, [activeConversationId, live, selectedDemoId, scrollToEnd]);
+  }, [activeConversationId, live, selectedDemoId, turnCount, isStreaming, scrollToEnd]);
 
   useEffect(() => () => {
     if (demoTimer.current != null) window.clearTimeout(demoTimer.current);
@@ -2424,7 +2440,7 @@ export function ArcView({
 
       <main className="arc-conversation-scroll" ref={scrollRef}>
         <div className="arc-conversation-column">
-          {live ? <LiveConversation messages={renderedMessages} brandName={brandName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={updateDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : showDemoLauncher ? <ArcLauncher brandName={brandName} waiting={DEMO_WAITING} onPick={updateDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} includeSeed={selectedDemoId !== "new"} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
+          {live ? <LiveConversation messages={renderedMessages} operatorName={greetName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={updateDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : showDemoLauncher ? <ArcLauncher greetName={greetName} waiting={DEMO_WAITING} onPick={updateDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} includeSeed={selectedDemoId !== "new"} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
           <div ref={endRef} />
         </div>
       </main>
@@ -2505,7 +2521,7 @@ export function ArcView({
                 <button type="button" className="arc-composer-pill arc-model-button" aria-label={`Model: ${currentModel.label}${modelPreference === "auto" ? `. Currently routes to Arc ${resolvedModelName}.` : ""}`} aria-haspopup="menu" aria-controls={composerMenu === "model" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "model"} onClick={(event) => toggleComposerMenu("model", event.currentTarget)}><ArcModelIcon model={modelPreference} size={14} /><span>{currentModel.label}{modelPreference === "auto" ? <small> · {resolvedModelName}</small> : null}</span><ChevronDown size={12} /></button>
                 <div className="arc-context-control">
                   <button type="button" className="arc-context-meter" data-level={contextState.level} aria-label={`Context window: ${contextState.pct}% used. Full workspace memory is always on.`} aria-expanded={contextInfoOpen} aria-controls="arc-context-info" onClick={() => { setComposerMenu(null); setContextInfoOpen((current) => !current); }} onKeyDown={(event) => { if (event.key === "Escape") setContextInfoOpen(false); }}>
-                    <CircularProgress className="arc-context-progress" variant="determinate" value={contextState.pct} size={30} thickness={2.4} role="presentation" aria-hidden="true" />
+                    <CircularProgress className="arc-context-progress" color="inherit" variant="determinate" value={contextState.pct} size={30} thickness={2.4} role="presentation" aria-hidden="true" />
                   </button>
                   <AnimatePresence>
                     {contextInfoOpen ? (
