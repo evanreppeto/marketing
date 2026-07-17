@@ -6,6 +6,7 @@
 // connectors API — imports from here.
 export { weatherSignalConnector, detectWeatherOpportunities } from "./weather-signal";
 export { rssSignalConnector, detectRssOpportunities } from "./rss-signal";
+export { newsSearchConnector, detectNewsSearchOpportunities } from "./news-search";
 export { reviewsSignalConnector, detectReviewOpportunities } from "./reviews-signal";
 export { competitorAdsConnector, detectCompetitorAdOpportunities } from "./competitor-ads";
 export { webhookChannelConnector, dispatchWebhook } from "./webhook-channel";

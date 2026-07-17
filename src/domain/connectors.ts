@@ -229,6 +229,34 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     toolNamespace: "rss-signals",
   },
   {
+    key: "news-search",
+    kind: "signal_source",
+    label: "News Search",
+    description:
+      "Read-only signal source: searches the news for the terms you watch — your brand, a competitor, an industry " +
+      "topic — and proposes a timely-response opportunity for each fresh mention. Uses your own GNews API key, so it " +
+      "finds coverage on sites that publish no feed. Never posts anything — proposals only.",
+    costTier: "byo_key",
+    // Universal: every business can watch its own name and its market.
+    verticals: [],
+    capability: {
+      summary: "Emits news_signal opportunities from fresh news articles matching the workspace's watched search terms.",
+      opportunityKinds: ["news_signal"],
+    },
+    credentialSchema: {
+      kind: "api_key",
+      label: "GNews API key",
+      hint: "A free key from gnews.io. Stored encrypted in your Vault — never shown again, never sent to the browser.",
+    },
+    // Needs BOTH a key AND terms to search. requiredConfigKeys gates the config half;
+    // the credential gate handles the key half.
+    requiredConfigKeys: ["queries"],
+    authKind: "api_key",
+    access: "read_only",
+    mcpUrl: null,
+    toolNamespace: "news-search",
+  },
+  {
     key: "reviews-signals",
     kind: "signal_source",
     label: "Reviews & Reputation",

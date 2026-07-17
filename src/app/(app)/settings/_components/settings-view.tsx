@@ -15,6 +15,7 @@ import {
   formatFeedsInput,
   formatServicePointsInput,
   parseFeedsInput,
+  parseNewsQueriesInput,
   parseServicePointsInput,
   parseWeatherServiceArea,
   type ConnectorCostTier,
@@ -232,6 +233,12 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
     credLabel: "",
     credHint: "No credential — reads the public RSS/Atom feeds you list and proposes a timely-response opportunity per fresh item. Add the feed URLs to watch.",
   },
+  "news-search": {
+    c: "#c99a6a",
+    l: "Nw",
+    credLabel: "GNews API key",
+    credHint: "A free key from gnews.io. Stored encrypted in your Vault — never shown again. Then add the search terms to watch below.",
+  },
   "reviews-signals": {
     c: "#e0a94a",
     l: "Rv",
@@ -293,7 +300,7 @@ const CONNECTOR_KIND_LABEL: Record<string, string> = {
 //            live in a csv field; this is why points were unreachable before)
 //   feeds  — one feed URL per line, optional "kind:" prefix + label (a URL can't
 //            live in a csv field for the same reason)
-type ConfigFieldKind = "text" | "csv" | "points" | "feeds";
+type ConfigFieldKind = "text" | "csv" | "points" | "feeds" | "queries";
 type ConfigField = { key: string; kind: ConfigFieldKind; label: string; placeholder: string; hint: string };
 
 const CONFIG_FIELDS: Record<string, ConfigField[]> = {
@@ -334,6 +341,15 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       label: "Only surface items mentioning… (optional)",
       placeholder: "roof, storm, water damage",
       hint: "Comma-separated. When set, only feed items mentioning one of these words become opportunities — the way to tame a noisy industry feed. Leave blank to surface every fresh item.",
+    },
+  ],
+  "news-search": [
+    {
+      key: "queries",
+      kind: "queries",
+      label: "Search terms to watch",
+      placeholder: "brand: Big Shoulders Restoration\ncompetitor: ServPro Chicago\nChicago storm damage",
+      hint: "One search term per line. Optional prefix — brand:, competitor:, or industry: (default) — sets the angle. Each fresh news article matching a term becomes a timely-response opportunity. Needs a GNews key above.",
     },
   ],
   "webhook-dispatch": [
@@ -1657,7 +1673,7 @@ type LineField = {
   parse: (text: string) => { value: unknown; invalid: string[] };
   errorHint: string;
 };
-const LINE_FIELDS: Record<"points" | "feeds", LineField> = {
+const LINE_FIELDS: Record<"points" | "feeds" | "queries", LineField> = {
   points: {
     toText: (v) => formatServicePointsInput(parseWeatherServiceArea({ points: v }).points),
     parse: (text) => { const r = parseServicePointsInput(text); return { value: r.points, invalid: r.invalid }; },
@@ -1668,9 +1684,16 @@ const LINE_FIELDS: Record<"points" | "feeds", LineField> = {
     parse: (text) => { const r = parseFeedsInput(text); return { value: formatFeedsInput(r.feeds), invalid: r.invalid }; },
     errorHint: "each line needs a feed URL (e.g. competitor: https://blog.example.com/feed)",
   },
+  queries: {
+    // Queries are stored as the raw one-per-line text (spaces are meaningful), so the
+    // stored value round-trips verbatim; parse only surfaces unreadable lines.
+    toText: (v) => (typeof v === "string" ? v : ""),
+    parse: (text) => { const r = parseNewsQueriesInput(text); return { value: text, invalid: r.invalid }; },
+    errorHint: "each line is a search term, optionally prefixed (e.g. competitor: Acme Corp)",
+  },
 };
-function isLineField(kind: ConfigFieldKind): kind is "points" | "feeds" {
-  return kind === "points" || kind === "feeds";
+function isLineField(kind: ConfigFieldKind): kind is "points" | "feeds" | "queries" {
+  return kind === "points" || kind === "feeds" || kind === "queries";
 }
 
 // Per-workspace, non-secret config editor inside the connector popup (a signal
