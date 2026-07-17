@@ -3,6 +3,7 @@ import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { crmRecordHref, listOpenOpportunities, type OpportunityRecord } from "@/lib/opportunities/read-model";
 import { getOrgPersonaOptions } from "@/lib/personas/read-model";
 
+import { classify } from "./classify";
 import { OpportunityInbox, type OpportunityVM } from "./_components/opportunity-inbox";
 
 export const metadata = { title: "Opportunities — Arc" };
@@ -18,27 +19,6 @@ function humanizePersona(persona: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function classify(text: string, subjectType: string): { icon: OpportunityVM["icon"]; typeLabel: string } {
-  // External-signal kinds carry a synthetic subject_type — key off it directly so
-  // classification never depends on a keyword happening to appear in the title
-  // (e.g. "Severe Thunderstorm Warning" has no bare "storm"/"wind" token).
-  const stExact = (subjectType || "").toLowerCase();
-  if (stExact === "weather_event") return { icon: "weather", typeLabel: "Weather event" };
-  if (stExact === "competitor_signal") return { icon: "comp", typeLabel: "Competitor move" };
-  if (stExact === "campaign") return { icon: "repeat", typeLabel: "Repeat a winner" };
-
-  const t = text.toLowerCase();
-  // Word-boundaried so company names like "Windy City" don't match "wind".
-  if (/\b(partner|referral|co-?marketing)\b/.test(t)) return { icon: "comp", typeLabel: "Partner referral" };
-  if (/\b(storm|hail|hailstorm|weather|wind|snow|flood|rain|freeze)\b/.test(t)) return { icon: "weather", typeLabel: "Weather event" };
-  if (/\b(competitor|servpro|rival|ad library|running ads|contested)\b/.test(t)) return { icon: "comp", typeLabel: "Competitor move" };
-  if (/\b(quiet|cold|lapsed|re-?engage|dormant|inactive|past customer|reactivat)\b/.test(t)) return { icon: "clock", typeLabel: "Lifecycle" };
-  if (/\b(intent|comparing|estimate|visit|brows|inquir|quote request|warm)\b/.test(t)) return { icon: "user", typeLabel: "Buyer intent" };
-  const st = (subjectType || "").toLowerCase();
-  if (/lead/.test(st)) return { icon: "user", typeLabel: "Lead signal" };
-  if (/compan|partner/.test(st)) return { icon: "comp", typeLabel: "Company signal" };
-  return { icon: "user", typeLabel: "Opportunity" };
-}
 
 function shortName(title: string): string {
   const first = title.split(/\s+[—–-]\s+/)[0].trim() || title.trim();
@@ -98,7 +78,9 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
   const persona = humanizePersona(ev.persona ?? "");
   const { icon, typeLabel } = classify(`${rec.title} ${rec.summary}`, rec.subject_type);
   const urgencyLabel = humanize(rec.urgency) || "Medium";
-  const sourceLabel = humanize(rec.subject_type) || "Arc";
+  // "feed_item" humanizes to "Feed item", which reads as jargon in the list row —
+  // give it the same friendly name the detail's type chip uses.
+  const sourceLabel = rec.subject_type === "feed_item" ? "News" : humanize(rec.subject_type) || "Arc";
   const confidence = Math.round(rec.confidence);
   // Abbreviated for the row: the title already spells it out, and the list is
   // scanned, not read.
@@ -129,6 +111,11 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
     evidence.push({ label: "Active creatives", value: `${ev.creativeCount}${ev.activityLevel ? ` (${humanize(ev.activityLevel)} activity)` : ""}` });
   }
   if (Array.isArray(ev.keywords) && ev.keywords.length) evidence.push({ label: "Keywords", value: ev.keywords.slice(0, 4).join(", ") });
+  // Feed/news signals (kind='news_signal').
+  if (ev.source) evidence.push({ label: "Source", value: ev.source });
+  if (Array.isArray(ev.matchedKeywords) && ev.matchedKeywords.length) {
+    evidence.push({ label: "Matched terms", value: ev.matchedKeywords.slice(0, 4).join(", ") });
+  }
   // Next-iteration signals (kind='next_iteration').
   if (ev.topChannel) {
     const booked = typeof ev.bookedJobs === "number" ? ev.bookedJobs : 0;

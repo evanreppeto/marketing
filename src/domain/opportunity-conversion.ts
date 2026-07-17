@@ -56,6 +56,7 @@ const KIND_LABELS: Record<string, string> = {
   persona_gap: "Persona gap",
   media_approved: "New media",
   performance_anomaly: "Performance anomaly",
+  news_signal: "News mention",
 };
 
 function titleize(value: string): string {

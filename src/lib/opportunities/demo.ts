@@ -60,6 +60,24 @@ export function buildDemoOpportunities(): OpportunityRecord[] {
       },
     },
     {
+      id: "demo-opp-news-hail",
+      subject_type: "feed_item",
+      subject_id: "https://news.example.com/naperville-hail-june",
+      title: "Naperville Sun: 'Hailstorm damages hundreds of North Side roofs'",
+      summary:
+        "A watched news feed just published coverage of last night's hailstorm across Naperville's North Side. A timely post tying your inspection offer to the story reaches affected homeowners while it's front of mind.",
+      confidence: 66,
+      urgency: "medium",
+      status: "pending",
+      recommended_action: "Draft a timely post responding to this while it's fresh",
+      evidence: {
+        feedKind: "industry",
+        source: "Naperville Sun",
+        link: "https://news.example.com/naperville-hail-june",
+        evidence_urls: ["https://news.example.com/naperville-hail-june"],
+      },
+    },
+    {
       id: "demo-opp-intent-donovan",
       subject_type: "lead",
       subject_id: "demo-ld-donovan-basement",
