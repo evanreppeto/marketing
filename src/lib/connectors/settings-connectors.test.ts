@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CONNECTOR_REGISTRY, connectorRequiresCredential, findConnector } from "@/domain";
+import { CONNECTOR_REGISTRY, connectorIsAvailable, connectorRequiresCredential, findConnector } from "@/domain";
 
 import { getSettingsConnectorsView } from "./settings-connectors";
 
@@ -15,10 +15,17 @@ describe("getSettingsConnectorsView", () => {
     for (const connector of view.connectors) {
       expect(connector.credentialPresent).toBe(false);
       expect(connector.enabled).toBe(false);
-      // Credentialed connectors read "not_configured"; no-credential connectors
-      // (public signal source / config-only channel) read "disabled" (just off).
-      const requiresCredential = connectorRequiresCredential(findConnector(connector.key)!);
-      expect(connector.status).toBe(requiresCredential ? "not_configured" : "disabled");
+      const entry = findConnector(connector.key)!;
+      // Three-way: a planned connector reads "unavailable" regardless of anything
+      // else (the fallback must carry availability through, not just credential
+      // state); a credentialed one reads "not_configured"; a no-credential one
+      // (public signal source / config-only channel) reads "disabled" (just off).
+      const expected = !connectorIsAvailable(entry)
+        ? "unavailable"
+        : connectorRequiresCredential(entry)
+          ? "not_configured"
+          : "disabled";
+      expect(connector.status).toBe(expected);
     }
   });
 });

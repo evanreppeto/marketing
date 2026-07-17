@@ -89,6 +89,7 @@ export async function listWorkspaceConnectors(client: SupabaseClient, workspaceI
         lastTestOk: row?.last_test_ok ?? null,
         requiresCredential,
         configPresent,
+        availability: entry.availability,
       }),
       lastTestedAt: row?.last_tested_at ?? null,
       lastTestOk: row?.last_test_ok ?? null,

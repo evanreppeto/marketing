@@ -4,6 +4,7 @@ import {
   bypassesMetering,
   computeConnectorStatus,
   connectorConfigSatisfied,
+  connectorIsAvailable,
   connectorRequiresCredential,
   findConnector,
   listConnectorsByKind,
@@ -135,6 +136,57 @@ describe("computeConnectorStatus", () => {
 
   it("leaves connectors with no required config untouched (configPresent omitted)", () => {
     expect(computeConnectorStatus({ credentialPresent: true, enabled: true, lastTestOk: null })).toBe("connected");
+  });
+});
+
+describe("availability — a connector with no integration must be unreachable, not just undocumented", () => {
+  // permit-data USED to invent "Paid permit records flagged fresh filings in {X}" at
+  // confidence 65 from nothing but a municipality name, and meter a paid lookup for
+  // each one. reviews/competitor-ads never invented anything, but claimed to "watch"
+  // Google/Yelp and Meta with no client behind either.
+  const PLANNED = ["reviews-signals", "competitor-ads", "permit-data"];
+
+  it.each(PLANNED)("%s is marked planned", (key) => {
+    expect(connectorIsAvailable(findConnector(key)!)).toBe(false);
+  });
+
+  it("planned beats every other gate — a stale enabled row can't resurrect one", () => {
+    expect(
+      computeConnectorStatus({
+        credentialPresent: true,
+        enabled: true,
+        lastTestOk: true,
+        requiresCredential: false,
+        configPresent: true,
+        availability: "planned",
+      }),
+    ).toBe("unavailable");
+  });
+
+  it("says so in the catalog, so the description can't promise what the code can't do", () => {
+    for (const key of PLANNED) {
+      expect(findConnector(key)!.description).toMatch(/^PLANNED —/);
+    }
+  });
+
+  // The gate that makes it structural: runSignalSourceDetection only runs
+  // status === "connected", so an unavailable connector can never reach detect().
+  it("never computes to connected, however the workspace row looks", () => {
+    for (const enabled of [true, false]) {
+      for (const credentialPresent of [true, false]) {
+        expect(
+          computeConnectorStatus({ credentialPresent, enabled, lastTestOk: null, availability: "planned" }),
+        ).not.toBe("connected");
+      }
+    }
+  });
+
+  it("leaves live connectors alone (availability omitted or explicit)", () => {
+    expect(connectorIsAvailable(findConnector("weather-signals")!)).toBe(true);
+    expect(connectorIsAvailable(findConnector("higgsfield")!)).toBe(true);
+    expect(
+      computeConnectorStatus({ credentialPresent: true, enabled: true, lastTestOk: null }),
+    ).toBe("connected");
   });
 });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 
 import { type AudienceResolution } from "@/domain";
 import {
@@ -10,6 +10,7 @@ import {
   type CampaignWorkspaceAssetCategory,
   type LiveCampaignWorkspace,
 } from "@/lib/campaigns/read-model";
+import { diffLines } from "@/lib/campaigns/revision-diff";
 import { LOCKED_CLAIMS, MEASUREMENT_PLAN } from "@/lib/performance/measurement-copy";
 import { buildPerformanceLearning, type CampaignPerformancePanel, type PerformanceTrendPoint } from "@/lib/performance/campaign-panel";
 
@@ -95,6 +96,43 @@ function MediaTile({ media }: { media: CampaignMediaAsset }) {
       </span>
       <span className="mttitle">{media.title}</span>
     </div>
+  );
+}
+
+// Arc's revision, as the line-level diff of the draft it started from against
+// the copy standing now. Collapsed by default: the reviewer's default question
+// is "is this approvable", and only sometimes "what moved".
+function RevisionDiff({ revision }: { revision: { draft: string; current: string } }) {
+  const lines = useMemo(() => diffLines(revision.draft, revision.current), [revision.draft, revision.current]);
+  const changed = lines.filter((line) => line.kind !== "same").length;
+
+  // Arc recorded a revision but the copy is byte-identical — claiming "0 lines
+  // changed" would read as a bug, so keep the plain note.
+  if (changed === 0) {
+    return (
+      <div className="revnote">
+        <b>Revised by Arc.</b> Latest reflects your last request.
+      </div>
+    );
+  }
+
+  return (
+    <details className="revnote revdiff">
+      <summary>
+        <b>Revised by Arc.</b> {changed} line{changed === 1 ? "" : "s"} changed — see what changed
+      </summary>
+      <div className="revdiff-body">
+        {lines.map((line, index) => (
+          <div className={`revdiff-line is-${line.kind}`} key={index}>
+            <span className="revdiff-gutter" aria-hidden="true">
+              {line.kind === "added" ? "+" : line.kind === "removed" ? "−" : ""}
+            </span>
+            {line.kind !== "same" ? <span className="sr-only">{line.kind === "added" ? "Added:" : "Removed:"}</span> : null}
+            <span className="revdiff-text">{line.text.trim() ? line.text : " "}</span>
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -498,11 +536,7 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
                             ))}
                           </div>
                         )}
-                        {asset.revision && (
-                          <div className="revnote">
-                            <b>Revised by Arc.</b> Latest reflects your last request.
-                          </div>
-                        )}
+                        {asset.revision && <RevisionDiff revision={asset.revision} />}
                         {asset.blockedPhrases.length > 0 && (
                           <div className="dblocked">
                             <b>Blocked language</b> — this copy contains{" "}

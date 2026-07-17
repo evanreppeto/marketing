@@ -33,7 +33,7 @@ function registryFallback(): ConnectorView[] {
       credentialPresent: false,
       credentialOptional: !requiresCredential,
       config: {},
-      status: computeConnectorStatus({ credentialPresent: false, enabled: false, lastTestOk: null, requiresCredential }),
+      status: computeConnectorStatus({ credentialPresent: false, enabled: false, lastTestOk: null, requiresCredential, availability: entry.availability }),
       lastTestedAt: null,
       lastTestOk: null,
       lastTestError: null,
