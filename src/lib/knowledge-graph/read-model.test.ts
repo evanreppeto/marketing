@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { listNodes, listProposed, brainSummary, getBrainCrmCoverage } from "./read-model";
+import { listNodes, listProposed, brainSummary, getBrainCrmCoverage, sanitizeBrainSearch, nodeMatchesSearch } from "./read-model";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -67,6 +67,81 @@ describe("listNodes", () => {
     await listNodes({ trustTier: "trusted" }, supabase as never, "org-1");
     expect(supabase.calls).toContainEqual(["eq", "trust_tier", "trusted"]);
     expect(supabase.calls.some((c) => c[0] === "neq" && c[1] === "trust_tier")).toBe(false);
+  });
+
+  it("searches title, body AND summary — not the label alone", async () => {
+    const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: NODES, error: null } });
+    await listNodes({ search: "arrival time" }, supabase as never, "org-1");
+    expect(supabase.calls).toContainEqual([
+      "or",
+      "label.ilike.*arrival time*,body.ilike.*arrival time*,summary.ilike.*arrival time*",
+    ]);
+    // The old label-only query is exactly the bug this fixes — it must be gone.
+    expect(supabase.calls.some((c) => c[0] === "ilike" && c[1] === "label")).toBe(false);
+  });
+
+  it("neutralizes PostgREST structural characters in the search term", async () => {
+    const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: NODES, error: null } });
+    await listNodes({ search: "fast, cheap (guaranteed)" }, supabase as never, "org-1");
+    // Commas/parens would break — or inject into — the .or() grammar; they're stripped.
+    expect(supabase.calls).toContainEqual([
+      "or",
+      "label.ilike.*fast cheap guaranteed*,body.ilike.*fast cheap guaranteed*,summary.ilike.*fast cheap guaranteed*",
+    ]);
+  });
+
+  it("applies no search filter when the term is all structural junk", async () => {
+    const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: NODES, error: null } });
+    await listNodes({ search: "(),*" }, supabase as never, "org-1");
+    expect(supabase.calls.some((c) => c[0] === "or")).toBe(false);
+    expect(supabase.calls.some((c) => c[0] === "ilike")).toBe(false);
+  });
+});
+
+describe("sanitizeBrainSearch", () => {
+  it("strips the characters that would break PostgREST's .or() grammar", () => {
+    expect(sanitizeBrainSearch("a,b(c)*d%e\"f\\g")).toBe("a b c d e f g");
+  });
+
+  it("preserves dots and hyphens so numbers and compounds still match", () => {
+    expect(sanitizeBrainSearch("3.2h 60-minute")).toBe("3.2h 60-minute");
+  });
+
+  it("collapses whitespace and returns empty for an all-junk term", () => {
+    expect(sanitizeBrainSearch("  a   b  ")).toBe("a b");
+    expect(sanitizeBrainSearch("(),*%")).toBe("");
+  });
+});
+
+describe("nodeMatchesSearch", () => {
+  const node = { label: "IICRC certification", body: "Median arrival is 3.2 hours in the Chicago metro.", summary: "Fast response proof point" };
+
+  it("matches evidence in the body, not just the title", () => {
+    expect(nodeMatchesSearch(node, "3.2 hours")).toBe(true);
+    expect(nodeMatchesSearch(node, "arrival")).toBe(true);
+  });
+
+  it("matches evidence in the summary", () => {
+    expect(nodeMatchesSearch(node, "response proof")).toBe(true);
+  });
+
+  it("still matches the title", () => {
+    expect(nodeMatchesSearch(node, "iicrc")).toBe(true);
+  });
+
+  it("is case-insensitive and returns false for a genuine miss", () => {
+    expect(nodeMatchesSearch(node, "CHICAGO")).toBe(true);
+    expect(nodeMatchesSearch(node, "flood insurance")).toBe(false);
+  });
+
+  it("treats an empty or all-junk term as no filter (matches everything)", () => {
+    expect(nodeMatchesSearch(node, "")).toBe(true);
+    expect(nodeMatchesSearch(node, "(),*")).toBe(true);
+  });
+
+  it("tolerates null body/summary", () => {
+    expect(nodeMatchesSearch({ label: "Solo", body: null, summary: null }, "solo")).toBe(true);
+    expect(nodeMatchesSearch({ label: "Solo", body: null, summary: null }, "missing")).toBe(false);
   });
 });
 
