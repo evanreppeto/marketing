@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type ParsedCampaignDraft, type ViralityScore } from "@/domain";
+import { type ParsedCampaignDraft, type ViralityScore, resolveCampaignCta } from "@/domain";
 
 import { getSupabaseAdminClient, type TypedSupabaseClient } from "../supabase/server";
 import { type AgentTaskTenantFields } from "../agent-tasks/scope";
@@ -426,6 +426,9 @@ type CopyScreen = {
   complianceNotes: string | null;
   flags: string[];
   blockedPhrases: string[];
+  /** The draft body after the CTA placeholder was resolved to a real link, when
+   *  that happened; undefined means "persist input.body unchanged". */
+  resolvedBody?: string;
 };
 
 /** What an asset gets when no screen ran: unchanged from the pre-screen behavior. */
@@ -451,6 +454,7 @@ const UNSCREENED: CopyScreen = {
  */
 async function screenDraftCopy(
   body: string | null,
+  assetType: string,
   client: SupabaseClient,
   tenant?: AgentTaskTenantFields,
 ): Promise<CopyScreen> {
@@ -462,18 +466,32 @@ async function screenDraftCopy(
   const profile = await getBusinessProfile(tenant.org_id, client).catch(() => null);
   if (profile?.status !== "active") return UNSCREENED;
 
+  // Resolve the CTA placeholder to a real link, reusing the brand read the screen
+  // already did. A click-channel draft (email/landing) with no destination surfaces
+  // as a compliance flag rather than silently shipping a dead button — the whole
+  // point is to feed dispatch a taggable link, so a placeholder-only body is not
+  // done. Not blocked, though: the operator can still approve and route it by hand,
+  // same as any other flagged asset. Other channels return not_applicable.
+  const cta = resolveCampaignCta(assetType, draftOutput, profile.websiteUrl);
+  const resolvedBody = cta.kind === "resolved" ? cta.body : undefined;
+  const ctaFlag = cta.kind === "missing_destination" ? ["cta_missing_destination"] : [];
+  const ctaNote = cta.kind === "missing_destination" ? cta.reason : null;
+
+  // Screen the copy that will actually ship (the resolved body if we linked it).
   const guardrails = checkArcGeneratedCopy({
-    draftOutput,
+    draftOutput: resolvedBody ?? draftOutput,
     bannedPhrases: profile.bannedPhrases,
     complianceNotes: profile.guardrails.complianceNotes,
   });
   const blocked = guardrails.blockedPhrases.length > 0;
+  const flags = [...guardrails.flags, ...ctaFlag];
   return {
     riskLevel: blocked ? "blocked" : "medium",
     status: blocked ? "needs_compliance" : "pending_approval",
-    complianceNotes: guardrails.complianceNotes,
-    flags: guardrails.flags,
+    complianceNotes: [guardrails.complianceNotes, ctaNote].filter(Boolean).join(" ") || null,
+    flags,
     blockedPhrases: guardrails.blockedPhrases,
+    ...(resolvedBody ? { resolvedBody } : {}),
   };
 }
 
@@ -485,7 +503,10 @@ async function screenDraftCopy(
  *  screen lives here too — no caller can forget it. */
 export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<{ assetId: string }> {
   const client = input.client ?? getSupabaseAdminClient();
-  const screen = await screenDraftCopy(input.body, client, input.tenant);
+  const screen = await screenDraftCopy(input.body, input.assetType, client, input.tenant);
+  // Persist the CTA-resolved copy, not the placeholder — the operator approves the
+  // body that will actually send, and dispatch has a link to stamp.
+  const bodyToPersist = screen.resolvedBody ?? input.body;
   const agentName = input.agentName?.trim() || "Agent";
   const provenance = input.media ?? {};
   const mediaAsset = input.mediaUrl
@@ -507,7 +528,7 @@ export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<
     asset_type: input.assetType,
     title: input.title,
     status: screen.status,
-    draft_body: input.body,
+    draft_body: bodyToPersist,
     dispatch_locked: true,
     tool_source: "arc_saved",
     ...(screen.complianceNotes ? { compliance_notes: screen.complianceNotes } : {}),
