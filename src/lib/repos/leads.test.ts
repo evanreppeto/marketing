@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { createSupabaseQueryMock } from "./__tests__/test-helpers";
-import { countLeads, getLead, listLeads } from "./leads";
+import { createSupabaseQueryMock, type MockResponse } from "./__tests__/test-helpers";
+import { countLeads, getLead, listLeads, listLeadsPage } from "./leads";
 
 const validLeadRow = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -39,7 +39,7 @@ describe("listLeads", () => {
       receivedAt: "2026-05-28T09:00:00.000Z",
     });
     expect(supabase.calls).toContainEqual(["from", "leads"]);
-    expect(supabase.calls).toContainEqual(["select", "*"]);
+    expect(supabase.calls).toContainEqual(["select", "*", { count: "exact", head: false }]);
     expect(supabase.calls).toContainEqual(["order", "received_at", { ascending: false }]);
   });
 
@@ -129,6 +129,58 @@ describe("listLeads filters", () => {
   });
 });
 
+describe("listLeadsPage", () => {
+  it("returns the page's rows plus the exact total behind them", async () => {
+    // The shape the whole fix rests on: `total` is the count of ALL matching
+    // leads, not the length of the page. Reading 200 rows to discover "200" is
+    // what overflowed Arc's tool budget and left it guessing.
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [validLeadRow], error: null, count: 200 } satisfies MockResponse,
+    });
+
+    const page = await listLeadsPage({ limit: 1 }, supabase);
+
+    expect(page.leads).toHaveLength(1);
+    expect(page.total).toBe(200);
+    expect(supabase.calls).toContainEqual(["select", "*", { count: "exact", head: false }]);
+    expect(supabase.calls).toContainEqual(["limit", 1]);
+  });
+
+  it("counts without fetching any rows when limit is 0", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null, count: 200 } satisfies MockResponse,
+    });
+
+    const page = await listLeadsPage({ limit: 0 }, supabase);
+
+    expect(page).toEqual({ leads: [], total: 200 });
+    // head:true means Postgres reports the count and sends no body.
+    expect(supabase.calls).toContainEqual(["select", "*", { count: "exact", head: true }]);
+    expect(supabase.calls).not.toContainEqual(["limit", 0]);
+  });
+
+  it("applies the same filters to the count as to the rows", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null, count: 3 } satisfies MockResponse,
+    });
+
+    await listLeadsPage({ status: "qualified", q: "flood", minScore: 10, maxScore: 90 }, supabase);
+
+    expect(supabase.calls).toContainEqual(["eq", "status", "qualified"]);
+    expect(supabase.calls).toContainEqual(["ilike", "loss_summary", "%flood%"]);
+    expect(supabase.calls).toContainEqual(["gte", "lead_score", 10]);
+    expect(supabase.calls).toContainEqual(["lte", "lead_score", 90]);
+  });
+
+  it("throws when Supabase returns an error", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: null, error: { message: "db down" } },
+    });
+
+    await expect(listLeadsPage({}, supabase)).rejects.toThrow(/listLeadsPage failed: db down/);
+  });
+});
+
 describe("getLead", () => {
   it("returns a single parsed Lead when one is found", async () => {
     const supabase = createSupabaseQueryMock({
@@ -192,6 +244,22 @@ describe("countLeads", () => {
     await countLeads({ status: "validated" }, supabase);
 
     expect(supabase.calls).toContainEqual(["eq", "status", "validated"]);
+  });
+
+  it("applies the score and free-text filters it accepts", async () => {
+    // Regression: countLeads took the full ListLeadsFilter but only ever applied
+    // org/status/persona/source, so `q`/`minScore`/`maxScore` were accepted and
+    // silently dropped — a count that confidently answered a wider question than
+    // it was asked. Every read now shares one filter chain.
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null, count: 2 } satisfies MockResponse,
+    });
+
+    await countLeads({ q: "flood", minScore: 40, maxScore: 90 }, supabase);
+
+    expect(supabase.calls).toContainEqual(["ilike", "loss_summary", "%flood%"]);
+    expect(supabase.calls).toContainEqual(["gte", "lead_score", 40]);
+    expect(supabase.calls).toContainEqual(["lte", "lead_score", 90]);
   });
 
   it("returns 0 when count is null or missing", async () => {
