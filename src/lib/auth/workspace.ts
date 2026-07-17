@@ -147,6 +147,21 @@ async function fetchDefaultOrg(client: QueryClient): Promise<OrgRow> {
   return orgs[0];
 }
 
+/**
+ * The sole org's id, for a session-less caller that needs tenancy but genuinely
+ * has no use for a workspace — stamping `org_id` on a row whose `workspace_id`
+ * is nullable, say.
+ *
+ * Exists so that "when may I pick an org?" has exactly one answer in exactly one
+ * place. It is the same rule and the same code as the session-less path of
+ * `resolveWorkspaceContextForUser`, just stopping one step earlier; a caller
+ * needing only the org shouldn't have to re-implement the rule (and then drift
+ * from it) or answer the unrelated question of which workspace it means.
+ */
+export async function resolveSoleOrgId(client: QueryClient = getSupabaseAdminClient()): Promise<string> {
+  return (await fetchDefaultOrg(client)).id;
+}
+
 async function fetchWorkspaceById(client: QueryClient, workspaceId: string): Promise<WorkspaceRow | null> {
   const { data, error } = await client
     .from("workspaces")
