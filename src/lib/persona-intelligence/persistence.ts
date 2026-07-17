@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type LeadIngestionResult, type ParsedLeadIngestionInput } from "../../domain";
+import { buildPersonaProfile, type LeadIngestionResult, type ParsedLeadIngestionInput, type PersonaProfile } from "../../domain";
 import { type PersistedLeadIngestion } from "../lead-ingestion/persistence";
 
 type AcceptedLeadIngestionResult = Extract<LeadIngestionResult, { ok: true }>;
@@ -166,83 +166,19 @@ export async function persistPersonaIntelligenceForLead({
   };
 }
 
-function buildProfile(input: ParsedLeadIngestionInput, result: AcceptedLeadIngestionResult) {
-  const confidenceScore = Math.max(result.scores.leadScore, result.scores.partnerScore);
-  const targetKeywords = result.classification.matchedTargetKeywords;
-  const nonTargetKeywords = result.classification.matchedNonTargetKeywords;
-  const dominantLossPattern = targetKeywords[0] ?? nonTargetKeywords[0] ?? "needs_operator_review";
-  const isPartner = result.persona.includes("_partner") || result.persona.includes("_agent");
-  const isArchived = result.routing === "archived";
-
-  if (isArchived) {
-    return {
-      relationshipStage: "scope_review",
-      valueTier: "low",
-      dominantLossPattern,
-      preferredChannel: "internal_review",
-      messagePosture: "do_not_generate_campaign_until_water_or_restoration_scope_is_confirmed",
-      recommendedOffer: "No campaign offer until restoration fit is verified",
-      nextBestAction: "Archive or review out-of-scope submission",
-      actionType: "scope_review",
-      actionReason: "The intake signal matched a non-target or exterior-only loss without a restoration trigger.",
-      approvalRequired: false,
-      confidenceScore,
-      riskFlags: ["out_of_scope_loss_signal", "campaign_generation_blocked"],
-      sourceEvents: [
-        {
-          type: "lead_received",
-          source: input.source,
-          signals: input.lossSignals,
-        },
-      ],
-    };
-  }
-
-  if (isPartner) {
-    return {
-      relationshipStage: "referral_enablement",
-      valueTier: confidenceScore >= 70 ? "high" : "medium",
-      dominantLossPattern,
-      preferredChannel: "email_then_phone",
-      messagePosture: "coverage_neutral_partner_handoff",
-      recommendedOffer: "Coverage-neutral client handoff kit",
-      nextBestAction: "Send partner handoff packet after approval",
-      actionType: "partner_enablement",
-      actionReason: "The lead carries partner/referral context and should become a repeatable campaign signal.",
-      approvalRequired: true,
-      confidenceScore,
-      riskFlags: ["coverage_neutral_language_required", "human_approval_required"],
-      sourceEvents: [
-        {
-          type: "lead_received",
-          source: input.source,
-          signals: input.lossSignals,
-        },
-      ],
-    };
-  }
-
-  return {
-    relationshipStage: result.routing === "elevated" ? "urgent_decision" : "needs_review",
-    valueTier: confidenceScore >= 70 ? "high" : "medium",
-    dominantLossPattern,
-    preferredChannel: "phone_then_sms",
-    messagePosture: "fast_reassurance_documentation_first",
-    recommendedOffer: "15 minute mitigation call and photo upload",
-    nextBestAction: "Call now and queue approval-safe follow-up",
-    actionType: "emergency_follow_up",
-    actionReason: "The lead has a restoration signal that benefits from immediate human response and approved follow-up.",
-    approvalRequired: true,
-    confidenceScore,
-    riskFlags: ["coverage_neutral_language_required", "human_approval_required"],
-    sourceEvents: [
-      {
-        type: "lead_received",
-        source: input.source,
-        signals: input.lossSignals,
-      },
-    ],
-  };
+/** Map an accepted lead ingest onto the pure persona-profile input. The derivation
+ *  logic now lives in src/domain/persona-profile.ts and is unit-tested there. */
+function buildProfile(input: ParsedLeadIngestionInput, result: AcceptedLeadIngestionResult): PersonaProfile {
+  return buildPersonaProfile({
+    source: input.source,
+    lossSignals: input.lossSignals,
+    persona: result.persona,
+    routing: result.routing,
+    leadScore: result.scores.leadScore,
+    partnerScore: result.scores.partnerScore,
+    matchedTargetKeywords: result.classification.matchedTargetKeywords,
+    matchedNonTargetKeywords: result.classification.matchedNonTargetKeywords,
+  });
 }
 
 async function insertAndReturnId(

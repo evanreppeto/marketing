@@ -219,6 +219,25 @@
 .arc-brand .ibtn { display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #201808; background: linear-gradient(180deg, #dcbd6e, #c8a24a 55%, #ad8838); border: 1px solid #b8974a; border-radius: 8px; padding: 0 15px; cursor: pointer; white-space: nowrap; box-shadow: 0 6px 16px -9px rgba(200, 162, 74, 0.7); transition: 0.14s var(--ease); }
 .arc-brand .ibtn:hover { filter: brightness(1.05); transform: translateY(-1px); }
 
+/* Document intake — the drop card and re-sync controls are real <button>s now,
+   so reset the browser chrome and match the prior span/div layout. */
+.arc-brand .ucta { width: 100%; font-family: inherit; background: transparent; }
+.arc-brand .resyncall { font-family: inherit; background: transparent; }
+.arc-brand .resync { border: 0; background: transparent; padding: 0; }
+.arc-brand .ucta:disabled, .arc-brand .resyncall:disabled, .arc-brand .resync:disabled, .arc-brand .gbtn:disabled { opacity: 0.55; cursor: default; pointer-events: none; }
+.arc-brand .ucta.is-busy .upi, .arc-brand .resync.is-busy svg { animation: brandSp 0.9s linear infinite; }
+
+/* "Brand updated from N files" result banner. Tone follows the summary: ok when
+   clean, warn when some files need another try, err on a hard failure. */
+.arc-brand .bsync { margin: 4px 16px 0; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--inset); font-size: 11.5px; }
+.arc-brand .bsync.ok { border-color: var(--ok-border); background: var(--ok-soft); }
+.arc-brand .bsync.warn { border-color: var(--warn-border); background: var(--warn-soft); }
+.arc-brand .bsync.err { border-color: var(--red-border); background: var(--red-soft); }
+.arc-brand .bsync b { color: var(--text); }
+.arc-brand .bsync ul { margin: 6px 0 0; padding-left: 16px; color: var(--text-2); line-height: 1.6; }
+.arc-brand .bsync-go { display: inline-block; margin-top: 7px; font-size: 11px; font-weight: 600; color: var(--accent-contrast); }
+.arc-brand .bsync-go:hover { color: var(--accent-strong); }
+
 /* keyframes (renamed) */
 @keyframes brandSp { to { transform: rotate(360deg); } }
 @keyframes brandRiseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
