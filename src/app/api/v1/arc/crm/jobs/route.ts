@@ -1,5 +1,7 @@
 import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
 import { pageMeta, readLimit } from "@/app/api/v1/arc/_lib/paging";
+import { centsToUsd } from "@/app/api/v1/arc/_lib/money";
+import { resolveCrmNames, withCrmNames } from "@/lib/crm/names";
 import { type JobStatus } from "@/domain";
 import { listJobsPage } from "@/lib/repos";
 
@@ -23,7 +25,14 @@ export async function GET(request: Request) {
 
   try {
     const { jobs, total } = await listJobsPage({ orgId: allowed.scope.orgId, status: status as JobStatus | undefined, persona, companyId, limit });
-    return ok({ jobs, ...pageMeta(total, jobs.length, limit) });
+    // Dollars not cents (_lib/money) and names not uuids (lib/crm/names) — Arc
+    // quotes both of these straight to the operator. On `limit=0` (count only)
+    // the page is empty, so neither costs a query.
+    const names = await resolveCrmNames(jobs, allowed.scope.orgId);
+    return ok({
+      jobs: jobs.map((j) => centsToUsd(withCrmNames(j, names), "estimatedRevenueCents")),
+      ...pageMeta(total, jobs.length, limit),
+    });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list jobs.", 502);
   }

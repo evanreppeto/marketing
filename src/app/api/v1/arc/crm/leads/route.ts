@@ -2,6 +2,7 @@ import { arcGuard, fail, INVALID_JSON, ok, readJson } from "@/app/api/v1/arc/_li
 import { intParam, pageMeta, readLimit } from "@/app/api/v1/arc/_lib/paging";
 import { type LeadStatus } from "@/domain";
 import { createArcLead } from "@/lib/arc/record-writes";
+import { resolveCrmNames, withCrmNames } from "@/lib/crm/names";
 import { listLeadsPage } from "@/lib/repos";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -31,7 +32,10 @@ export async function GET(request: Request) {
 
   try {
     const { leads, total } = await listLeadsPage({ orgId: allowed.scope.orgId, status: status as LeadStatus | undefined, persona, source, q, minScore, maxScore, limit });
-    return ok({ leads, ...pageMeta(total, leads.length, limit) });
+    // Names, not uuids — Arc quotes these straight to the operator. On `limit=0`
+    // (count only) the page is empty, so this costs no query.
+    const names = await resolveCrmNames(leads, allowed.scope.orgId);
+    return ok({ leads: leads.map((l) => withCrmNames(l, names)), ...pageMeta(total, leads.length, limit) });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list leads.", 502);
   }
