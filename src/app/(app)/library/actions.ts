@@ -6,6 +6,7 @@ import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { removeMediaRecordFromBrain, syncMediaRecordToBrain } from "@/lib/brain-ingestion/sync";
 import { createFolder, insertAssetWithUrl, setAvailableToArc } from "@/lib/media-library/persistence";
+import { MAX_UPLOAD_BYTES, acceptUpload, kindForContentType } from "@/lib/media-library/upload-policy";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { type Asset } from "./_components/library-view";
@@ -38,12 +39,6 @@ export async function createLibraryFolder(name: string): Promise<CreateFolderRes
   }
 }
 
-const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50MB — covers photos + short clips
-const ALLOWED_TYPES = new Set([
-  "image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml",
-  "video/mp4", "video/quicktime", "video/webm", "application/pdf",
-]);
-
 function formatSize(bytes: number): string {
   return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
@@ -66,21 +61,23 @@ export async function uploadLibraryAsset(formData: FormData): Promise<UploadAsse
   const file = formData.get("file");
   const folderId = (formData.get("folderId") as string | null)?.trim() || null;
   if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose a file first." };
-  if (!ALLOWED_TYPES.has(file.type)) return { ok: false, error: "Unsupported file type — use an image, MP4/MOV/WEBM video, or PDF." };
+  const accepted = acceptUpload(file.name, file.type);
+  if (!accepted.ok) return { ok: false, error: "Unsupported file type — use an image, MP4/MOV/WEBM video, PDF, or a .docx/.md/.csv/.txt document." };
   if (file.size > MAX_UPLOAD_BYTES) return { ok: false, error: "File is too large — keep it under 50MB." };
 
   if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
 
   try {
     const [orgId, uploadedBy] = await Promise.all([getCurrentOrgId(), getOperatorActor()]);
-    const kind = file.type.startsWith("video/") ? "video" : file.type === "application/pdf" ? "document" : "image";
+    const contentType = accepted.contentType;
+    const kind = kindForContentType(contentType);
     const bytes = new Uint8Array(await file.arrayBuffer());
     const { id, url } = await insertAssetWithUrl({
       orgId,
       folderId,
       fileName: file.name,
       bytes,
-      contentType: file.type,
+      contentType,
       kind,
       byteSize: file.size,
       source: "uploaded",

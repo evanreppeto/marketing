@@ -166,6 +166,60 @@ export async function renameAsset(id: string, fileName: string, client: Supabase
   await updateRow(client, "media_assets", { file_name: fileName }, id);
 }
 
+export type AssetForLearning = {
+  id: string;
+  fileName: string;
+  kind: string;
+  source: string;
+  tags: string[];
+  availableToArc: boolean;
+  url: string;
+  contentType: string;
+  bytes: Uint8Array;
+};
+
+/**
+ * Load one asset's row + its stored bytes, org-scoped, for re-learning a brand
+ * source. Returns null when the asset is missing, belongs to another tenant, or
+ * its object can't be downloaded — the caller reports a per-source error rather
+ * than throwing the whole re-sync. Downloads from storage (not the public URL)
+ * so it works the same for private buckets.
+ */
+export async function loadAssetForLearning(
+  id: string,
+  orgId: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<AssetForLearning | null> {
+  const { data, error } = await client
+    .from("media_assets" as string)
+    .select("id, file_name, kind, source, tags, available_to_arc, public_url, content_type, storage_path")
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (error) throw new Error(`media_assets lookup failed: ${error.message}`);
+  const row = data as {
+    id: string; file_name: string; kind: string; source: string; tags: string[] | null;
+    available_to_arc: boolean; public_url: string; content_type: string; storage_path: string;
+  } | null;
+  if (!row) return null;
+
+  const download = await client.storage.from(BUCKET).download(row.storage_path);
+  if (download.error || !download.data) return null;
+  const bytes = new Uint8Array(await download.data.arrayBuffer());
+
+  return {
+    id: row.id,
+    fileName: row.file_name,
+    kind: row.kind,
+    source: row.source,
+    tags: row.tags ?? [],
+    availableToArc: row.available_to_arc,
+    url: row.public_url,
+    contentType: row.content_type,
+    bytes,
+  };
+}
+
 export async function moveAsset(id: string, folderId: string | null, client: SupabaseClient = getSupabaseAdminClient()) {
   await updateRow(client, "media_assets", { folder_id: folderId }, id);
 }

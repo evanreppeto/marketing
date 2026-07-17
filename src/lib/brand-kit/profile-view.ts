@@ -14,7 +14,7 @@ import { getBusinessProfile } from "./persistence";
 import { isSupabaseAdminConfigured } from "../supabase/server";
 
 export type BrandSwatch = { role: string; name: string; hex: string };
-export type BrandSourceItem = { ext: string; extColor?: string; name: string; facts: string; when: string; stale: boolean };
+export type BrandSourceItem = { id?: string; ext: string; extColor?: string; name: string; facts: string; when: string; stale: boolean };
 
 export type BrandProfileView = {
   isDemo: boolean;
@@ -170,7 +170,7 @@ async function loadLiveSources(orgId: string): Promise<BrandSourceItem[]> {
     const rows = await listBrandSources(orgId);
     return rows.map((r) => {
       const ext = (r.fileName.split(".").pop() ?? "DOC").toUpperCase().slice(0, 4);
-      return { ext, extColor: EXT_COLOR[ext], name: r.fileName, facts: `${r.brain.total} facts`, when: "", stale: false };
+      return { id: r.id, ext, extColor: EXT_COLOR[ext], name: r.fileName, facts: `${r.brain.total} facts`, when: "", stale: false };
     });
   } catch {
     return [];
