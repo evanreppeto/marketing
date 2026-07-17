@@ -12,7 +12,7 @@ export type ArcContextScope = keyof typeof ARC_CONTEXT_SCOPE_LABELS;
 export type ArcRunContract = {
   mode: ArcMode;
   modeLabel: "Read only" | "Draft only" | "Workspace action";
-  modelLabel: "Fast" | "Deep";
+  modelLabel: "Arc Spark" | "Arc Forge";
   readScopes: string[];
   workspaceEffect: string;
   externalEffect: string;
@@ -56,7 +56,7 @@ export function buildArcRunContract(input: {
   return {
     mode,
     modeLabel,
-    modelLabel: input.route === "standard" ? "Deep" : "Fast",
+    modelLabel: input.route === "standard" ? "Arc Forge" : "Arc Spark",
     readScopes: scopes.map((scope) => ARC_CONTEXT_SCOPE_LABELS[scope]),
     workspaceEffect,
     externalEffect: "No external sends or spend",
