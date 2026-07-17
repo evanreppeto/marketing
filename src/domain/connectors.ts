@@ -202,6 +202,33 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     toolNamespace: "weather-signals",
   },
   {
+    key: "rss-signals",
+    kind: "signal_source",
+    label: "Feeds & News Watch",
+    description:
+      "Read-only signal source: watches the RSS/Atom feeds you configure — a Google Alerts feed for your brand, a " +
+      "competitor's blog, an industry news feed — and proposes a timely-response opportunity for each fresh item. " +
+      "No API key — RSS is public. Never posts anything — proposals only.",
+    costTier: "free",
+    // Universal: every business has news it could respond to. `[]` = all verticals.
+    verticals: [],
+    capability: {
+      summary: "Emits news_signal opportunities from fresh items in the workspace's watched RSS/Atom feeds.",
+      opportunityKinds: ["news_signal"],
+    },
+    credentialSchema: {
+      kind: "none",
+      hint: "No credential — RSS/Atom feeds are public. Add the feed URLs to watch (one per line).",
+    },
+    // Public, so no key — but useless until told WHICH feeds to watch. Same gate as
+    // weather: without it an empty config would read "Connected" and do nothing.
+    requiredConfigKeys: ["feeds"],
+    authKind: "none",
+    access: "read_only",
+    mcpUrl: null,
+    toolNamespace: "rss-signals",
+  },
+  {
     key: "reviews-signals",
     kind: "signal_source",
     label: "Reviews & Reputation",
