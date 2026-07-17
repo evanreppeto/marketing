@@ -11,7 +11,19 @@
 
 export type ConnectorAuthKind = "api_key" | "oauth" | "none";
 export type ConnectorAccess = "read_only" | "gated_write";
-export type ConnectorStatus = "not_configured" | "disabled" | "error" | "connected";
+export type ConnectorStatus = "not_configured" | "disabled" | "error" | "connected" | "unavailable";
+
+/**
+ * Whether a catalog entry can actually reach the outside world yet.
+ *
+ * `planned` is for a connector whose external integration isn't written. It is NOT
+ * cosmetic: it makes the connector unreachable rather than merely undocumented. A
+ * connector with no live source can otherwise be switched on, report "Connected",
+ * and either do nothing (best case) or invent findings (what permit-data did) — and
+ * a note in a doc protects only the people who read the doc, never the operator
+ * looking at a switch.
+ */
+export type ConnectorAvailability = "live" | "planned";
 
 /**
  * What role a connector plays. Governs how it is loaded and used:
@@ -98,6 +110,11 @@ export type ConnectorRegistryEntry = {
    * exactly one tenant.
    */
   requiredConfigKeys?: string[];
+  /**
+   * Defaults to "live". "planned" = the external integration isn't built, so the
+   * connector reports `unavailable`, can't be enabled, and never runs.
+   */
+  availability?: ConnectorAvailability;
   /** Convenience mirror of credentialSchema.kind (widely read by UI/read-model). */
   authKind: ConnectorAuthKind;
   access: ConnectorAccess;
@@ -188,10 +205,15 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     key: "reviews-signals",
     kind: "signal_source",
     label: "Reviews & Reputation",
+    // "watches" was a promise it couldn't keep: there is no GBP/Yelp client, and the
+    // live OAuth pull is the unbuilt part. The classifier and the injectable source
+    // seam are real — the thing that would fetch reviews is not.
     description:
-      "Read-only signal source: watches this workspace's Google Business Profile / Yelp reviews and proposes " +
-      "service-recovery opportunities (negative reviews) and referral/testimonial opportunities (positive reviews). " +
-      "Never replies — proposals only; any response stays an approval-gated draft.",
+      "PLANNED — the Google Business Profile / Yelp review pull isn't built yet, so this can't be switched on. " +
+      "When it lands it will be a read-only signal source: it proposes service-recovery opportunities (negative " +
+      "reviews) and referral/testimonial opportunities (positive reviews). It will never reply — proposals only; " +
+      "any response stays an approval-gated draft.",
+    availability: "planned",
     costTier: "byo_key",
     verticals: [
       "restoration",
@@ -223,10 +245,14 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     key: "competitor-ads",
     kind: "signal_source",
     label: "Competitor Ad Intel",
+    // Same shape as reviews-signals: the classifier is real, the ad-library client
+    // isn't. Official APIs only when it lands (ToS) — no scraping.
     description:
-      "Read-only signal source: watches competitor advertising in the public ad libraries (Meta Ad Library / " +
-      "Google Ads Transparency) for your market and proposes defensive / contested-territory opportunities, with " +
-      "the competitor's keywords and creative intel attached. Never contacts anyone — proposals only.",
+      "PLANNED — the public ad-library pull (Meta Ad Library / Google Ads Transparency) isn't built yet, so this " +
+      "can't be switched on. When it lands it will be a read-only signal source: it proposes defensive / " +
+      "contested-territory opportunities with the competitor's keywords and creative intel attached. It will never " +
+      "contact anyone — proposals only.",
+    availability: "planned",
     costTier: "byo_key",
     verticals: [
       "home_services",
@@ -270,18 +296,27 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     mcpUrl: null,
     toolNamespace: "webhook-dispatch",
   },
-  // --- First `metered` connector: a paid third-party data vendor. It is GOVERNED
-  //     by the cost model (BSR-372) — every scan meters billable lookups against
-  //     the workspace spend cap. Stub today; the real vendor swaps in via BSR-368
-  //     enrichment. Pricing lives in src/domain/connector-metering.ts. ---
+  // --- The `metered` reference connector: a paid third-party data vendor, GOVERNED
+  //     by the cost model (BSR-372) — a scan meters billable lookups against the
+  //     workspace spend cap. The vendor itself is unbuilt (BSR-368), so this is
+  //     `planned`: the metering path around it is real and tested, the data source
+  //     is not. Pricing lives in src/domain/connector-metering.ts.
+  //
+  //     It is planned rather than merely undocumented because of what it used to do.
+  //     detect() invented a finding per municipality — "Paid permit records flagged
+  //     fresh filings in {X}" at confidence 65, from nothing but a name the operator
+  //     typed — and metered a paid lookup for each. Fabricated evidence that bills
+  //     you is the worst thing in this catalog; a doc note wouldn't stop a switch. ---
   {
     key: "permit-data",
     kind: "signal_source",
     label: "Permit & Property Data",
     description:
-      "Metered signal source: pulls paid building-permit / property records for watched municipalities and " +
-      "proposes renovation & restoration opportunities. Billable — each municipality scanned is one paid lookup, " +
-      "metered against your spend cap. Read-only: it only proposes, never contacts anyone.",
+      "PLANNED — no permit/property data vendor is wired up yet, so this can't be switched on and proposes " +
+      "nothing. When one lands it will pull paid building-permit records for watched municipalities and propose " +
+      "renovation & restoration opportunities, billed as one metered lookup per municipality against your spend " +
+      "cap. Read-only: it will only propose, never contact anyone.",
+    availability: "planned",
     costTier: "metered",
     verticals: ["restoration", "home_services", "construction", "real_estate"],
     capability: {
@@ -408,11 +443,22 @@ export function computeConnectorStatus(input: {
   requiresCredential?: boolean;
   /** Defaults satisfied — only `false` gates, so connectors with no required config are unaffected. */
   configPresent?: boolean;
+  /** Defaults "live" — an omitted value can't change an existing connector's status. */
+  availability?: ConnectorAvailability;
 }): ConnectorStatus {
+  // Beats every other gate: there is nothing to configure your way out of. A stale
+  // enabled=true row can't resurrect it either, which is the point — this is what
+  // makes "not built" unreachable instead of merely discouraged.
+  if (input.availability === "planned") return "unavailable";
   const requiresCredential = input.requiresCredential ?? true;
   if (requiresCredential && !input.credentialPresent) return "not_configured";
   if (input.configPresent === false) return "not_configured";
   if (!input.enabled) return "disabled";
   if (input.lastTestOk === false) return "error";
   return "connected";
+}
+
+/** True when the connector's external integration exists and it may be switched on. */
+export function connectorIsAvailable(entry: Pick<ConnectorRegistryEntry, "availability">): boolean {
+  return (entry.availability ?? "live") === "live";
 }

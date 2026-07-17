@@ -30,25 +30,30 @@ export function estimateBillableUnits(config: Record<string, unknown>): number {
   return readMunicipalities(config).length;
 }
 
-export function detectPermitOpportunities(ctx: Pick<SignalDetectContext, "config">): OpportunityCandidate[] {
-  return readMunicipalities(ctx.config).map((municipality) => ({
-    kind: "permit_filed",
-    subjectType: "geo",
-    subjectId: `permit:${municipality.toLowerCase()}`,
-    title: `New permit activity — ${municipality}`,
-    summary:
-      `Paid permit records flagged fresh renovation/restoration filings in ${municipality}. Review nearby ` +
-      `accounts for a proactive, approval-gated outreach campaign.`,
-    confidence: 65,
-    urgency: "medium",
-    evidence: {
-      source: "permit-data (metered stub connector)",
-      municipality,
-      note: "Stub — replace detect() with a real permit/property API (BSR-368) in production.",
-    },
-    recommendedAction: "Review permit-adjacent accounts for a renovation outreach campaign",
-    recommendedCampaignType: "renovation_outreach",
-  }));
+/**
+ * No permit source exists yet, so there are no permit findings to report — [].
+ *
+ * This used to invent one. From a municipality NAME the operator typed, and nothing
+ * else, it asserted `"Paid permit records flagged fresh renovation/restoration
+ * filings in {municipality}"` at confidence 65 — and estimateBillableUnits charged a
+ * metered lookup per municipality for the invention. The `evidence.note` said
+ * "Stub", but the title and summary read as source-backed, and the inbox shows the
+ * title. An operator cannot tell a fabricated finding from a real one by looking.
+ *
+ * That is strictly worse than proposing nothing: a connector that stays quiet costs
+ * an operator nothing, while one that invents source-backed findings spends their
+ * money and their trust. Same reasoning as the weather service-area default (#473)
+ * and the filter that stopped Air Quality alerts being filed as storm damage (#499).
+ *
+ * When a real permit/property API lands (BSR-368), give this the shape its siblings
+ * already have — reviews-signal and competitor-ads take injectable sources and
+ * return [] when unconfigured, which is why neither of them ever invented anything.
+ * The metering path around it (estimateBillableUnits + the cap check) is real and
+ * stays: it prices what a scan WOULD cost, which is what the cost-governance work
+ * needed a reference consumer for.
+ */
+export function detectPermitOpportunities(_ctx: Pick<SignalDetectContext, "config">): OpportunityCandidate[] {
+  return [];
 }
 
 export const permitDataConnector: SignalSourceConnector = {
