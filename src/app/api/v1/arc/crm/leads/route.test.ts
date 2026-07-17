@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-vi.mock("@/lib/repos", () => ({ listLeads: vi.fn() }));
+vi.mock("@/lib/repos", () => ({ listLeadsPage: vi.fn() }));
 vi.mock("@/lib/auth/workspace", () => ({
   getCurrentWorkspaceContext: vi.fn(async () => ({ orgId: "org-1", workspaceId: "workspace-1" })),
 }));
-import { listLeads } from "@/lib/repos";
+import { listLeadsPage } from "@/lib/repos";
 import { GET } from "./route";
 
-const mock = vi.mocked(listLeads);
+const mock = vi.mocked(listLeadsPage);
 function req(query = "") {
   return new Request(`http://localhost/api/v1/arc/crm/leads${query}`, { headers: { authorization: "Bearer secret" } });
 }
@@ -20,7 +20,7 @@ beforeEach(() => {
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "k";
   mock.mockReset();
-  mock.mockResolvedValue([{ id: "l1", lead_score: 87 }] as never);
+  mock.mockResolvedValue({ leads: [{ id: "l1", lead_score: 87 }], total: 1 } as never);
 });
 afterEach(() => {
   for (const [k, v] of Object.entries(env)) {
@@ -63,11 +63,33 @@ describe("GET /api/v1/arc/crm/leads", () => {
     expect(filter.maxScore).toBeUndefined();
   });
 
-  it("ignores a non-positive limit but honours a real one", async () => {
+  it("honours an explicit limit", async () => {
+    await GET(req("?limit=10"));
+    expect(mock.mock.calls[0][0]).toMatchObject({ limit: 10 });
+  });
+
+  it("never asks for an unbounded read", async () => {
+    // The other half of the "at least 64" bug: with no default limit, `listLeads`
+    // did `select("*")` and returned all 200 rows, which then got sliced to ~13
+    // by the runner's tool-text budget. `limit` is now always a real number.
     await GET(req());
-    expect(mock.mock.calls[0][0]!.limit).toBeUndefined();
-    mock.mockClear();
-    await GET(req("?limit=25"));
-    expect(mock.mock.calls[0][0]).toMatchObject({ limit: 25 });
+    expect(mock.mock.calls[0][0]!.limit).toBe(25);
+  });
+
+  it("answers a counting question with a total and no rows", async () => {
+    mock.mockResolvedValueOnce({ leads: [], total: 200 } as never);
+
+    const body = await (await GET(req("?limit=0"))).json();
+
+    expect(mock.mock.calls[0][0]).toMatchObject({ limit: 0 });
+    expect(body).toMatchObject({ leads: [], total: 200, returned: 0 });
+  });
+
+  it("reports the exact total even when the page is capped", async () => {
+    mock.mockResolvedValueOnce({ leads: [{ id: "l1" }], total: 200 } as never);
+
+    const body = await (await GET(req("?limit=1"))).json();
+
+    expect(body).toMatchObject({ total: 200, returned: 1, has_more: true });
   });
 });

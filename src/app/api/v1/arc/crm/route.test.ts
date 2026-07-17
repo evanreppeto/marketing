@@ -7,21 +7,21 @@ vi.mock("@/lib/auth/workspace", () => ({
   })),
 }));
 vi.mock("@/lib/repos", () => ({
-  listCompanies: vi.fn(async () => []),
-  listContacts: vi.fn(async () => []),
-  listLeads: vi.fn(async () => []),
-  listJobs: vi.fn(async () => []),
-  listProperties: vi.fn(async () => []),
-  listOutcomes: vi.fn(async () => []),
+  listCompaniesPage: vi.fn(async () => ({ companies: [], total: 0 })),
+  listContactsPage: vi.fn(async () => ({ contacts: [], total: 0 })),
+  listLeadsPage: vi.fn(async () => ({ leads: [], total: 0 })),
+  listJobsPage: vi.fn(async () => ({ jobs: [], total: 0 })),
+  listPropertiesPage: vi.fn(async () => ({ properties: [], total: 0 })),
+  listOutcomesPage: vi.fn(async () => ({ outcomes: [], total: 0 })),
 }));
 
 import {
-  listCompanies,
-  listContacts,
-  listJobs,
-  listLeads,
-  listOutcomes,
-  listProperties,
+  listCompaniesPage,
+  listContactsPage,
+  listJobsPage,
+  listLeadsPage,
+  listOutcomesPage,
+  listPropertiesPage,
 } from "@/lib/repos";
 
 import { GET as getCompanies } from "./companies/route";
@@ -30,6 +30,16 @@ import { GET as getJobs } from "./jobs/route";
 import { GET as getLeads } from "./leads/route";
 import { GET as getOutcomes } from "./outcomes/route";
 import { GET as getProperties } from "./properties/route";
+
+/** Every CRM list route, so the paging contract is asserted for all six. */
+const ROUTES = [
+  { name: "companies", get: getCompanies, repo: listCompaniesPage, key: "companies" },
+  { name: "contacts", get: getContacts, repo: listContactsPage, key: "contacts" },
+  { name: "leads", get: getLeads, repo: listLeadsPage, key: "leads" },
+  { name: "jobs", get: getJobs, repo: listJobsPage, key: "jobs" },
+  { name: "properties", get: getProperties, repo: listPropertiesPage, key: "properties" },
+  { name: "outcomes", get: getOutcomes, repo: listOutcomesPage, key: "outcomes" },
+] as const;
 
 const env = {
   ARC_AGENT_API_TOKEN: process.env.ARC_AGENT_API_TOKEN,
@@ -50,12 +60,7 @@ function request(path: string, token = "secret") {
 }
 
 beforeEach(() => {
-  vi.mocked(listCompanies).mockClear();
-  vi.mocked(listContacts).mockClear();
-  vi.mocked(listLeads).mockClear();
-  vi.mocked(listJobs).mockClear();
-  vi.mocked(listProperties).mockClear();
-  vi.mocked(listOutcomes).mockClear();
+  for (const route of ROUTES) vi.mocked(route.repo).mockClear();
 });
 
 afterEach(() => {
@@ -76,12 +81,9 @@ describe("Arc CRM routes", () => {
     await getProperties(request("properties?persona=persona_homeowner_emergency&city=Chicago&state=IL&postal_code=60614&property_type=condo&company_id=company-1&q=main&limit=10"));
     await getOutcomes(request("outcomes?status=won&persona=persona_homeowner_emergency&company_id=company-1&limit=10"));
 
-    expect(listCompanies).toHaveBeenCalledWith(expect.objectContaining({ orgId: "org-1" }));
-    expect(listContacts).toHaveBeenCalledWith(expect.objectContaining({ orgId: "org-1" }));
-    expect(listLeads).toHaveBeenCalledWith(expect.objectContaining({ orgId: "org-1" }));
-    expect(listJobs).toHaveBeenCalledWith(expect.objectContaining({ orgId: "org-1" }));
-    expect(listProperties).toHaveBeenCalledWith(expect.objectContaining({ orgId: "org-1" }));
-    expect(listOutcomes).toHaveBeenCalledWith(expect.objectContaining({ orgId: "org-1" }));
+    for (const route of ROUTES) {
+      expect(route.repo, route.name).toHaveBeenCalledWith(expect.objectContaining({ orgId: "org-1" }));
+    }
   });
 
   it("rejects invalid bearer tokens before reading CRM data", async () => {
@@ -90,6 +92,82 @@ describe("Arc CRM routes", () => {
     const res = await getCompanies(request("companies", "wrong"));
 
     expect(res.status).toBe(401);
-    expect(listCompanies).not.toHaveBeenCalled();
+    expect(listCompaniesPage).not.toHaveBeenCalled();
+  });
+});
+
+describe("Arc CRM list paging", () => {
+  // The whole read surface shares one bug shape: an unbounded read whose rows
+  // then get silently cut to fit the runner's 8000-char tool budget. These
+  // assertions are per-route so a new list route can't quietly opt out.
+  it.each(ROUTES)("$name caps an unbounded read at the default limit", async ({ get, repo, name }) => {
+    configure();
+
+    await get(request(name));
+
+    expect(vi.mocked(repo).mock.calls[0][0]).toMatchObject({ limit: 25 });
+  });
+
+  it.each(ROUTES)("$name clamps a limit above the maximum", async ({ get, repo, name }) => {
+    configure();
+
+    await get(request(`${name}?limit=5000`));
+
+    expect(vi.mocked(repo).mock.calls[0][0]).toMatchObject({ limit: 100 });
+  });
+
+  it.each(ROUTES)("$name passes limit=0 through as a count-only read", async ({ get, repo, name }) => {
+    configure();
+
+    await get(request(`${name}?limit=0`));
+
+    expect(vi.mocked(repo).mock.calls[0][0]).toMatchObject({ limit: 0 });
+  });
+
+  it.each(ROUTES)("$name falls back to the default for an invalid limit", async ({ get, repo, name }) => {
+    configure();
+
+    // A typo must never widen a read — invalid falls back to the default, not
+    // to unbounded.
+    await get(request(`${name}?limit=abc`));
+    expect(vi.mocked(repo).mock.calls[0][0]).toMatchObject({ limit: 25 });
+
+    vi.mocked(repo).mockClear();
+    await get(request(`${name}?limit=-5`));
+    expect(vi.mocked(repo).mock.calls[0][0]).toMatchObject({ limit: 25 });
+  });
+
+  it.each(ROUTES)("$name reports the exact total alongside a capped page", async ({ get, repo, name, key }) => {
+    configure();
+
+    // The repro: 200 real leads, a page holding far fewer. `total` is what stops
+    // the caller inferring the count from the rows it can see.
+    vi.mocked(repo).mockResolvedValueOnce({ [key]: [{ id: "a" }, { id: "b" }], total: 200 } as never);
+
+    const body = await (await get(request(`${name}?limit=2`))).json();
+
+    expect(body).toMatchObject({ ok: true, total: 200, returned: 2, limit: 2, has_more: true });
+    expect(body[key]).toHaveLength(2);
+  });
+
+  it.each(ROUTES)("$name reports has_more:false when the page holds every match", async ({ get, repo, name, key }) => {
+    configure();
+
+    vi.mocked(repo).mockResolvedValueOnce({ [key]: [{ id: "a" }], total: 1 } as never);
+
+    const body = await (await get(request(name))).json();
+
+    expect(body).toMatchObject({ total: 1, returned: 1, has_more: false });
+  });
+
+  it.each(ROUTES)("$name answers limit=0 with a total and no rows", async ({ get, repo, name, key }) => {
+    configure();
+
+    vi.mocked(repo).mockResolvedValueOnce({ [key]: [], total: 200 } as never);
+
+    const body = await (await get(request(`${name}?limit=0`))).json();
+
+    expect(body).toMatchObject({ total: 200, returned: 0, has_more: true });
+    expect(body[key]).toEqual([]);
   });
 });
