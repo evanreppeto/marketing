@@ -125,6 +125,25 @@ export function parseLeadIngestionPayload(
   payload: unknown,
   calculatedAt?: Date | string,
   allowedPersonaKeys: readonly string[] = OFFICIAL_PERSONA_MAPPINGS,
+  /**
+   * Operator-declared `source` → campaign-uuid map, for leads that arrive with a
+   * source but no utm/token to attribute them by (a phone-in logged as "Google
+   * Ads", a partner referral). Supplied by the caller because the rules are
+   * per-org data and this module is pure.
+   *
+   * Empty by default, and that default was the bug: `resolveAttribution` has
+   * always taken this map and nothing has ever passed one, so its `source_rule`
+   * branch was unreachable in production — tested, correct, and dead. Every lead
+   * with a source and no utm resolved `unattributed`, which is why the journey
+   * lens picker has nothing to divide.
+   *
+   * It is a MAP, not an inference: `source` is uncontrolled free text (prod holds
+   * "Google Ads" next to "arc_demo" and "Storm canvassing"), so deriving a channel
+   * from it directly would manufacture attribution that no touch recorded. A human
+   * says which source means which campaign, and resolveAttribution still discards
+   * any value that isn't a uuid.
+   */
+  sourceRules: Record<string, string> = {},
 ): LeadIngestionResult {
   const parsed = leadIngestionSchema.safeParse(payload);
 
@@ -175,10 +194,13 @@ export function parseLeadIngestionPayload(
     calculatedAt,
   });
 
-  const attribution = resolveAttribution({
-    ...(parsed.data.attribution ?? {}),
-    source: parsed.data.source,
-  });
+  const attribution = resolveAttribution(
+    {
+      ...(parsed.data.attribution ?? {}),
+      source: parsed.data.source,
+    },
+    sourceRules,
+  );
 
   return {
     ok: true,
