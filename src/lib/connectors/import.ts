@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type EnrichmentFields } from "@/domain";
+import { type EnrichmentFields, CSV_PERSONA_PROPERTY, parseCsvContacts, type CsvParseSummary } from "@/domain";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import {
@@ -9,6 +9,7 @@ import {
   type ImportRunResult,
 } from "@/lib/integrations/crm/import-run";
 import { hubspotCrmImportSource } from "@/lib/integrations/crm/hubspot";
+import { fixtureCrmImportSourceFromContacts } from "@/lib/integrations/crm/source";
 import { type EnrichmentLookupKeys, type EnrichmentProvider } from "@/lib/integrations/enrichment/provider";
 import { vendorEnrichmentProvider } from "@/lib/integrations/enrichment/vendor";
 
@@ -33,6 +34,7 @@ import { listWorkspaceConnectors, resolveConnectorCredentialRef } from "./read-m
 
 export const HUBSPOT_IMPORT_CONNECTOR_KEY = "hubspot-import";
 export const LEAD_ENRICHMENT_CONNECTOR_KEY = "lead-enrichment";
+export const CSV_IMPORT_CONNECTOR_KEY = "csv-import";
 
 export type RunCrmImportInput = {
   workspaceId: string;
@@ -145,4 +147,60 @@ export async function runCrmImport(input: RunCrmImportInput): Promise<RunCrmImpo
   });
 
   return { ok: true, result, enrichmentEnabled: Boolean(enrichment) };
+}
+
+export type RunCsvImportInput = {
+  workspaceId: string;
+  orgId: string;
+  /** The pasted / uploaded CSV, provided at action time (never stored as config). */
+  csvText: string;
+  client?: SupabaseClient;
+  now?: string;
+  allowedPersonaKeys?: readonly string[];
+};
+
+export type RunCsvImportResult =
+  | { ok: true; result: ImportRunResult; parse: Omit<CsvParseSummary, "contacts"> }
+  | { ok: false; error: string };
+
+/**
+ * Import leads from a pasted CSV. Unlike the HubSpot import, the data arrives at
+ * action time rather than from a stored credential — but everything downstream is
+ * identical: parseCsvContacts maps rows to the engine's contact shape, and
+ * importContactsFromSource runs the same map → validate → dedup → persist pipeline,
+ * so an emailed CSV re-import updates leads instead of duplicating them. No outbound.
+ *
+ * The connector must be enabled with a default persona configured (leads carry a
+ * NOT NULL persona); a `persona` column, when present, overrides it per row.
+ */
+export async function runCsvImport(input: RunCsvImportInput): Promise<RunCsvImportResult> {
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "not_configured" };
+  const client = input.client ?? getSupabaseAdminClient();
+
+  const views = await listWorkspaceConnectors(client, input.workspaceId);
+  const view = views.find((v) => v.key === CSV_IMPORT_CONNECTOR_KEY);
+  if (!view || view.status !== "connected") return { ok: false, error: "csv_import_not_connected" };
+
+  const config = await getConnectorConfig(client, input.workspaceId, CSV_IMPORT_CONNECTOR_KEY);
+  const defaultPersona = asOfficialPersona(config.defaultPersona);
+  if (!defaultPersona) return { ok: false, error: "missing_default_persona" };
+
+  const { contacts, ...parse } = parseCsvContacts(input.csvText);
+  if (contacts.length === 0) return { ok: false, error: "no_rows" };
+
+  const result = await importContactsFromSource({
+    client,
+    orgId: input.orgId,
+    source: fixtureCrmImportSourceFromContacts(contacts),
+    options: {
+      defaultPersona,
+      // A `persona` column (when the CSV has one) overrides the default per row.
+      personaProperty: CSV_PERSONA_PROPERTY,
+      source: "csv",
+    },
+    now: input.now,
+    allowedPersonaKeys: input.allowedPersonaKeys,
+  });
+
+  return { ok: true, result, parse };
 }

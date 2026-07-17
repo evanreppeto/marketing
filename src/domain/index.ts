@@ -56,6 +56,7 @@ export * from "./nws-weather";
 export * from "./review-signals";
 export * from "./competitor-ads";
 export * from "./crm-import";
+export * from "./csv-import";
 export * from "./enrichment";
 export * from "./opportunity-kinds";
 export * from "./opportunity-proposal";

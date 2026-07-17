@@ -44,7 +44,7 @@ import {
   saveUserAvatarAction,
   saveWorkspaceLogoAction,
 } from "../branding-actions";
-import { connectConnector, disconnectConnector, runConnectorImport, saveConnectorConfig, testConnector, toggleConnectorEnabled } from "../connectors-actions";
+import { connectConnector, disconnectConnector, runConnectorImport, runCsvImportAction, saveConnectorConfig, testConnector, toggleConnectorEnabled } from "../connectors-actions";
 import { removeResendKey, saveResendKey, setEmailConnectionEnabled, testEmailConnection } from "../connections-actions";
 import type { ConnectionView } from "@/lib/connections/read-model";
 import { setConnectorSpendCap } from "../spend-actions";
@@ -248,6 +248,12 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
     credLabel: "HubSpot token",
     credHint: "A HubSpot private-app token (or OAuth access token) with read-only contact scopes. Stored in your Vault; used read-only — it imports contacts and never writes back to HubSpot.",
   },
+  "csv-import": {
+    c: "#6ea88f",
+    l: "Cv",
+    credLabel: "",
+    credHint: "No account to connect — set a default persona, then paste a CSV of contacts. Columns are auto-mapped; leads dedupe on email/phone.",
+  },
   "lead-enrichment": {
     c: "#5b8def",
     l: "En",
@@ -320,6 +326,15 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       label: "Default persona",
       placeholder: "persona_homeowner_emergency",
       hint: "Official persona key assigned to imported contacts (there is no auto-classifier). A per-record override is set with the personaProperty config key.",
+    },
+  ],
+  "csv-import": [
+    {
+      key: "defaultPersona",
+      kind: "text",
+      label: "Default persona",
+      placeholder: "persona_homeowner_emergency",
+      hint: "Official persona key for imported leads (they carry a required persona). A `persona` column in your CSV overrides it per row. Set this, then paste your CSV below.",
     },
   ],
   "lead-enrichment": [
@@ -1532,8 +1547,11 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
           <ConnectorConfigSection key={field.key} view={view} field={field} />
         ))}
 
-        {/* Import sources — an explicit, deliberate pull */}
-        {view.kind === "import_source" && !isPlanned ? (
+        {/* CSV import — the data is pasted here, not fetched from a connected source */}
+        {view.key === "csv-import" && !isPlanned ? <CsvImportSection view={view} /> : null}
+
+        {/* Other import sources — an explicit, deliberate pull from a connected source */}
+        {view.kind === "import_source" && view.key !== "csv-import" && !isPlanned ? (
           <div className="cxm-sec">
             <div className="cxm-label">Import contacts</div>
             <p className="cxm-hint">Runs only when you click — never automatically. A re-run updates existing leads (deduped on the source id), never duplicates. Nothing goes outbound.</p>
@@ -1558,6 +1576,50 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
         {status ? <div className="cxm-statusline"><Status status={status} /></div> : null}
       </div>
     </Modal>
+  );
+}
+
+// CSV import: paste a CSV, and after the persona is set + connector enabled, import
+// leads. The data lives here, not in stored config — so it's its own section, not
+// the generic "Import now" that fetches from a connected source.
+function CsvImportSection({ view }: { view: ConnectorView }) {
+  const [csv, setCsv] = useState("");
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState<SaveStatus>(null);
+  const ready = view.status === "connected";
+
+  async function importCsv() {
+    setPending(true); setStatus(null);
+    const res = await runCsvImportAction({ csvText: csv });
+    setPending(false);
+    setStatus(res.ok ? { tone: "ok", text: res.message ?? "Imported." } : { tone: "err", text: res.error });
+    if (res.ok) setCsv("");
+  }
+
+  return (
+    <div className="cxm-sec">
+      <div className="cxm-label">Paste CSV</div>
+      <p className="cxm-hint">
+        {ready
+          ? "A header row plus one contact per line. Columns like name, email, phone, company, city/state/zip are auto-detected — order doesn't matter. Leads dedupe on email/phone, so re-importing updates instead of duplicating."
+          : "Set a default persona above and switch this on first — then paste your CSV here."}
+      </p>
+      <div className="cxm-field stack">
+        <textarea
+          className="inp"
+          rows={5}
+          spellCheck={false}
+          disabled={!ready || pending}
+          placeholder={"name,email,company,city,state\nJordan Vega,jordan@acme.com,Acme Restoration,Chicago,IL"}
+          value={csv}
+          onChange={(e) => setCsv(e.target.value)}
+        />
+        <button className="btn sm gold" disabled={!ready || pending || !csv.trim()} onClick={importCsv}>
+          {pending ? "Importing…" : "Import CSV"}
+        </button>
+      </div>
+      {status ? <div className="cxm-statusline"><Status status={status} /></div> : null}
+    </div>
   );
 }
 
