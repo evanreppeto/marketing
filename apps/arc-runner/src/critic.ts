@@ -56,7 +56,7 @@ That is not the same as "is this plausible" or "is this true in the world". A cl
 
 HOW TO WORK:
 1. Read the draft and list every checkable claim. Marketing adjectives ("fast", "trusted") are not claims. Numbers, guarantees, timeframes, outcomes, credentials, and comparisons are.
-2. For each, go looking for the evidence with your read tools — the brain (facts and proof points), brand documents (voice, rules, disallowed claims), performance data (real numbers), and the media library.
+2. For each, go looking for the evidence with your read tools — the brain (facts and proof points), brand documents (voice, rules, disallowed claims), performance data (real numbers), and the media library. query_brain's search matches a node's title, body AND summary, so search for the substance of a claim ("arrival time", "certified", the specific number). One narrow search returning nothing is not proof the evidence is absent — try the claim's key terms, and list a whole kind (e.g. every proof_point) to read the full set before you rule a claim unsupported.
 3. Assign a verdict:
    - grounded — you found the specific evidence. Name it in your note.
    - unsupported — plausible, but you could not find evidence for it.
