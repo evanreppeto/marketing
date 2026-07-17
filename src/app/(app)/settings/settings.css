@@ -162,6 +162,10 @@
 .arc-settings .cxm-field { display: flex; gap: 8px; align-items: center; }
 .arc-settings .cxm-field .inp { flex: 1; }
 .arc-settings .cxm-field .btn { flex-shrink: 0; }
+/* Multi-line variant (the weather points list): the field stacks above its Save so
+   a tall textarea doesn't leave the button floating in the vertical middle. */
+.arc-settings .cxm-field.stack { display: block; }
+.arc-settings .cxm-field.stack .inp { display: block; width: 100%; min-width: 0; margin-bottom: 8px; resize: vertical; line-height: 1.5; font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); }
 .arc-settings .cxm-actions { display: flex; gap: 8px; margin-top: 11px; }
 .arc-settings .cxm-about { display: grid; gap: 0; margin: 0; }
 .arc-settings .cxm-about > div { display: flex; align-items: baseline; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); }

@@ -230,11 +230,18 @@ export async function saveConnectorConfig(input: {
   if (!ctx.workspaceId) return { ok: false, error: "No active workspace." };
 
   try {
-    await setConnectorConfig(getSupabaseAdminClient(), {
+    const client = getSupabaseAdminClient();
+    // MERGE, don't replace. setConnectorConfig writes the whole `config` jsonb, and a
+    // connector can expose more than one field (weather takes states AND points), each
+    // with its own Save. Replacing would make saving one field silently wipe the other.
+    // Read-then-merge here rather than in setConnectorConfig, so that stays a plain
+    // setter and this partial-update intent is explicit.
+    const existing = await getConnectorConfig(client, ctx.workspaceId, connector.key);
+    await setConnectorConfig(client, {
       workspaceId: ctx.workspaceId,
       orgId: ctx.orgId ?? null,
       connectorKey: connector.key,
-      config: input.config,
+      config: { ...existing, ...input.config },
     });
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not save the connector config." };

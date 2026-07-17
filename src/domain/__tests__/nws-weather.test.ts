@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   EMPTY_WEATHER_SERVICE_AREA,
+  formatServicePointsInput,
   isWeatherServiceAreaConfigured,
+  parseServicePointsInput,
   detectWeatherEventOpportunities,
   mapNwsAlertsToWeatherEvents,
   normalizeNwsSeverity,
@@ -154,6 +156,56 @@ describe("parseWeatherServiceArea", () => {
   it("reports a configured area once the operator sets one", () => {
     expect(isWeatherServiceAreaConfigured(parseWeatherServiceArea({ states: ["IL"] }))).toBe(true);
     expect(isWeatherServiceAreaConfigured(parseWeatherServiceArea({ points: ["41.88,-87.63"] }))).toBe(true);
+  });
+});
+
+describe("parseServicePointsInput", () => {
+  it("reads one lat,lng per line, with an optional label", () => {
+    const { points, invalid } = parseServicePointsInput("41.8781,-87.6298 Chicago\n41.7508,-88.1535");
+    expect(points).toEqual([
+      { lat: 41.8781, lng: -87.6298, label: "Chicago" },
+      { lat: 41.7508, lng: -88.1535 },
+    ]);
+    expect(invalid).toEqual([]);
+  });
+
+  it("tolerates blank lines, padding, and spaces around the comma", () => {
+    const { points } = parseServicePointsInput("\n  41.88 , -87.63   Chicago  \n\n");
+    expect(points).toEqual([{ lat: 41.88, lng: -87.63, label: "Chicago" }]);
+  });
+
+  // The whole reason points needed their own field: a point contains a comma, so the
+  // comma-separated states input would have split this into two broken halves.
+  it("keeps a lat,lng together instead of splitting it on the comma", () => {
+    expect(parseServicePointsInput("41.88,-87.63").points).toEqual([{ lat: 41.88, lng: -87.63 }]);
+  });
+
+  it("reports unreadable lines rather than dropping them", () => {
+    const { points, invalid } = parseServicePointsInput("41.88,-87.63\nChicago\nnot a point");
+    expect(points).toEqual([{ lat: 41.88, lng: -87.63 }]);
+    expect(invalid).toEqual(["Chicago", "not a point"]);
+  });
+
+  it("rejects out-of-range coordinates — NWS would answer a well-formed query about nowhere", () => {
+    const { points, invalid } = parseServicePointsInput("91,-87.63\n41.88,-181\n-90,180");
+    expect(points).toEqual([{ lat: -90, lng: 180 }]);
+    expect(invalid).toEqual(["91,-87.63", "41.88,-181"]);
+  });
+
+  it("de-duplicates the same coordinate", () => {
+    expect(parseServicePointsInput("41.88,-87.63 Chicago\n41.88,-87.63 Dupe").points).toHaveLength(1);
+  });
+
+  it("round-trips through formatServicePointsInput", () => {
+    const text = "41.8781,-87.6298 Chicago\n41.7508,-88.1535";
+    expect(formatServicePointsInput(parseServicePointsInput(text).points)).toBe(text);
+  });
+
+  it("feeds parseWeatherServiceArea — what the editor saves is what the detector reads", () => {
+    const { points } = parseServicePointsInput("41.8781,-87.6298 Chicago");
+    const area = parseWeatherServiceArea({ points });
+    expect(area.points).toEqual([{ lat: 41.8781, lng: -87.6298, label: "Chicago" }]);
+    expect(isWeatherServiceAreaConfigured(area)).toBe(true);
   });
 });
 
