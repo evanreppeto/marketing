@@ -27,9 +27,20 @@ const OPPORTUNITY_KINDS = [
   "account_expansion",
   "partner_network",
   "attribution_gap",
+  "next_iteration",
 ] as const;
 
-const OPPORTUNITY_SUBJECT_TYPES = ["company", "contact", "lead", "persona", "competitor", "segment"] as const;
+const OPPORTUNITY_SUBJECT_TYPES = [
+  "company",
+  "contact",
+  "lead",
+  "persona",
+  "competitor",
+  "segment",
+  "campaign",
+  "weather_event",
+  "competitor_signal",
+] as const;
 
 /**
  * Write tool (approval-safe): propose a source-backed opportunity into the inbox.
