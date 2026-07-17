@@ -99,7 +99,13 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
     [libraryItems, uploaded, live],
   );
   const [srcTab, setSrcTab] = useState("library");
-  const [bg, setBg] = useState<Item>(sources.library.items[0]);
+  // May be undefined: a live workspace with no approved media (media_assets empty)
+  // and nothing uploaded has no background to start on, and the comment above
+  // forbids falling back to sample art here. `items[0]` is undefined in that case,
+  // so bg is nullable and the canvas below renders an empty state rather than
+  // dereferencing undefined — which crashed the whole page on prod (React #418 /
+  // "cannot read properties of undefined (reading 'url')").
+  const [bg, setBg] = useState<Item | undefined>(sources.library.items[0]);
   const [selTile, setSelTile] = useState(-1);
   const [selSession, setSelSession] = useState("v0");
   const [fmt, setFmt] = useState(0);
@@ -179,7 +185,7 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
   // Download the selected source asset's real file (approved / generated / imported
   // media). Composed-overlay export is a separate feature; this pulls the underlying file.
   const downloadCurrent = async () => {
-    if (!bg.url) return;
+    if (!bg?.url) return;
     try {
       const res = await fetch(bg.url);
       if (!res.ok) throw new Error("fetch failed");
@@ -187,7 +193,7 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
       const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objUrl;
-      a.download = bg.l || "creative";
+      a.download = bg?.l || "creative";
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -210,7 +216,7 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
       ? "Connect a backend to generate"
       : !campaignId
         ? "Pick a campaign above first"
-        : !bg.url
+        : !bg?.url
           ? "Select an approved photo as the background"
           : null;
 
@@ -219,6 +225,9 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
   // locked — never outbound.
   const runGenerate = (formats: string[]) => {
     if (genGate || gen) return;
+    // genGate already blocks when there's no background, but narrow explicitly so
+    // backgroundUrl below is a definite string rather than possibly-undefined.
+    if (!bg?.url) return;
     setGenErr(null);
     startGen(async () => {
       for (const f of formats) {
@@ -371,11 +380,17 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
           <div className="stagewrap">
             <div className="artboard">
               <div className={`canvas${safe ? " szon" : ""}${mode === "video" ? " video" : ""}`} style={{ aspectRatio: FORMATS[fmt].ar }}>
-                <div className="cbg"><ItemMedia item={bg} /></div>
+                <div className="cbg">
+                  {bg ? (
+                    <ItemMedia item={bg} />
+                  ) : (
+                    <div className="cbg-empty">No approved media yet — pick a source, upload, or generate to set a background.</div>
+                  )}
+                </div>
                 <div className="cveil" />
                 <div className="cplay"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></div>
                 <div className="clogo"><span className="lm" style={{ background: accent }}>{logoInitial}</span> {brandName}</div>
-                <div className="cprov">{PVLABEL[bg.p]}</div>
+                {bg && <div className="cprov">{PVLABEL[bg.p]}</div>}
                 <div className="ctext">
                   <div className="ckick" style={{ color: accent === "#f1ede2" ? "#f1ede2" : accent }}>{kicker}</div>
                   <div className="chead">{headline}</div>
@@ -436,7 +451,7 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
 
                 <div className="psec">
                   <h3 className="ph2">Layers</h3>
-                  <div className="layer sel"><span className="li"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M4 15l4-3 3 2 4-3 5 4" /></svg></span><div style={{ minWidth: 0 }}><div className="lt">Background</div><div className="ld">{bg.l} · {provShort(bg.p)}</div></div><span className="eye">◉</span></div>
+                  <div className="layer sel"><span className="li"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M4 15l4-3 3 2 4-3 5 4" /></svg></span><div style={{ minWidth: 0 }}><div className="lt">Background</div><div className="ld">{bg ? `${bg.l} · ${provShort(bg.p)}` : "No media selected"}</div></div><span className="eye">◉</span></div>
                   {[["Kicker", kicker], ["Headline", headline], ["CTA button", cta], ["Logo", brandName]].map(([lt, ld]) => (
                     <div className="layer" key={lt}><span className="li"><svg viewBox="0 0 24 24"><path d="M5 8h14M5 12h9" /></svg></span><div style={{ minWidth: 0 }}><div className="lt">{lt}</div><div className="ld">{ld}</div></div><span className="eye">◉</span></div>
                   ))}
@@ -530,7 +545,7 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
                   <h3 className="ph2">Export</h3>
                   <a className="exrow" href="/library"><svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z" /></svg>Save to Library</a>
                   <Link className="exrow gold" href={campaignId ? `/campaigns/${campaignId}` : "/campaigns"}><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Open campaign</Link>
-                  <div className="exrow" onClick={downloadCurrent} style={bg.url ? { cursor: "pointer" } : undefined} {...(!bg.url ? { "data-soon": "Select an approved photo or video to download its file" } : {})}><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg>{bg.url ? "Download asset" : "Download (PNG / MP4)"}</div>
+                  <div className="exrow" onClick={downloadCurrent} style={bg?.url ? { cursor: "pointer" } : undefined} {...(!bg?.url ? { "data-soon": "Select an approved photo or video to download its file" } : {})}><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg>{bg?.url ? "Download asset" : "Download (PNG / MP4)"}</div>
                 </div>
               </div>
             </div>
