@@ -15,7 +15,7 @@ export function brainReadTools(client: ArcClient, step: StepFn) {
       persona: z.string().optional(),
       ref_table: z.string().optional(),
       ref_id: z.string().optional(),
-      search: z.string().optional().describe("Free-text search across nodes"),
+      search: z.string().optional().describe("Free-text substring search across each node's title, body, and summary"),
     },
     async (args) =>
       runTool(step, "Searching the marketing brain", async () => {
