@@ -8,7 +8,16 @@ import type { SettingsWorkspace, SettingsWorkspacesView } from "@/lib/auth/works
 import type { SettingsUsageView } from "@/lib/ai-usage/settings-summary";
 import type { ConnectorSpendView } from "@/lib/connectors/spend-summary";
 
-import { connectorMatchesIndustry, describeConnectorCost, findConnector, type ConnectorCostTier, type ConnectorStatus } from "@/domain";
+import {
+  connectorMatchesIndustry,
+  describeConnectorCost,
+  findConnector,
+  formatServicePointsInput,
+  parseServicePointsInput,
+  parseWeatherServiceArea,
+  type ConnectorCostTier,
+  type ConnectorStatus,
+} from "@/domain";
 import type { ConnectorView } from "@/lib/connectors/read-model";
 import type { SettingsConnectorsView } from "@/lib/connectors/settings-connectors";
 import type { EffectiveAgentConnection } from "@/lib/agent/connection";
@@ -261,34 +270,60 @@ const CONNECTOR_KIND_LABEL: Record<string, string> = {
   import_source: "Import",
 };
 
-// Per-connector config editors (no-credential connectors). Each maps the flat
-// form field to/from the workspace_connectors.config jsonb.
-const CONFIG_FIELDS: Record<string, { key: string; label: string; placeholder: string; hint: string; list?: boolean }> = {
-  "weather-signals": {
-    key: "states",
-    label: "Service area (US states)",
-    placeholder: "IL, WI, IN",
-    hint: "Comma-separated two-letter US state codes. Active NWS/NOAA alerts in these states become storm-response opportunities. No API key needed.",
-    list: true,
-  },
-  "webhook-dispatch": {
-    key: "endpoint",
-    label: "Endpoint URL",
-    placeholder: "https://example.com/hooks/arc",
-    hint: "Approved messages POST here — only from the human-approved send path.",
-  },
-  "hubspot-import": {
-    key: "defaultPersona",
-    label: "Default persona",
-    placeholder: "persona_homeowner_emergency",
-    hint: "Official persona key assigned to imported contacts (there is no auto-classifier). A per-record override is set with the personaProperty config key.",
-  },
-  "lead-enrichment": {
-    key: "endpoint",
-    label: "Vendor endpoint URL",
-    placeholder: "https://api.vendor.example/v1/companies/find",
-    hint: "Your firmographic vendor's company-lookup endpoint. Each import looks up companies here (metered) to derive account tier.",
-  },
+// Per-connector config editors (no-credential connectors). Each maps a form field
+// to/from one key of the workspace_connectors.config jsonb. A connector may expose
+// several — saveConnectorConfig merges, so each Save touches only its own key.
+//   text   — a single string value
+//   csv    — a comma-separated list
+//   points — one "lat,lng [label]" per line (a point contains a comma, so it can't
+//            live in a csv field; this is why points were unreachable before)
+type ConfigFieldKind = "text" | "csv" | "points";
+type ConfigField = { key: string; kind: ConfigFieldKind; label: string; placeholder: string; hint: string };
+
+const CONFIG_FIELDS: Record<string, ConfigField[]> = {
+  "weather-signals": [
+    {
+      key: "states",
+      kind: "csv",
+      label: "Service area — whole states",
+      placeholder: "IL, WI, IN",
+      hint: "Comma-separated two-letter US state codes. Watches every active NWS/NOAA alert statewide — broad, so a metro-area business usually wants points below instead. No API key needed.",
+    },
+    {
+      key: "points",
+      kind: "points",
+      label: "Service area — points",
+      placeholder: "41.8781,-87.6298 Chicago\n41.7508,-88.1535 Naperville",
+      hint: "One lat,lng per line, with an optional label. Only alerts whose area actually covers a point become opportunities — the right choice when you serve a metro, not a whole state. Use either or both.",
+    },
+  ],
+  "webhook-dispatch": [
+    {
+      key: "endpoint",
+      kind: "text",
+      label: "Endpoint URL",
+      placeholder: "https://example.com/hooks/arc",
+      hint: "Approved messages POST here — only from the human-approved send path.",
+    },
+  ],
+  "hubspot-import": [
+    {
+      key: "defaultPersona",
+      kind: "text",
+      label: "Default persona",
+      placeholder: "persona_homeowner_emergency",
+      hint: "Official persona key assigned to imported contacts (there is no auto-classifier). A per-record override is set with the personaProperty config key.",
+    },
+  ],
+  "lead-enrichment": [
+    {
+      key: "endpoint",
+      kind: "text",
+      label: "Vendor endpoint URL",
+      placeholder: "https://api.vendor.example/v1/companies/find",
+      hint: "Your firmographic vendor's company-lookup endpoint. Each import looks up companies here (metered) to derive account tier.",
+    },
+  ],
 };
 const CONNECTOR_STATUS_PILL: Record<ConnectorStatus, { kind: string; label: string }> = {
   connected: { kind: "ok", label: "Connected" },
@@ -1364,7 +1399,7 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
   // No-credential connectors that still expose a live connectivity probe (the NWS
   // weather source reports its active-alert count) get a Test connection button.
   const hasConnectivityTest = view.key === "weather-signals";
-  const configField = CONFIG_FIELDS[view.key];
+  const configFields = CONFIG_FIELDS[view.key] ?? [];
 
   const [credential, setCredential] = useState("");
   // Seed status from the OAuth round-trip marker (?hf=connected | <error-code>)
@@ -1470,7 +1505,9 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
         )}
 
         {/* Per-workspace config (watched locations, endpoint, default persona…) */}
-        {configField ? <ConnectorConfigSection view={view} field={configField} /> : null}
+        {configFields.map((field) => (
+          <ConnectorConfigSection key={field.key} view={view} field={field} />
+        ))}
 
         {/* Import sources — an explicit, deliberate pull */}
         {view.kind === "import_source" ? (
@@ -1503,23 +1540,30 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
 
 // Per-workspace, non-secret config editor inside the connector popup (a signal
 // source's watched locations, a channel's endpoint, an import's default persona).
-function configToInput(config: Record<string, unknown>, field: { key: string; list?: boolean }): string {
+function configToInput(config: Record<string, unknown>, field: ConfigField): string {
   const v = config[field.key];
-  if (field.list) return Array.isArray(v) ? v.filter((x) => typeof x === "string").join(", ") : "";
+  if (field.kind === "csv") return Array.isArray(v) ? v.filter((x) => typeof x === "string").join(", ") : "";
+  if (field.kind === "points") return formatServicePointsInput(parseWeatherServiceArea({ points: v }).points);
   return typeof v === "string" ? v : "";
 }
 
-function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: { key: string; label: string; placeholder: string; hint: string; list?: boolean } }) {
+function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: ConfigField }) {
   const [value, setValue] = useState(() => configToInput(view.config, field));
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<SaveStatus>(null);
 
+  // Only meaningful for `points`: the lines we couldn't read. Shown rather than
+  // dropped — silently discarding a typo'd coordinate would leave the operator
+  // believing they're watching somewhere they aren't.
+  const invalid = field.kind === "points" ? parseServicePointsInput(value).invalid : [];
+
   async function save() {
     setPending(true); setStatus(null);
-    const config: Record<string, unknown> = field.list
-      ? { [field.key]: value.split(",").map((s) => s.trim()).filter(Boolean) }
-      : { [field.key]: value.trim() };
-    const res = await saveConnectorConfig({ connectorKey: view.key, config });
+    let next: unknown;
+    if (field.kind === "csv") next = value.split(",").map((s) => s.trim()).filter(Boolean);
+    else if (field.kind === "points") next = parseServicePointsInput(value).points;
+    else next = value.trim();
+    const res = await saveConnectorConfig({ connectorKey: view.key, config: { [field.key]: next } });
     setPending(false);
     setStatus(toStatus(res, `${view.label} settings saved.`));
   }
@@ -1528,10 +1572,28 @@ function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: {
     <div className="cxm-sec">
       <div className="cxm-label">{field.label}</div>
       <p className="cxm-hint">{field.hint}</p>
-      <div className="cxm-field">
-        <input className="inp" placeholder={field.placeholder} value={value} onChange={(e) => setValue(e.target.value)} />
-        <button className="btn sm gold" disabled={pending} onClick={save}>{pending ? "Saving…" : "Save"}</button>
+      <div className={field.kind === "points" ? "cxm-field stack" : "cxm-field"}>
+        {field.kind === "points" ? (
+          <textarea
+            className="inp"
+            rows={4}
+            spellCheck={false}
+            placeholder={field.placeholder}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
+        ) : (
+          <input className="inp" placeholder={field.placeholder} value={value} onChange={(e) => setValue(e.target.value)} />
+        )}
+        <button className="btn sm gold" disabled={pending || invalid.length > 0} onClick={save}>
+          {pending ? "Saving…" : "Save"}
+        </button>
       </div>
+      {invalid.length > 0 ? (
+        <div className="cxm-statusline">
+          <Status status={{ tone: "err", text: `Can't read: ${invalid.join(" · ")} — each line needs lat,lng (e.g. 41.88,-87.63 Chicago).` }} />
+        </div>
+      ) : null}
       {status ? <div className="cxm-statusline"><Status status={status} /></div> : null}
     </div>
   );

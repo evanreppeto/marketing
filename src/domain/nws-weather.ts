@@ -95,6 +95,60 @@ export function isWeatherServiceAreaConfigured(area: WeatherServiceArea): boolea
   return area.states.length > 0 || area.points.length > 0;
 }
 
+// --- Operator-entered points ------------------------------------------------
+// A point is itself "lat,lng", so a comma-separated list can't carry one — which
+// is why the config editor only ever offered states. These parse/format the
+// one-point-per-line form the editor uses instead.
+
+/** `lat,lng` then an optional free-text label: "41.88,-87.63 Chicago". */
+const POINT_LINE_RE = /^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(.*)$/;
+
+export type ServicePointsInput = {
+  points: WeatherServicePoint[];
+  /** Lines that couldn't be read, verbatim — the caller SHOWS these rather than
+   *  dropping them. A typo'd coordinate silently vanishing is how an operator ends
+   *  up believing they're watching somewhere they aren't. */
+  invalid: string[];
+};
+
+/**
+ * Parse the operator's points textarea: one point per line, `lat,lng` with an
+ * optional trailing label. Blank lines are ignored. Out-of-range coordinates are
+ * invalid, not merely odd — NWS would answer a well-formed query about nowhere.
+ */
+export function parseServicePointsInput(text: string): ServicePointsInput {
+  const points: WeatherServicePoint[] = [];
+  const invalid: string[] = [];
+  const seen = new Set<string>();
+
+  for (const raw of (text ?? "").split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const m = POINT_LINE_RE.exec(line);
+    if (!m) {
+      invalid.push(line);
+      continue;
+    }
+    const lat = Number(m[1]);
+    const lng = Number(m[2]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      invalid.push(line);
+      continue;
+    }
+    const key = `${lat},${lng}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const label = m[3].trim();
+    points.push({ lat, lng, ...(label ? { label } : {}) });
+  }
+  return { points, invalid };
+}
+
+/** Render points back into the editor's one-per-line form. Round-trips parseServicePointsInput. */
+export function formatServicePointsInput(points: WeatherServicePoint[]): string {
+  return points.map((p) => `${p.lat},${p.lng}${p.label ? ` ${p.label}` : ""}`).join("\n");
+}
+
 const STATE_CODE_RE = /^[A-Za-z]{2}$/;
 
 function toStringArray(value: unknown): string[] {
