@@ -1,4 +1,4 @@
-import { listGraphEdges, listNodes, type BrainNode } from "@/lib/knowledge-graph/read-model";
+import { countNodesByTier, listGraphEdges, listNodes, type BrainNode } from "@/lib/knowledge-graph/read-model";
 
 import { BrainView, type BrainData, type FactVM } from "./_components/brain-view";
 import type { GraphEdge, GraphNode } from "./_components/knowledge-graph";
@@ -107,9 +107,15 @@ function toGraphNode(n: BrainNode): GraphNode {
 export default async function BrainPage({ searchParams }: { searchParams: Promise<{ node?: string }> }) {
   const sp = await searchParams;
   const focusNodeId = typeof sp.node === "string" && sp.node.trim() ? sp.node.trim() : null;
-  const [result, edgeResult] = await Promise.all([
+  const [result, edgeResult, countResult, reviewResult] = await Promise.all([
     listNodes({}).catch(() => ({ status: "unavailable" }) as const),
     listGraphEdges().catch(() => ({ status: "unavailable" }) as const),
+    // The tiles need real totals, not the size of the browsable page.
+    countNodesByTier().catch(() => ({ status: "unavailable" }) as const),
+    // Ask for the proposed nodes directly: filtering the capped list hid the ones
+    // outside its recency window, so a node awaiting review could go unlisted
+    // while the tile beside it read 0.
+    listNodes({ trustTier: "proposed" }).catch(() => ({ status: "unavailable" }) as const),
   ]);
   const nodes: BrainNode[] = result.status === "live" ? result.nodes : [];
   const facts = nodes.map(toFact);
@@ -123,27 +129,31 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
           .map((e) => ({ from: e.fromNodeId, to: e.toNodeId, rel: e.relation }))
       : [];
 
-  const tier = (t: string) => facts.filter((f) => f.trustTier.toLowerCase() === t).length;
-  const trusted = tier("trusted") + tier("core");
-  const observed = tier("observed");
-  const proposed = tier("proposed");
+  // Exact, whole-brain counts — `facts` is a capped page, not the brain.
+  const counts =
+    countResult.status === "live"
+      ? countResult.counts
+      : { total: facts.length, trusted: 0, observed: 0, proposed: 0 };
 
-  const review = facts.filter((f) => f.trustTier.toLowerCase() === "proposed");
+  const review = reviewResult.status === "live" ? reviewResult.nodes.map(toFact) : [];
   const learned = [...nodes]
     .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
     .slice(0, 20)
     .map(toFact);
 
   const stats = [
-    { label: "Knowledge nodes", value: facts.length, sub: "in Arc's memory", color: "" },
-    { label: "Trusted", value: trusted, sub: "approved for outbound", color: "var(--ok-text)" },
-    { label: "Observed", value: observed, sub: "watching, not yet trusted", color: "" },
-    { label: "Awaiting review", value: proposed, sub: "human approval required", color: proposed > 0 ? "var(--warn-text)" : "" },
+    { label: "Knowledge nodes", value: counts.total, sub: "in Arc's memory", color: "" },
+    { label: "Trusted", value: counts.trusted, sub: "approved for outbound", color: "var(--ok-text)" },
+    { label: "Observed", value: counts.observed, sub: "watching, not yet trusted", color: "" },
+    { label: "Awaiting review", value: counts.proposed, sub: "human approval required", color: counts.proposed > 0 ? "var(--warn-text)" : "" },
   ];
 
+  // Reads the true count for the same reason the tile does: this note IS the trust
+  // gate's visibility, and it was suppressed whenever the proposed facts happened
+  // to sit outside the capped list.
   const coverageNote =
-    proposed > 0
-      ? `${proposed} proposed fact${proposed === 1 ? "" : "s"} stay out of all outbound copy until you approve them — Arc's trust gate.`
+    counts.proposed > 0
+      ? `${counts.proposed} proposed fact${counts.proposed === 1 ? "" : "s"} stay out of all outbound copy until you approve them — Arc's trust gate.`
       : "";
 
   const data: BrainData = { stats, coverageNote, facts, review, learned, graphNodes, graphEdges };
