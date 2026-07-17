@@ -2,6 +2,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 import { TOKEN_SCOPE_LEADS_INGEST } from "@/lib/agent/tokens";
+import { getAttributionSourceRules } from "@/lib/attribution/source-rules";
 import { checkWorkspaceBearer } from "@/lib/auth/api-token";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { parseLeadIngestionPayload } from "@/domain";
@@ -67,8 +68,19 @@ export async function POST(request: Request) {
 
   // Validate persona against the CALLER's taxonomy (not the default workspace's);
   // local no-Supabase mode keeps the built-in default so the dev contract holds.
+  //
+  // Attribution rules are the caller's too. They're what lets a lead that arrives
+  // with a source but no utm/token ("Google Ads", a partner referral) resolve to a
+  // campaign instead of `unattributed`, which is what the journey lens picker
+  // divides credit by. Loaded per-org for the same reason as the personas: a
+  // tenant's rules are not another tenant's, and a caller that can't name its org
+  // (the legacy shared env token) gets none rather than the default workspace's.
+  const [personaKeys, sourceRules] = persistenceConfigured
+    ? await Promise.all([getOrgPersonaKeys(tokenOrgId), getAttributionSourceRules(tokenOrgId)])
+    : [undefined, undefined];
+
   const result = persistenceConfigured
-    ? parseLeadIngestionPayload(payload, undefined, await getOrgPersonaKeys(tokenOrgId))
+    ? parseLeadIngestionPayload(payload, undefined, personaKeys, sourceRules)
     : parseLeadIngestionPayload(payload);
 
   if (!result.ok) {
