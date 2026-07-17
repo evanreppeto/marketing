@@ -82,7 +82,9 @@ export function crmReadTools(client: ArcClient, step: StepFn) {
 
   const searchLeads = tool(
     "search_leads",
-    `Search CRM leads/opportunities. Use when the operator asks about leads, opportunities, or who to target. Filters optional. ${listContract("leads")}`,
+    `Search CRM leads/opportunities. Use when the operator asks about leads, opportunities, or who to target. Filters optional. ${listContract("leads")} ` +
+      `Each row is a COMPACT SUMMARY — id, persona, status, routing_recommendation, source, loss_summary, lead_score, received_at, and resolved company/contact names. ` +
+      `It deliberately omits metadata, the loss/keyword signals, and the linked record ids: call get_lead with the id for a lead's full detail.`,
     {
       status: z.string().optional(),
       persona: z.string().optional(),

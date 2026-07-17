@@ -67,3 +67,53 @@ export const LeadSchema = LeadRowSchema.transform((row) => ({
 
 export type LeadRow = z.infer<typeof LeadRowSchema>;
 export type Lead = z.infer<typeof LeadSchema>;
+
+/**
+ * The compact projection Arc's lead SEARCH returns — enough to triage and pick a
+ * lead, not the whole row. A full lead is ~833 chars, so a default page of 25
+ * overflows the runner's 8000-char tool budget and gets trimmed to ~9; this keeps
+ * the fields a caller needs to choose a record and leaves the rest to `get_lead`.
+ *
+ * Dropped here (all recoverable via `get_lead`): the FK uuids, `external_lead_id`,
+ * the loss/keyword arrays, `metadata`, and the created/updated timestamps.
+ * `company_id`/`contact_id` ARE still selected — they're the join keys the route
+ * resolves to names — but they don't reach Arc (see `withCrmNamesCompact`).
+ *
+ * Built by picking from `LeadRowSchema` so the field definitions never fork.
+ */
+export const LeadSummaryRowSchema = LeadRowSchema.pick({
+  id: true,
+  company_id: true,
+  contact_id: true,
+  persona: true,
+  status: true,
+  routing_recommendation: true,
+  source: true,
+  loss_summary: true,
+  lead_score: true,
+  received_at: true,
+});
+
+export const LeadSummarySchema = LeadSummaryRowSchema.transform((row) => ({
+  id: row.id,
+  companyId: row.company_id,
+  contactId: row.contact_id,
+  persona: row.persona,
+  status: row.status,
+  routingRecommendation: row.routing_recommendation,
+  source: row.source,
+  lossSummary: row.loss_summary,
+  leadScore: row.lead_score,
+  receivedAt: row.received_at,
+}));
+
+/**
+ * The PostgREST `select()` column list for a lead summary, derived from the schema
+ * so the columns fetched and the columns parsed can never drift. Keeping this in
+ * lock-step is the point: a wider `select` than the schema would silently ship the
+ * heavy fields the trim exists to drop.
+ */
+export const LEAD_SUMMARY_COLUMNS = Object.keys(LeadSummaryRowSchema.shape).join(", ");
+
+export type LeadSummaryRow = z.infer<typeof LeadSummaryRowSchema>;
+export type LeadSummary = z.infer<typeof LeadSummarySchema>;
