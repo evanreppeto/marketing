@@ -272,12 +272,29 @@
   height: 24px;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   margin-bottom: 6px;
   color: var(--text);
   font-size: 12px;
 }
-.arc-assistant-meta b { font-weight: 650; }
+/* Arc identity mark — the same Sparkles glyph the thinking indicator uses, so a
+   reply carries the agent's identity from the live state through to the settled
+   answer (the ChatGPT/Claude assistant-avatar convention, on-brand in gold).
+   Scoped past the generic `.arc-assistant-meta span` (mono/muted) so the glyph
+   stays gold, not grayed. */
+.arc-assistant-meta .arc-assistant-avatar {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 1px solid var(--accent-border);
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0;
+}
+.arc-assistant-meta b { font-weight: 650; letter-spacing: -.005em; }
 .arc-assistant-meta span { font-family: var(--mono); color: var(--muted); font-size: 9.5px; }
 
 .arc-answer,

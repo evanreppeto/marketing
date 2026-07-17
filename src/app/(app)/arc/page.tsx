@@ -2,6 +2,8 @@ import { getArcChatModel } from "@/lib/arc-chat/read-model";
 import { getMentionables } from "@/lib/arc-chat/mention-search";
 import { buildArcWaitingOpportunities } from "@/lib/arc-chat/waiting-opps";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { resolveViewerName } from "@/lib/auth/display-name";
+import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getWorkspaceSummary } from "@/lib/workspace-summary/read-model";
 
 import { ArcView } from "./_components/arc-view";
@@ -20,6 +22,13 @@ export default async function ArcPage({
   const initialDraft = typeof sp.prompt === "string" && sp.prompt.trim() ? sp.prompt.slice(0, 4000) : undefined;
   const ctx = await getCurrentWorkspaceContext().catch(() => null);
   const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
+  // Greet the operator by first name (as Home does) so opening Arc reads like a
+  // personal workspace, not a product splash. Falls back to the brand name in
+  // open/demo mode where there's no signed-in person to resolve.
+  const viewerName = ctx?.orgId
+    ? await resolveViewerName(ctx.orgId, await getSupabaseAuthenticatedUser().catch(() => null)).catch(() => "")
+    : "";
+  const operatorName = viewerName.trim().split(/\s+/)[0] || brandName;
 
   const [chat, mentionGroups, summary] = await Promise.all([
     getArcChatModel(sp.c ?? null, { startBlank: Boolean(sp.new) }),
@@ -47,6 +56,7 @@ export default async function ArcPage({
   return (
     <ArcView
       brandName={brandName}
+      operatorName={operatorName}
       live={live}
       threadGroups={chat.status === "live" ? chat.threadGroups : []}
       messages={chat.status === "live" ? chat.messages : []}
