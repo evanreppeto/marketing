@@ -117,6 +117,44 @@ async function resolveRead(
 }
 
 /**
+ * Neutralize a free-text search term for PostgREST's `.or()` grammar.
+ *
+ * `.or()` embeds the term in a comma/paren-delimited filter string and treats
+ * `*` as the wildcard, so a raw comma, paren, or star from the search text would
+ * break the filter — or inject an extra OR condition. A substring search needs
+ * none of those characters, so strip them and collapse whitespace. Returns "" when
+ * nothing usable remains, letting the caller skip the filter rather than emit an
+ * all-matching `**`. Dots and hyphens survive, so "3.2h" and "60-minute" still match.
+ */
+export function sanitizeBrainSearch(raw: string): string {
+  return raw.replace(/[,()*%"\\]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Does a node match a free-text search? Matches the term as a substring of the
+ * node's title, body, OR summary — the same three columns the live SQL searches.
+ *
+ * Body and summary are the point: a proof point's evidence ("median arrival 3.2h",
+ * "IICRC-certified") lives in its body, not its short label. Searching the label
+ * alone let a text query for a real fact return empty, which reads as "not in the
+ * brain" when it only means "not in a title" — and blinded the draft critic, whose
+ * whole job is to go find that evidence. An empty/all-junk term excludes nothing,
+ * mirroring the live path skipping the filter.
+ */
+export function nodeMatchesSearch(
+  node: Pick<BrainNode, "label" | "body" | "summary">,
+  term: string,
+): boolean {
+  const q = sanitizeBrainSearch(term).toLowerCase();
+  if (!q) return true;
+  return (
+    node.label.toLowerCase().includes(q) ||
+    (node.body ?? "").toLowerCase().includes(q) ||
+    (node.summary ?? "").toLowerCase().includes(q)
+  );
+}
+
+/**
  * Apply NodeFilters to an in-memory node list, mirroring the SQL filters in
  * listNodes so the demo fallback responds to the same kind/tier/persona/search
  * controls the live query would.
@@ -129,10 +167,7 @@ function filterDemoNodes(filters: NodeFilters): BrainNode[] {
   if (filters.persona) nodes = nodes.filter((n) => n.persona === filters.persona);
   if (filters.refTable) nodes = nodes.filter((n) => n.refTable === filters.refTable);
   if (filters.refId) nodes = nodes.filter((n) => n.refId === filters.refId);
-  if (filters.search) {
-    const q = filters.search.toLowerCase();
-    nodes = nodes.filter((n) => n.label.toLowerCase().includes(q));
-  }
+  if (filters.search) nodes = nodes.filter((n) => nodeMatchesSearch(n, filters.search as string));
   return nodes;
 }
 
@@ -164,7 +199,13 @@ export async function listNodes(
     if (filters.persona) query = query.eq("persona", filters.persona as never);
     if (filters.refTable) query = query.eq("ref_table", filters.refTable);
     if (filters.refId) query = query.eq("ref_id", filters.refId);
-    if (filters.search) query = query.ilike("label", `%${filters.search}%`);
+    // Search the node's substance, not just its title. label is a short heading;
+    // the evidence a caller is looking for lives in body/summary. Matching label
+    // alone made a text search for a real fact return empty — see nodeMatchesSearch.
+    if (filters.search) {
+      const term = sanitizeBrainSearch(filters.search);
+      if (term) query = query.or(`label.ilike.*${term}*,body.ilike.*${term}*,summary.ilike.*${term}*`);
+    }
 
     const { data, error } = await query;
     if (error) return { status: "unavailable", message: error.message };
