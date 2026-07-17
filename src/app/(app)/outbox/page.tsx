@@ -1,4 +1,5 @@
 import { getAgentOperationsDashboard, type AgentOperationsTask } from "@/lib/agent-operations/read-model";
+import { buildOutboxKpis } from "@/lib/dispatch/kpis";
 import { getOutboxList } from "@/lib/dispatch/read-model";
 import { type DispatchStatus, type DispatchView } from "@/lib/dispatch/status";
 
@@ -120,19 +121,8 @@ export default async function OutboxPage() {
     cards: tasks.filter((t) => meta.match((t.status || "").toLowerCase())).map(toBoardCard),
   }));
 
-  const raw = outbox.status === "live" ? outbox.dispatches : [];
-  const sumRecipients = (statuses: DispatchStatus[]) =>
-    raw.filter((d) => statuses.includes(d.status)).reduce((n, d) => n + (d.audienceCount ?? 0), 0);
-  const count = (statuses: DispatchStatus[]) => raw.filter((d) => statuses.includes(d.status)).length;
-
-  const queuedRecipients = sumRecipients(["queued"]);
-  const sentRecipients = sumRecipients(["sent", "delivered"]);
-  const kpis: KpiVM[] = [
-    { value: `${count(["queued"])}`, label: "Awaiting your confirm", sub: queuedRecipients ? `${queuedRecipients.toLocaleString()} recipients` : "in the send queue", alert: count(["queued"]) > 0 },
-    { value: `${count(["scheduled"])}`, label: "Scheduled", sub: count(["scheduled"]) ? "in the send window" : "none scheduled", alert: false },
-    { value: sentRecipients ? sentRecipients.toLocaleString() : "0", label: "Sent", sub: "recorded dispatches", alert: false },
-    { value: `${count(["delivered"])}`, label: "Delivered", sub: count(["failed"]) ? `${count(["failed"])} failed` : "no failures", alert: count(["failed"]) > 0 },
-  ];
+  // Tiles: value counts dispatches, reach goes in the sub. See lib/dispatch/kpis.
+  const kpis: KpiVM[] = buildOutboxKpis(outbox.status === "live" ? outbox.dispatches : []);
 
   return <OutboxBoard outboxLanes={outboxLanes} boardLanes={boardLanes} kpis={kpis} channelCounts={channelCounts} />;
 }

@@ -57,6 +57,26 @@ export type ArcTurnResult = {
  * add CRM-interaction + brain writes). Each tool reports a running -> done step
  * to the chat bubble, producing the live trace. Outbound has no tool in any mode.
  */
+/**
+ * The reply body: everything the model said this turn, oldest first.
+ *
+ * NOT `result`. The SDK's `result` is only the FINAL message's text, so a turn
+ * that narrates, calls a tool, then closes ("Here's the count… [tool] …suggested
+ * next steps") reports ONLY the closing text — the answer itself is dropped. It
+ * hides well because a model usually puts all its prose last, and it is worst
+ * exactly when the model behaves well: it looks up, then explains.
+ *
+ * It's also visibly wrong: the token deltas stream every chunk into the bubble
+ * live, so the operator watches the full answer type out and then sees it
+ * replaced by the tail when the final body lands.
+ *
+ * `result` stays the fallback for a turn that emitted no assistant text.
+ */
+export function assembleReplyBody(assistantChunks: string[], resultText: string): string {
+  const joined = assistantChunks.join("\n\n").trim();
+  return joined || resultText.trim();
+}
+
 /** Fresh per-turn collectors plus the sink that feeds them. */
 function makeSink() {
   const actions: ArcActionCard[] = [];
@@ -135,11 +155,15 @@ async function runArcQuery(opts: {
   const workspaceState = await resolveWorkspaceSummary(opts.client);
   const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, { ...opts.ctx, workspaceState, mediaConfig });
 
-  let assistantText = "";
+  // Every assistant message's text, in order. Kept per-message (not one string)
+  // so they can be rejoined with a blank line — the model ends a message without
+  // trailing whitespace, so concatenating raw runs the last word of one into the
+  // first word of the next.
+  const assistantChunks: string[] = [];
   let resultText = "";
   // Live-streaming buffer, accumulated from token deltas purely for the typing
-  // effect. The final body is still (resultText || assistantText) below, so if
-  // partial events are unavailable the reply is unchanged — streaming is additive.
+  // effect. The final body is assembled below, so if partial events are
+  // unavailable the reply is unchanged — streaming is additive.
   let streamBuf = "";
   let lastEmit = 0;
   // Live-thinking buffer, accumulated from thinking-token deltas purely for the
@@ -184,9 +208,11 @@ async function runArcQuery(opts: {
         }
       }
     } else if (message.type === "assistant") {
+      let text = "";
       for (const block of message.message.content) {
-        if (block.type === "text") assistantText += block.text;
+        if (block.type === "text") text += block.text;
       }
+      if (text.trim()) assistantChunks.push(text);
     } else if (message.type === "result" && message.subtype === "success") {
       resultText = message.result;
       const usage = (message as { usage?: { input_tokens?: number; output_tokens?: number } }).usage;
@@ -198,7 +224,7 @@ async function runArcQuery(opts: {
   }
 
   return {
-    body: (resultText || assistantText).trim(),
+    body: assembleReplyBody(assistantChunks, resultText),
     actions,
     suggestions: suggestions.slice(0, 4),
     sources,
