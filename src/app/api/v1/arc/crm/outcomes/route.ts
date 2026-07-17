@@ -1,5 +1,7 @@
 import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
 import { pageMeta, readLimit } from "@/app/api/v1/arc/_lib/paging";
+import { centsToUsd } from "@/app/api/v1/arc/_lib/money";
+import { resolveCrmNames, withCrmNames } from "@/lib/crm/names";
 import { type OutcomeStatus } from "@/domain";
 import { listOutcomesPage } from "@/lib/repos";
 
@@ -23,7 +25,14 @@ export async function GET(request: Request) {
 
   try {
     const { outcomes, total } = await listOutcomesPage({ orgId: allowed.scope.orgId, status: status as OutcomeStatus | undefined, persona, companyId, limit });
-    return ok({ outcomes, ...pageMeta(total, outcomes.length, limit) });
+    // Dollars not cents (_lib/money) and names not uuids (lib/crm/names) — Arc
+    // quotes both of these straight to the operator. On `limit=0` (count only)
+    // the page is empty, so neither costs a query.
+    const names = await resolveCrmNames(outcomes, allowed.scope.orgId);
+    return ok({
+      outcomes: outcomes.map((o) => centsToUsd(withCrmNames(o, names), "grossRevenueCents", "grossMarginCents")),
+      ...pageMeta(total, outcomes.length, limit),
+    });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list outcomes.", 502);
   }
