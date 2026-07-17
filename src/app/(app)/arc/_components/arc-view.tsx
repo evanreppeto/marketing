@@ -64,6 +64,16 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import bash from "highlight.js/lib/languages/bash";
+import css from "highlight.js/lib/languages/css";
+import javascript from "highlight.js/lib/languages/javascript";
+import json from "highlight.js/lib/languages/json";
+import python from "highlight.js/lib/languages/python";
+import sql from "highlight.js/lib/languages/sql";
+import typescript from "highlight.js/lib/languages/typescript";
+import xml from "highlight.js/lib/languages/xml";
+import yaml from "highlight.js/lib/languages/yaml";
 
 import {
   summarizeSteps,
@@ -410,8 +420,10 @@ function nodeText(node: React.ReactNode): string {
 }
 
 /** A fenced code block with a language label and a copy button — the premium
- *  code affordance. Intentionally no multi-hue syntax highlighting (off-brand for
- *  the calm obsidian/gold system); clean mono on an inset surface instead. */
+ *  code affordance. Tokens are highlighted by `rehype-highlight` into `.hljs-*`
+ *  spans; the palette (see `.arc-code .hljs-*` in arc.css) is a restrained
+ *  gold/green/ivory reading of the obsidian system — no rainbow. `children` is the
+ *  highlighted span tree; `raw` flattens it back to source for the copy button. */
 function CodeBlock({ children }: { children?: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
   const codeChild = Array.isArray(children) ? children.find((child) => isValidElement(child)) : children;
@@ -453,13 +465,38 @@ const MARKDOWN_COMPONENTS: Components = {
   ),
 };
 
+type MarkdownPlugins = React.ComponentProps<typeof ReactMarkdown>["rehypePlugins"];
+
+const REMARK_PLUGINS: MarkdownPlugins = [remarkGfm];
+
+// A curated language set for the highlighter — the snippets Arc actually shows
+// (config, API payloads, shell, queries). Keeping the registry small keeps the
+// bundle lean and, with `detect: false`, an unknown or unlabeled fence stays calm
+// plain mono instead of being auto-guessed and mis-colored.
+const HLJS_LANGUAGES = {
+  bash, sh: bash, shell: bash, zsh: bash,
+  css,
+  javascript, js: javascript, jsx: javascript,
+  json,
+  python, py: python,
+  sql,
+  typescript, ts: typescript, tsx: typescript,
+  xml, html: xml,
+  yaml, yml: yaml,
+};
+
+// Highlight only when the code has settled — during streaming the fence is often
+// incomplete, so re-tokenizing every frame both churns and mis-colors. Settled
+// renders pass this; the streaming pass omits it and shows clean mono until done.
+const REHYPE_HIGHLIGHT_PLUGINS: MarkdownPlugins = [[rehypeHighlight, { detect: false, languages: HLJS_LANGUAGES }]];
+
 /** Markdown that types itself out while `streaming`, with a trailing caret (the
  *  caret is a CSS `::after` on the last rendered block — see `.arc-stream`). */
 function StreamingMarkdown({ text, streaming, className }: { text: string; streaming: boolean; className?: string }) {
   const shown = useSmoothStream(text, streaming);
   return (
     <div className={`arc-stream${streaming ? " is-streaming" : ""}${className ? ` ${className}` : ""}`}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{shown}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={streaming ? undefined : REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{shown}</ReactMarkdown>
     </div>
   );
 }
@@ -478,7 +515,7 @@ function LiveReasoning({ text, streaming }: { text: string; streaming: boolean }
     <div className="arc-live-reasoning">
       <div className="arc-live-reasoning-scroll" ref={scrollRef}>
         <div className={`arc-stream${streaming ? " is-streaming" : ""} arc-markdown`}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{shown}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={MARKDOWN_COMPONENTS}>{shown}</ReactMarkdown>
         </div>
       </div>
     </div>
@@ -1549,7 +1586,7 @@ function LiveConversation({
         return (
           <AssistantMessage key={message.id} time={formatMessageTime(message.createdAt)} active={pending}>
             <RunTrace pending={pending} liveText={pending ? message.body : null} reasoning={message.reasoning} steps={message.steps} toolCalls={message.toolCalls} contract={contract} thoughtSeconds={thoughtSeconds} onStop={pending && message.agentTaskId ? () => onCancelRun(message.agentTaskId as string, message.conversationId) : undefined} stopping={stoppingTaskId === message.agentTaskId} outcome={message.status === "failed" ? (message.body.startsWith("Stopped by you") ? "canceled" : "failed") : "complete"} />
-            {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div> : null}
+            {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div> : null}
             {!pending && message.mentions.length ? <SourcesRow mentions={message.mentions} /> : null}
             {!pending && message.recall?.length ? <RecallRow recall={message.recall} /> : null}
             {!pending && message.actions.length ? (() => {
@@ -1613,7 +1650,7 @@ function DemoConversation({
             <RecallRow recall={DEMO_RECALL} />
           </AssistantMessage>
           <AssistantMessage time="9:40 AM">
-            <div className="arc-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{DEMO_BREAKDOWN_MD}</ReactMarkdown></div>
+            <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{DEMO_BREAKDOWN_MD}</ReactMarkdown></div>
           </AssistantMessage>
           <AssistantMessage time="9:42 AM">
             <div className="arc-answer"><p>I built the Storm Rapid Response package for the 142 highest-urgency homes.</p></div>
