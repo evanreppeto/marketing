@@ -54,6 +54,7 @@ export * from "./dispatch-scheduling";
 export * from "./opportunity-detection";
 export * from "./nws-weather";
 export * from "./rss-signals";
+export * from "./news-search";
 export * from "./review-signals";
 export * from "./competitor-ads";
 export * from "./crm-import";
