@@ -27,6 +27,7 @@ export * from "./opportunity-package";
 export * from "./opportunity-conversion";
 export * from "./connector-catalog";
 export * from "./campaign-assets";
+export * from "./campaign-cta";
 export * from "./agent-run-status";
 export * from "./connections";
 export * from "./connectors";
