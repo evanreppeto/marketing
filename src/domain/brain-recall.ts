@@ -20,6 +20,9 @@ export type RecallCandidate = {
    * embeddings, or outside the top-K) — never "scored zero".
    */
   similarity?: number;
+  /** When this fact was recorded (ISO). Undefined when the caller couldn't
+   *  supply one — a semantic-only hit, whose RPC returns no timestamp. */
+  recordedAt?: string | null;
 };
 
 /** A prompt-ready memory line. */
@@ -32,6 +35,17 @@ export type RecallItem = {
   confidence?: number;
   /** Source brain node id, so the UI can link the chip back to the brain. */
   nodeId?: string;
+  /**
+   * When this fact was recorded (ISO), so the prompt can date it.
+   *
+   * A remembered fact was true WHEN RECORDED, and recall has no other way to say
+   * so: an undated line reads as timeless. It matters most when two memories
+   * disagree — BSR's brain holds both "at least 64 leads" (written while a
+   * truncation bug was capping the read) and "exactly 200 leads". Both are
+   * `observed`, both recall together, and without a date neither is more
+   * authoritative than the other.
+   */
+  recordedAt?: string;
 };
 
 export type RankRecallOptions = { coreLimit?: number; matchLimit?: number; cap?: number };
@@ -261,6 +275,7 @@ export function enrichRecall(
       label: c.label,
       summary: c.summary,
       kind: c.kind,
+      ...(c.recordedAt ? { recordedAt: c.recordedAt } : {}),
       ...(options.message !== undefined
         ? { confidence: recallRelevance(c, options.message), nodeId: c.id }
         : {}),

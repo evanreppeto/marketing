@@ -64,7 +64,18 @@ export async function getRecallMemory(
 
   const candidates: RecallCandidate[] = [...graph.nodes]
     .sort((a, b) => (TIER_PRIORITY[a.trustTier] ?? 9) - (TIER_PRIORITY[b.trustTier] ?? 9))
-    .map((n) => ({ id: n.id, kind: n.kind, label: n.label, summary: n.summary, tags: n.tags, trustTier: n.trustTier }));
+    .map((n) => ({
+      id: n.id,
+      kind: n.kind,
+      label: n.label,
+      summary: n.summary,
+      tags: n.tags,
+      trustTier: n.trustTier,
+      // Dates the fact in the prompt. A semantic-only hit has no timestamp (the
+      // RPC doesn't return one), so it simply renders undated rather than
+      // guessing an age.
+      recordedAt: n.createdAt,
+    }));
 
   // Fold the vector search in as a RANKING signal, not just as extra candidates:
   // score the nodes already in the window, and append only the ones it missed.

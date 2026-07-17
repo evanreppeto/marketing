@@ -9,6 +9,8 @@ export type RecallItem = {
   related?: string[];
   confidence?: number;
   nodeId?: string;
+  /** When the fact was recorded (ISO). Absent when the source couldn't date it. */
+  recordedAt?: string;
 };
 
 /**
