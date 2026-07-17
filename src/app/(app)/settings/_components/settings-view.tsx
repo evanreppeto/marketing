@@ -296,6 +296,13 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       placeholder: "41.8781,-87.6298 Chicago\n41.7508,-88.1535 Naperville",
       hint: "One lat,lng per line, with an optional label. Only alerts whose area actually covers a point become opportunities — the right choice when you serve a metro, not a whole state. Use either or both.",
     },
+    {
+      key: "persona",
+      kind: "text",
+      label: "Audience persona (optional)",
+      placeholder: "persona_homeowner_emergency",
+      hint: "A persona key from your workspace's own taxonomy — who a damage-response campaign should target. Leave blank and the opportunity still carries the weather evidence; you pick the audience when you draft.",
+    },
   ],
   "webhook-dispatch": [
     {
