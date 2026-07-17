@@ -2,8 +2,8 @@ import { arcGuard, fail, INVALID_JSON, ok, readJson } from "@/app/api/v1/arc/_li
 import { intParam, pageMeta, readLimit } from "@/app/api/v1/arc/_lib/paging";
 import { type LeadStatus } from "@/domain";
 import { createArcLead } from "@/lib/arc/record-writes";
-import { resolveCrmNames, withCrmNames } from "@/lib/crm/names";
-import { listLeadsPage } from "@/lib/repos";
+import { resolveCrmNames, withCrmNamesCompact } from "@/lib/crm/names";
+import { listLeadSummariesPage } from "@/lib/repos";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 /**
@@ -16,6 +16,13 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
  * matching row: 200 full leads (~833 chars each) overflowed the runner's
  * 8000-char tool budget, were sliced mid-JSON to 10, and Arc — with no total to
  * check against — read the fragment as the whole CRM and answered "at least 64".
+ *
+ * Each row is a COMPACT SUMMARY (persona/status/routing/source/loss/score/date +
+ * resolved company & contact names), not the full lead: a full row is ~833 chars,
+ * so a page of 25 still overflowed the tool budget and got trimmed. The heavy
+ * fields (metadata, keyword signals, linked record ids) are one `get_lead` away —
+ * and the summary is announced as such in `search_leads`, so the trim is visible
+ * to Arc rather than a silent narrowing of what it sees.
  */
 export async function GET(request: Request) {
   const allowed = await arcGuard(request);
@@ -31,11 +38,12 @@ export async function GET(request: Request) {
   const limit = readLimit(url);
 
   try {
-    const { leads, total } = await listLeadsPage({ orgId: allowed.scope.orgId, status: status as LeadStatus | undefined, persona, source, q, minScore, maxScore, limit });
-    // Names, not uuids — Arc quotes these straight to the operator. On `limit=0`
-    // (count only) the page is empty, so this costs no query.
+    const { leads, total } = await listLeadSummariesPage({ orgId: allowed.scope.orgId, status: status as LeadStatus | undefined, persona, source, q, minScore, maxScore, limit });
+    // Names REPLACE the join uuids — Arc quotes these straight to the operator, and
+    // a uuid is pure weight once the name is attached. On `limit=0` (count only)
+    // the page is empty, so this costs no query.
     const names = await resolveCrmNames(leads, allowed.scope.orgId);
-    return ok({ leads: leads.map((l) => withCrmNames(l, names)), ...pageMeta(total, leads.length, limit) });
+    return ok({ leads: leads.map((l) => withCrmNamesCompact(l, names)), ...pageMeta(total, leads.length, limit) });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list leads.", 502);
   }

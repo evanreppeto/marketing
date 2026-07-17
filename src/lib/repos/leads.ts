@@ -1,6 +1,13 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type Lead, LeadSchema, type LeadStatus } from "@/domain";
+import {
+  type Lead,
+  LEAD_SUMMARY_COLUMNS,
+  LeadSchema,
+  type LeadStatus,
+  type LeadSummary,
+  LeadSummarySchema,
+} from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { type FilterChain, queryPage } from "@/lib/repos/paging";
 import { type Database } from "@/lib/supabase/database.types";
@@ -58,6 +65,34 @@ export async function listLeadsPage(
     limit: filter.limit,
     label: "listLeadsPage",
     parse: (row) => LeadSchema.parse(row),
+    applyFilters: (query) => applyLeadFilters(query, filter, orgId),
+  });
+  return { leads: rows, total };
+}
+
+/**
+ * A bounded page of lead SUMMARIES plus the exact `total` matching the same
+ * filters — the shape Arc's `search_leads` returns.
+ *
+ * Same as `listLeadsPage` but fetches only `LEAD_SUMMARY_COLUMNS` and parses with
+ * `LeadSummarySchema`, so the heavy fields (metadata, keyword arrays, extra
+ * timestamps) are never read over the wire. It shares `applyLeadFilters`, so the
+ * count and the page still honour exactly the same filters (the #484 invariant).
+ * Full detail stays one `getLead` away.
+ */
+export async function listLeadSummariesPage(
+  filter: ListLeadsFilter = {},
+  client?: SupabaseClient,
+): Promise<{ leads: LeadSummary[]; total: number }> {
+  const orgId = filter.orgId ?? (client ? null : await getCurrentOrgId());
+  const { rows, total } = await queryPage<LeadSummary>({
+    client: client ?? getSupabaseAdminClient(),
+    table: "leads",
+    orderBy: "received_at",
+    columns: LEAD_SUMMARY_COLUMNS,
+    limit: filter.limit,
+    label: "listLeadSummariesPage",
+    parse: (row) => LeadSummarySchema.parse(row),
     applyFilters: (query) => applyLeadFilters(query, filter, orgId),
   });
   return { leads: rows, total };
