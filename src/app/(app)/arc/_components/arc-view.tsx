@@ -64,16 +64,17 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import type {
-  ArcActionCard,
-  ArcAssetStatus,
-  ArcMention,
-  ArcMode,
-  ArcQuestion,
-  ArcRecall,
-  ArcRoute,
-  SharePermission,
-  ShareVisibility,
+import {
+  summarizeSteps,
+  type ArcActionCard,
+  type ArcAssetStatus,
+  type ArcMention,
+  type ArcMode,
+  type ArcQuestion,
+  type ArcRecall,
+  type ArcRoute,
+  type SharePermission,
+  type ShareVisibility,
 } from "@/domain";
 import { CONTEXT_WINDOW_TOKENS, contextUsage } from "@/lib/arc-chat/context-usage";
 import type {
@@ -542,13 +543,18 @@ function RunTrace({
   const reduceMotion = useReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  // Consecutive same-verb steps fold into one counted row ("Creating lead · 46")
+  // rather than 46 near-identical chips; a collapsed group trades its own detail
+  // line for the step it is on right now. Tool calls stay 1:1 — each is a
+  // distinct, individually meaningful action.
+  const stepSummary = summarizeSteps(steps);
   const sourceRows: RunRow[] = [
-    ...steps.map((step, index) => ({
+    ...stepSummary.groups.map((group, index) => ({
       id: `step-${index}`,
-      label: step.label,
-      detail: step.detail?.join(" · "),
-      status: step.status === "done" ? "done" as const : "running" as const,
-      kind: (step.kind ?? "think") as RunKind,
+      label: group.count > 1 ? `${group.title} · ${group.count}` : group.title,
+      detail: group.count > 1 ? group.latestLabel : group.steps[0].detail?.join(" · "),
+      status: group.status,
+      kind: group.kind,
     })),
     ...toolCalls.map((tool, index) => ({
       id: `tool-${index}`,
@@ -581,8 +587,11 @@ function RunTrace({
 
   if (!pending) {
     if (!reasoning && sourceRows.length === 0 && !contract) return null;
-    const completeCount = sourceRows.filter((row) => row.status === "done").length;
-    const activityCount = sourceRows.length;
+    // Counted from the steps themselves, not the collapsed rows: the headline
+    // says "46 activities" and the row below it reads "Creating lead · 46".
+    // Counting rows would say "3 activities" over a row claiming 46.
+    const completeCount = stepSummary.doneCount + toolCalls.filter((tool) => tool.status === "complete").length;
+    const activityCount = stepSummary.totalSteps + toolCalls.length;
     const activityLabel = activityCount === 1 ? "activity" : "activities";
     const durationLabel = thoughtSeconds && thoughtSeconds > 0 ? formatWorkingTime(Math.round(thoughtSeconds)) : null;
     const summaryLabel = outcome === "canceled"

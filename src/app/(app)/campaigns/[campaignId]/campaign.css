@@ -268,3 +268,22 @@
 .arc-campaign .perflearn-cta:hover { background: var(--accent-hover); transform: translateY(-1px); }
 .arc-campaign .perflearn-cta svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .arc-campaign .perflearn-lock { margin: 12px 0 0; color: var(--muted); font-size: 10.5px; }
+
+/* Revision diff — the "what changed" spine inside the .revnote chip. Collapsed
+   by default; the open state drops the chip's tint so the +/- lines carry the
+   only colour in the block. */
+.arc-campaign .revdiff { padding: 0; }
+.arc-campaign .revdiff > summary { list-style: none; cursor: pointer; padding: 6px 9px; border-radius: 7px; transition: color 0.14s var(--ease); }
+.arc-campaign .revdiff > summary::-webkit-details-marker { display: none; }
+.arc-campaign .revdiff > summary:hover { color: var(--text-2); }
+.arc-campaign .revdiff > summary:focus-visible { outline: 2px solid var(--accent-border-strong); outline-offset: 1px; }
+.arc-campaign .revdiff[open] { background: transparent; border: 1px solid var(--line-2); }
+.arc-campaign .revdiff[open] > summary { border-bottom: 1px solid var(--line-2); border-radius: 7px 7px 0 0; }
+.arc-campaign .revdiff-body { max-height: 260px; overflow: auto; padding: 7px 0; font-family: var(--mono); font-size: 11px; line-height: 1.6; }
+.arc-campaign .revdiff-line { display: flex; gap: 8px; padding: 0 9px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.arc-campaign .revdiff-gutter { flex-shrink: 0; width: 8px; text-align: center; color: var(--muted); user-select: none; }
+.arc-campaign .revdiff-line.is-same { color: var(--muted); }
+.arc-campaign .revdiff-line.is-added { color: var(--ok-text); background: var(--ok-soft); box-shadow: inset 2px 0 0 var(--ok); }
+.arc-campaign .revdiff-line.is-added .revdiff-gutter { color: var(--ok); }
+.arc-campaign .revdiff-line.is-removed { color: var(--red-text); background: var(--red-soft); box-shadow: inset 2px 0 0 var(--red); }
+.arc-campaign .revdiff-line.is-removed .revdiff-gutter { color: var(--red); }
