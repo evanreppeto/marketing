@@ -229,6 +229,34 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     toolNamespace: "rss-signals",
   },
   {
+    key: "news-search",
+    kind: "signal_source",
+    label: "News Search",
+    description:
+      "Read-only signal source: searches the news for the terms you watch — your brand, a competitor, an industry " +
+      "topic — and proposes a timely-response opportunity for each fresh mention. Uses your own GNews API key, so it " +
+      "finds coverage on sites that publish no feed. Never posts anything — proposals only.",
+    costTier: "byo_key",
+    // Universal: every business can watch its own name and its market.
+    verticals: [],
+    capability: {
+      summary: "Emits news_signal opportunities from fresh news articles matching the workspace's watched search terms.",
+      opportunityKinds: ["news_signal"],
+    },
+    credentialSchema: {
+      kind: "api_key",
+      label: "GNews API key",
+      hint: "A free key from gnews.io. Stored encrypted in your Vault — never shown again, never sent to the browser.",
+    },
+    // Needs BOTH a key AND terms to search. requiredConfigKeys gates the config half;
+    // the credential gate handles the key half.
+    requiredConfigKeys: ["queries"],
+    authKind: "api_key",
+    access: "read_only",
+    mcpUrl: null,
+    toolNamespace: "news-search",
+  },
+  {
     key: "reviews-signals",
     kind: "signal_source",
     label: "Reviews & Reputation",
@@ -387,6 +415,59 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     access: "read_only",
     mcpUrl: null,
     toolNamespace: "hubspot-import",
+  },
+  {
+    key: "csv-import",
+    kind: "import_source",
+    label: "CSV Import",
+    description:
+      "Read-only import: paste or upload a CSV of contacts and Arc maps the columns to CRM leads — deduped on " +
+      "email/phone (a re-import updates, never duplicates) — so you can work a spreadsheet without a CRM integration. " +
+      "No account to connect; nothing goes back out. Every business has a list somewhere.",
+    costTier: "free",
+    // Universal — the lowest-friction way any business gets its contacts into Arc.
+    verticals: [],
+    capability: {
+      summary: "Imports contacts from a pasted CSV as persona-mapped CRM leads, deduped on email/phone.",
+      importsInto: ["companies", "contacts", "leads"],
+    },
+    credentialSchema: {
+      kind: "none",
+      hint: "No account to connect. Set a default persona for imported leads, then paste your CSV.",
+    },
+    // Leads carry a NOT NULL persona, so a default is required before an import can
+    // run — same reason the reader stays "not connected" until it's set.
+    requiredConfigKeys: ["defaultPersona"],
+    authKind: "none",
+    access: "read_only",
+    mcpUrl: null,
+    toolNamespace: "csv-import",
+  },
+  {
+    key: "mailchimp-import",
+    kind: "import_source",
+    label: "Mailchimp Import",
+    description:
+      "Read-only import: pulls a Mailchimp audience into CRM leads — persona-mapped and deduped on the Mailchimp " +
+      "member id (a re-import updates, never duplicates) — so Arc can work your email list. Uses your own Mailchimp " +
+      "API key on read-only member access; it never writes back to Mailchimp and never contacts anyone.",
+    costTier: "byo_key",
+    verticals: [],
+    capability: {
+      summary: "Imports a Mailchimp audience's members as persona-mapped CRM leads, idempotent on the member id.",
+      importsInto: ["contacts", "leads"],
+    },
+    credentialSchema: {
+      kind: "api_key",
+      label: "Mailchimp API key",
+      hint: "From Mailchimp → Account → Extras → API keys (the '…-us21' form). Stored encrypted in your Vault; used read-only.",
+    },
+    // Leads carry a NOT NULL persona; the audience id is validated at import time.
+    requiredConfigKeys: ["defaultPersona"],
+    authKind: "api_key",
+    access: "read_only",
+    mcpUrl: null,
+    toolNamespace: "mailchimp-import",
   },
   {
     key: "lead-enrichment",

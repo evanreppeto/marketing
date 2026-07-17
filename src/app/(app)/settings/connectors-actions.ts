@@ -8,8 +8,9 @@ import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config";
 import { readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
 import { checkConnectorCredential } from "@/lib/connectors/health";
-import { runCrmImport } from "@/lib/connectors/import";
+import { runCrmImport, runCsvImport, runMailchimpImport, CSV_IMPORT_CONNECTOR_KEY, MAILCHIMP_IMPORT_CONNECTOR_KEY } from "@/lib/connectors/import";
 import { checkHubspotConnection } from "@/lib/integrations/crm/hubspot";
+import { checkMailchimpConnection } from "@/lib/integrations/crm/mailchimp";
 import { checkNwsConnection } from "@/lib/integrations/weather/nws-source";
 import {
   disconnectConnector as disconnectConnectorRow,
@@ -177,6 +178,18 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
       return { ok: true, persisted: true, message: `HubSpot reachable — ${countNote}.` };
     }
 
+    // Mailchimp needs both the key and the configured audience id to probe.
+    if (connector.key === MAILCHIMP_IMPORT_CONNECTOR_KEY) {
+      const config = await getConnectorConfig(client, workspaceId, connector.key);
+      const audienceId = typeof config.audienceId === "string" ? config.audienceId.trim() : "";
+      if (!audienceId) return { ok: false, error: "Set the Mailchimp audience id first, then test." };
+      const mc = await checkMailchimpConnection(plaintext, audienceId);
+      await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: { ok: mc.ok, error: mc.error } });
+      revalidatePath("/settings");
+      if (!mc.ok) return { ok: false, error: `Test failed: ${mc.error ?? "Mailchimp unreachable"}` };
+      return { ok: true, persisted: true, message: `Mailchimp reachable — ${mc.count ?? 0} member(s) available to import.` };
+    }
+
     const result = await checkConnectorCredential(connector.key, plaintext);
     await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result });
     revalidatePath("/settings");
@@ -284,7 +297,10 @@ export async function runConnectorImport(input: { connectorKey: string }): Promi
   if (!ctx.workspaceId || !ctx.orgId) return { ok: false, error: "No active workspace." };
 
   try {
-    const outcome = await runCrmImport({ workspaceId: ctx.workspaceId, orgId: ctx.orgId });
+    // Dispatch to the right import runner by connector — each fetches from its own
+    // source but shares the ImportRunResult shape and the same downstream engine.
+    const runImport = connector.key === MAILCHIMP_IMPORT_CONNECTOR_KEY ? runMailchimpImport : runCrmImport;
+    const outcome = await runImport({ workspaceId: ctx.workspaceId, orgId: ctx.orgId });
     if (!outcome.ok) return { ok: false, error: importErrorMessage(outcome.error) };
     revalidatePath("/settings");
     const r = outcome.result;
@@ -299,12 +315,51 @@ export async function runConnectorImport(input: { connectorKey: string }): Promi
   }
 }
 
+/**
+ * Import leads from a pasted CSV. Unlike runConnectorImport (which fetches from a
+ * connected source), the CSV arrives here from the operator, so it's its own action.
+ * Operator-gated; nothing outbound.
+ */
+export async function runCsvImportAction(input: { csvText: string }): Promise<SettingsWriteResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Connect this workspace to run an import." };
+  if (!input.csvText?.trim()) return { ok: false, error: "Paste some CSV first." };
+
+  const ctx = await getCurrentWorkspaceContext();
+  if (!ctx.workspaceId || !ctx.orgId) return { ok: false, error: "No active workspace." };
+
+  try {
+    const outcome = await runCsvImport({ workspaceId: ctx.workspaceId, orgId: ctx.orgId, csvText: input.csvText });
+    if (!outcome.ok) return { ok: false, error: importErrorMessage(outcome.error) };
+    revalidatePath("/settings");
+    const r = outcome.result;
+    const cols = Object.entries(outcome.parse.mappedColumns).map(([f, h]) => `${h}→${f}`).join(", ");
+    return {
+      ok: true,
+      persisted: true,
+      message:
+        `Imported ${r.imported} new, ${r.updated} updated, ${r.skipped} skipped from ${outcome.parse.totalRows} rows.` +
+        (cols ? ` Columns: ${cols}.` : ""),
+    };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not run the CSV import." };
+  }
+}
+
 function importErrorMessage(code: string): string {
   switch (code) {
     case "hubspot_import_not_connected":
       return "Connect + enable HubSpot CRM Import first.";
+    case "csv_import_not_connected":
+      return `Enable ${findConnector(CSV_IMPORT_CONNECTOR_KEY)?.label ?? "CSV Import"} and set a default persona first.`;
+    case "mailchimp_import_not_connected":
+      return `Connect + enable ${findConnector(MAILCHIMP_IMPORT_CONNECTOR_KEY)?.label ?? "Mailchimp Import"} first.`;
+    case "missing_audience":
+      return "Set the Mailchimp audience id in the connector config before importing.";
+    case "no_rows":
+      return "No usable rows found — the CSV needs a header and at least one contact with a name, email, or phone.";
     case "missing_credential":
-      return "No HubSpot credential stored — connect HubSpot first.";
+      return "No credential stored — connect the connector first.";
     case "missing_default_persona":
       return "Set a Default persona in the connector config before importing.";
     case "not_configured":
