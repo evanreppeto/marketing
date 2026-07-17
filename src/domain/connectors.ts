@@ -389,6 +389,33 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     toolNamespace: "hubspot-import",
   },
   {
+    key: "csv-import",
+    kind: "import_source",
+    label: "CSV Import",
+    description:
+      "Read-only import: paste or upload a CSV of contacts and Arc maps the columns to CRM leads — deduped on " +
+      "email/phone (a re-import updates, never duplicates) — so you can work a spreadsheet without a CRM integration. " +
+      "No account to connect; nothing goes back out. Every business has a list somewhere.",
+    costTier: "free",
+    // Universal — the lowest-friction way any business gets its contacts into Arc.
+    verticals: [],
+    capability: {
+      summary: "Imports contacts from a pasted CSV as persona-mapped CRM leads, deduped on email/phone.",
+      importsInto: ["companies", "contacts", "leads"],
+    },
+    credentialSchema: {
+      kind: "none",
+      hint: "No account to connect. Set a default persona for imported leads, then paste your CSV.",
+    },
+    // Leads carry a NOT NULL persona, so a default is required before an import can
+    // run — same reason the reader stays "not connected" until it's set.
+    requiredConfigKeys: ["defaultPersona"],
+    authKind: "none",
+    access: "read_only",
+    mcpUrl: null,
+    toolNamespace: "csv-import",
+  },
+  {
     key: "lead-enrichment",
     kind: "import_source",
     label: "Lead Enrichment",

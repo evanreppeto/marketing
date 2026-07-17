@@ -8,7 +8,7 @@ import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config";
 import { readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
 import { checkConnectorCredential } from "@/lib/connectors/health";
-import { runCrmImport } from "@/lib/connectors/import";
+import { runCrmImport, runCsvImport, CSV_IMPORT_CONNECTOR_KEY } from "@/lib/connectors/import";
 import { checkHubspotConnection } from "@/lib/integrations/crm/hubspot";
 import { checkNwsConnection } from "@/lib/integrations/weather/nws-source";
 import {
@@ -299,10 +299,45 @@ export async function runConnectorImport(input: { connectorKey: string }): Promi
   }
 }
 
+/**
+ * Import leads from a pasted CSV. Unlike runConnectorImport (which fetches from a
+ * connected source), the CSV arrives here from the operator, so it's its own action.
+ * Operator-gated; nothing outbound.
+ */
+export async function runCsvImportAction(input: { csvText: string }): Promise<SettingsWriteResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Connect this workspace to run an import." };
+  if (!input.csvText?.trim()) return { ok: false, error: "Paste some CSV first." };
+
+  const ctx = await getCurrentWorkspaceContext();
+  if (!ctx.workspaceId || !ctx.orgId) return { ok: false, error: "No active workspace." };
+
+  try {
+    const outcome = await runCsvImport({ workspaceId: ctx.workspaceId, orgId: ctx.orgId, csvText: input.csvText });
+    if (!outcome.ok) return { ok: false, error: importErrorMessage(outcome.error) };
+    revalidatePath("/settings");
+    const r = outcome.result;
+    const cols = Object.entries(outcome.parse.mappedColumns).map(([f, h]) => `${h}→${f}`).join(", ");
+    return {
+      ok: true,
+      persisted: true,
+      message:
+        `Imported ${r.imported} new, ${r.updated} updated, ${r.skipped} skipped from ${outcome.parse.totalRows} rows.` +
+        (cols ? ` Columns: ${cols}.` : ""),
+    };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not run the CSV import." };
+  }
+}
+
 function importErrorMessage(code: string): string {
   switch (code) {
     case "hubspot_import_not_connected":
       return "Connect + enable HubSpot CRM Import first.";
+    case "csv_import_not_connected":
+      return `Enable ${findConnector(CSV_IMPORT_CONNECTOR_KEY)?.label ?? "CSV Import"} and set a default persona first.`;
+    case "no_rows":
+      return "No usable rows found — the CSV needs a header and at least one contact with a name, email, or phone.";
     case "missing_credential":
       return "No HubSpot credential stored — connect HubSpot first.";
     case "missing_default_persona":
