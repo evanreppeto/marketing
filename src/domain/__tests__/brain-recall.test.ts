@@ -298,3 +298,34 @@ describe("enrichRecall", () => {
     expect(a.related).toContain("(2-hop) —proves→ C (proof_point)");
   });
 });
+
+describe("enrichRecall carries recordedAt", () => {
+  function c(id: string, label: string, extra: Partial<RecallCandidate> = {}): RecallCandidate {
+    return { id, kind: "learning", label, summary: null, tags: [], trustTier: "observed", ...extra };
+  }
+  const emptyGraph = { nodes: [], edges: [] };
+
+  it("keeps the timestamp so the prompt can date the fact", () => {
+    // Dropping it here is how the date got lost before: the node has created_at,
+    // but the candidate -> item mapping silently discarded it, so every recalled
+    // fact reached the prompt reading as timeless.
+    const [item] = enrichRecall([c("n1", "crm_total_leads", { recordedAt: "2026-07-17T12:00:00.000Z" })], emptyGraph);
+    expect(item.recordedAt).toBe("2026-07-17T12:00:00.000Z");
+  });
+
+  it("omits recordedAt entirely when the candidate has none", () => {
+    const [item] = enrichRecall([c("n1", "IICRC-certified technicians")], emptyGraph);
+    expect(item.recordedAt).toBeUndefined();
+    expect("recordedAt" in item).toBe(false);
+  });
+
+  it("keeps the timestamp alongside confidence/nodeId when a message is given", () => {
+    const [item] = enrichRecall(
+      [c("n1", "crm_total_leads", { recordedAt: "2026-07-17T12:00:00.000Z" })],
+      emptyGraph,
+      { message: "how many leads" },
+    );
+    expect(item.recordedAt).toBe("2026-07-17T12:00:00.000Z");
+    expect(item.nodeId).toBe("n1");
+  });
+});
