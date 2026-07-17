@@ -880,6 +880,27 @@ function ArcWorkPanel({
 }) {
   const reduceMotion = useReducedMotion();
   const [tab, setTab] = useState<WorkPanelTab>("work");
+
+  useEffect(() => {
+    try {
+      const savedTab = window.localStorage.getItem("arc.workPanelTab");
+      if (savedTab === "work" || savedTab === "created" || savedTab === "audience") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- restored after hydration so server and client markup stay identical
+        setTab(savedTab);
+      }
+    } catch {
+      /* localStorage unavailable — keep the default tab */
+    }
+  }, []);
+
+  const selectTab = (nextTab: WorkPanelTab) => {
+    setTab(nextTab);
+    try {
+      window.localStorage.setItem("arc.workPanelTab", nextTab);
+    } catch {
+      /* localStorage unavailable — the in-session state still works */
+    }
+  };
   const demoWork = demoPending ? buildDemoLiveWork(demoRequest) : null;
   const reasoning = message?.reasoning?.trim()
     || demoWork?.commentary
@@ -912,6 +933,10 @@ function ArcWorkPanel({
     .filter((row) => /(audience|persona|segment)/i.test(row.name))
     .map((row) => ({ label: card.channel ?? card.title, value: row.meta ?? row.badge ?? row.name })));
   const reviewableCards = cards.filter((card) => card.approval);
+  const statusOf = (card: ArcActionCard) => statuses[card.approval?.assetId ?? ""] ?? card.status ?? null;
+  const approvedCount = cards.filter((card) => statusOf(card) === "approved").length;
+  const completedActivityCount = activityRows.filter((row) => row.status === "done").length;
+  const hasActiveWork = activityRows.some((row) => row.status === "running");
 
   const tabs: Array<{ id: WorkPanelTab; label: string; icon: typeof Brain }> = [
     { id: "work", label: "Work", icon: Brain },
@@ -935,18 +960,19 @@ function ArcWorkPanel({
       <div className="arc-artifact-shell">
         <div className="arc-artifact-tabs" role="tablist" aria-label="Conversation workspace views">
           {tabs.map(({ id, label, icon: Icon }) => (
-            <button type="button" role="tab" key={id} aria-selected={tab === id} className={tab === id ? "is-active" : ""} onClick={() => setTab(id)}>
+            <button type="button" role="tab" id={`arc-work-tab-${id}`} aria-controls={`arc-work-panel-${id}`} key={id} aria-selected={tab === id} aria-label={id === "created" && cards.length > 0 ? `${label}, ${cards.length} items` : label} className={tab === id ? "is-active" : ""} onClick={() => selectTab(id)}>
               <Icon size={17} />
               <span>{label}</span>
-              {id === "created" && cards.length > 0 ? <i className="arc-work-count">{cards.length}</i> : null}
+              {id === "created" && cards.length > 0 ? <i aria-hidden="true" className="arc-work-count">{cards.length}</i> : null}
             </button>
           ))}
         </div>
         <div className="arc-artifact-content">
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={tab} role="tabpanel" className="arc-work-view" initial={reduceMotion ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: 0.16 }}>
+            <motion.div key={tab} role="tabpanel" id={`arc-work-panel-${tab}`} aria-labelledby={`arc-work-tab-${tab}`} className="arc-work-view" initial={reduceMotion ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: 0.16 }}>
               {tab === "work" ? (
                 <>
+                  {activityRows.length > 0 ? <div className={`arc-work-run-status ${hasActiveWork ? "is-running" : "is-complete"}`}><span><i />{hasActiveWork ? "Arc is working" : "Run complete"}</span><em>{completedActivityCount}/{activityRows.length} activities</em></div> : null}
                   <div className="arc-work-heading"><span>Reasoning</span><h3>{demoPending || message?.status === "pending" ? "Working through the request" : "How Arc approached this"}</h3></div>
                   {reasoning ? <p className="arc-work-reasoning">{reasoning}</p> : <div className="arc-work-empty">Reasoning and decisions will appear here as Arc works.</div>}
                   <section className="arc-artifact-section">
@@ -956,7 +982,7 @@ function ArcWorkPanel({
                         {activityRows.map((row) => (
                           <div key={row.id} className={`is-${row.status}`}>
                             <span><RunIcon kind={row.kind} size={14} /></span>
-                            <div><b>{row.label}</b>{row.detail || row.result ? <small>{row.detail ?? row.result}</small> : null}</div>
+                            <div><b>{row.label}</b>{row.detail || row.result ? <small>{row.detail ?? row.result}</small> : null}<span className="sr-only">{row.status === "done" ? "Complete" : row.status === "running" ? "In progress" : row.status === "error" ? "Error" : "Queued"}</span></div>
                             {row.status === "done" ? <Check size={13} /> : row.status === "running" ? <LoaderCircle size={14} /> : row.status === "error" ? <X size={13} /> : <Circle size={9} />}
                           </div>
                         ))}
@@ -970,19 +996,21 @@ function ArcWorkPanel({
                 <>
                   <div className="arc-work-heading"><span>Created</span><h3>{cards.length > 0 ? `${cards.length} deliverable${cards.length === 1 ? "" : "s"}` : "No deliverables yet"}</h3></div>
                   {cards.length > 0 ? (
-                    <div className="arc-created-list">
+                    <div className="arc-created-wrap">
+                      <div className="arc-created-progress"><span><b>{approvedCount} of {cards.length}</b> approved</span><div><i style={{ width: `${cards.length > 0 ? (approvedCount / cards.length) * 100 : 0}%` }} /></div></div>
+                      <div className="arc-created-list">
                       {cards.map((card, index) => {
-                        const status = statuses[card.approval?.assetId ?? ""] ?? card.status ?? null;
+                        const status = statusOf(card);
                         const meta = assetStatusMeta(status);
+                        const cardContent = <><span className="arc-created-icon"><ChannelIcon channel={card.channel} size={15} /></span><span><b>{card.title}</b><small>{[card.channel, card.format].filter(Boolean).join(" · ")}</small></span><em className={`is-${meta.tone}`}>{meta.label}</em></>;
                         return (
-                          <div key={`${card.title}-${index}`}>
-                            <span className="arc-created-icon"><ChannelIcon channel={card.channel} size={15} /></span>
-                            <span><b>{card.title}</b><small>{[card.channel, card.format].filter(Boolean).join(" · ")}</small></span>
-                            <em className={`is-${meta.tone}`}>{meta.label}</em>
-                          </div>
+                          card.approval
+                            ? <button type="button" className="arc-created-item" key={`${card.title}-${index}`} onClick={() => onReview([card])} aria-label={`Review ${card.title}`}>{cardContent}</button>
+                            : <div className="arc-created-item" key={`${card.title}-${index}`}>{cardContent}</div>
                         );
                       })}
-                      {reviewableCards.length > 0 ? <button type="button" className="arc-work-review" onClick={() => onReview(reviewableCards)}>Review package <ArrowRight size={14} /></button> : null}
+                      </div>
+                      {reviewableCards.length > 0 ? <div className="arc-created-footer"><button type="button" className="arc-work-review" onClick={() => onReview(reviewableCards)}>Review all {reviewableCards.length} <ArrowRight size={14} /></button></div> : null}
                     </div>
                   ) : <div className="arc-work-empty">Drafts, files, and campaign assets from this chat will collect here.</div>}
                 </>
@@ -993,6 +1021,7 @@ function ArcWorkPanel({
                   <div className="arc-work-heading"><span>Audience</span><h3>{demoSeed ? "142 storm-zone homes" : audienceRows.length > 0 ? "Audience context" : "No audience selected"}</h3></div>
                   {demoSeed ? (
                     <>
+                      <div className="arc-audience-source"><Database size={14} /><div><b>CRM + hail footprint</b><span>Selection is grounded in the records used for this conversation.</span></div></div>
                       <div className="arc-audience-stats">
                         <div><b>142</b><span>target homes</span></div>
                         <div><b>$1.4M</b><span>est. value</span></div>
@@ -1081,7 +1110,7 @@ function AssetReviewPanel({ cards, statuses, onStatus, onClose }: { cards: ArcAc
       transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
     >
       <header className="arc-artifact-header">
-        <div><span>Review workspace</span><h2>Campaign package</h2><p>{cards.length} assets · {approvedCount} approved</p></div>
+        <div><span>Review workspace</span><h2>{cards.length === 1 ? "Asset review" : "Campaign package"}</h2><p>{cards.length} {cards.length === 1 ? "asset" : "assets"} · {approvedCount} approved</p></div>
         <button type="button" onClick={onClose} aria-label="Close review workspace"><PanelRightClose size={17} /></button>
       </header>
       <div className="arc-artifact-shell">
