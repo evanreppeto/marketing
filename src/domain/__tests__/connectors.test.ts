@@ -3,6 +3,7 @@ import {
   CONNECTOR_REGISTRY,
   bypassesMetering,
   computeConnectorStatus,
+  connectorConfigSatisfied,
   connectorRequiresCredential,
   findConnector,
   listConnectorsByKind,
@@ -117,5 +118,44 @@ describe("computeConnectorStatus", () => {
     // A no-credential connector goes disabled→connected on the enable switch alone.
     expect(computeConnectorStatus({ credentialPresent: false, enabled: false, lastTestOk: null, requiresCredential: false })).toBe("disabled");
     expect(computeConnectorStatus({ credentialPresent: false, enabled: true, lastTestOk: null, requiresCredential: false })).toBe("connected");
+  });
+
+  it("is not_configured when required config is missing, even with the switch on", () => {
+    // The weather case: no credential to supply, but useless until told where to watch.
+    expect(
+      computeConnectorStatus({ credentialPresent: false, enabled: true, lastTestOk: null, requiresCredential: false, configPresent: false }),
+    ).toBe("not_configured");
+  });
+
+  it("connects once the required config arrives", () => {
+    expect(
+      computeConnectorStatus({ credentialPresent: false, enabled: true, lastTestOk: null, requiresCredential: false, configPresent: true }),
+    ).toBe("connected");
+  });
+
+  it("leaves connectors with no required config untouched (configPresent omitted)", () => {
+    expect(computeConnectorStatus({ credentialPresent: true, enabled: true, lastTestOk: null })).toBe("connected");
+  });
+});
+
+describe("connectorConfigSatisfied", () => {
+  const weather = findConnector("weather-signals")!;
+
+  it("is unsatisfied on an empty or absent config", () => {
+    for (const config of [{}, null, undefined, { states: [] }, { states: "" }, { states: "   " }]) {
+      expect(connectorConfigSatisfied(weather, config)).toBe(false);
+    }
+  });
+
+  it("is satisfied by any one of the accepted aliases", () => {
+    expect(connectorConfigSatisfied(weather, { states: ["IL"] })).toBe(true);
+    expect(connectorConfigSatisfied(weather, { states: "IL, WI" })).toBe(true);
+    expect(connectorConfigSatisfied(weather, { points: ["41.88,-87.63"] })).toBe(true);
+    expect(connectorConfigSatisfied(weather, { locations: ["IL"] })).toBe(true);
+  });
+
+  it("treats a connector with no required keys as always satisfied", () => {
+    expect(connectorConfigSatisfied({ requiredConfigKeys: undefined }, {})).toBe(true);
+    expect(connectorConfigSatisfied({ requiredConfigKeys: [] }, null)).toBe(true);
   });
 });

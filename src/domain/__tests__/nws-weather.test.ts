@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  DEMO_WEATHER_SERVICE_AREA,
+  EMPTY_WEATHER_SERVICE_AREA,
+  isWeatherServiceAreaConfigured,
   detectWeatherEventOpportunities,
   mapNwsAlertsToWeatherEvents,
   normalizeNwsSeverity,
@@ -139,10 +140,20 @@ describe("parseWeatherServiceArea", () => {
     });
   });
 
-  it("falls back to the demo default when nothing usable is configured", () => {
-    expect(parseWeatherServiceArea({})).toEqual(DEMO_WEATHER_SERVICE_AREA);
-    expect(parseWeatherServiceArea(null)).toEqual(DEMO_WEATHER_SERVICE_AREA);
-    expect(parseWeatherServiceArea({ states: [], locations: "Chicago, Naperville" })).toEqual(DEMO_WEATHER_SERVICE_AREA);
+  // Guards a tenancy bug: this used to fall back to a built-in { states: ["IL"] }
+  // ("BSR's home turf"), so any workspace that enabled the connector without setting
+  // an area silently got Illinois storm opportunities carrying real NWS evidence.
+  // Watching nowhere is the only honest answer to "you didn't tell me where".
+  it("watches nowhere when nothing usable is configured — never a built-in default", () => {
+    for (const config of [{}, null, undefined, { states: [] }, { states: [], locations: "Chicago, Naperville" }]) {
+      expect(parseWeatherServiceArea(config)).toEqual(EMPTY_WEATHER_SERVICE_AREA);
+      expect(isWeatherServiceAreaConfigured(parseWeatherServiceArea(config))).toBe(false);
+    }
+  });
+
+  it("reports a configured area once the operator sets one", () => {
+    expect(isWeatherServiceAreaConfigured(parseWeatherServiceArea({ states: ["IL"] }))).toBe(true);
+    expect(isWeatherServiceAreaConfigured(parseWeatherServiceArea({ points: ["41.88,-87.63"] }))).toBe(true);
   });
 });
 
