@@ -9,7 +9,8 @@ vi.mock("@/lib/auth/workspace", () => ({
 vi.mock("@/lib/repos", () => ({
   listCompaniesPage: vi.fn(async () => ({ companies: [], total: 0 })),
   listContactsPage: vi.fn(async () => ({ contacts: [], total: 0 })),
-  listLeadsPage: vi.fn(async () => ({ leads: [], total: 0 })),
+  // The leads route trims to a compact summary — it calls listLeadSummariesPage.
+  listLeadSummariesPage: vi.fn(async () => ({ leads: [], total: 0 })),
   listJobsPage: vi.fn(async () => ({ jobs: [], total: 0 })),
   listPropertiesPage: vi.fn(async () => ({ properties: [], total: 0 })),
   listOutcomesPage: vi.fn(async () => ({ outcomes: [], total: 0 })),
@@ -19,7 +20,7 @@ import {
   listCompaniesPage,
   listContactsPage,
   listJobsPage,
-  listLeadsPage,
+  listLeadSummariesPage,
   listOutcomesPage,
   listPropertiesPage,
 } from "@/lib/repos";
@@ -35,7 +36,7 @@ import { GET as getProperties } from "./properties/route";
 const ROUTES = [
   { name: "companies", get: getCompanies, repo: listCompaniesPage, key: "companies" },
   { name: "contacts", get: getContacts, repo: listContactsPage, key: "contacts" },
-  { name: "leads", get: getLeads, repo: listLeadsPage, key: "leads" },
+  { name: "leads", get: getLeads, repo: listLeadSummariesPage, key: "leads" },
   { name: "jobs", get: getJobs, repo: listJobsPage, key: "jobs" },
   { name: "properties", get: getProperties, repo: listPropertiesPage, key: "properties" },
   { name: "outcomes", get: getOutcomes, repo: listOutcomesPage, key: "outcomes" },

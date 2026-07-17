@@ -36,6 +36,12 @@ export type QueryPageOptions<T> = {
   table: string;
   /** Column to sort by, descending. */
   orderBy: string;
+  /**
+   * PostgREST column list to fetch. Defaults to `"*"`; narrow it to ship only the
+   * columns a summary needs (fewer bytes over the wire, and the heavy columns are
+   * never fetched in the first place).
+   */
+  columns?: string;
   /** Page size. `0` counts without fetching rows; omitted means unbounded. */
   limit?: number;
   /** Prefix for the thrown error, e.g. `listLeadsPage`. */
@@ -48,7 +54,7 @@ export async function queryPage<T>(options: QueryPageOptions<T>): Promise<RepoPa
   const countOnly = options.limit === 0;
   const selected = options.client
     .from(options.table)
-    .select("*", { count: "exact", head: countOnly });
+    .select(options.columns ?? "*", { count: "exact", head: countOnly });
 
   // The builder is one object at runtime; the casts just narrow it to the
   // methods each stage uses.

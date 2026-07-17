@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-vi.mock("@/lib/repos", () => ({ listLeadsPage: vi.fn() }));
+vi.mock("@/lib/repos", () => ({ listLeadSummariesPage: vi.fn() }));
 vi.mock("@/lib/auth/workspace", () => ({
   getCurrentWorkspaceContext: vi.fn(async () => ({ orgId: "org-1", workspaceId: "workspace-1" })),
 }));
-import { listLeadsPage } from "@/lib/repos";
+import { listLeadSummariesPage } from "@/lib/repos";
 import { GET } from "./route";
 
-const mock = vi.mocked(listLeadsPage);
+const mock = vi.mocked(listLeadSummariesPage);
 function req(query = "") {
   return new Request(`http://localhost/api/v1/arc/crm/leads${query}`, { headers: { authorization: "Bearer secret" } });
 }

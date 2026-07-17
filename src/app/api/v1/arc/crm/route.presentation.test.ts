@@ -43,7 +43,9 @@ vi.mock("@/lib/repos", () => ({
   listCompaniesPage: vi.fn(async () => ({ companies: [], total: 0 })),
   listContactsPage: vi.fn(async () => ({ contacts: [], total: 0 })),
   listPropertiesPage: vi.fn(async () => ({ properties: [], total: 0 })),
-  listLeadsPage: vi.fn(async () => ({ leads: [LEAD], total: 1 })),
+  // The lead SEARCH returns compact summaries — LEAD is summary-shaped (join ids,
+  // no metadata), which is exactly what listLeadSummariesPage yields.
+  listLeadSummariesPage: vi.fn(async () => ({ leads: [LEAD], total: 1 })),
   listJobsPage: vi.fn(async () => ({ jobs: [JOB], total: 1 })),
   listOutcomesPage: vi.fn(async () => ({ outcomes: [OUTCOME], total: 1 })),
 }));
@@ -134,6 +136,18 @@ describe("what the Arc CRM routes hand the agent", () => {
     const body = await call(getOutcomes, "outcomes");
     expect(body.outcomes[0].companyId).toBe("co_1");
     expect(body.outcomes[0].id).toBe(OUTCOME.id);
+  });
+
+  it("gives a lead summary names in place of the raw join uuids", async () => {
+    // Leads are the trimmed one: the search returns a compact summary, so the
+    // company/contact uuids are REPLACED by names rather than carried alongside
+    // them. The lead id stays — it's how Arc fetches full detail via get_lead.
+    const body = await call(getLeads, "leads");
+    expect(body.leads[0].companyName).toBe("North Shore Property Group");
+    expect(body.leads[0].contactName).toBe("Dana Whitfield");
+    expect(body.leads[0].id).toBe(LEAD.id);
+    expect(body.leads[0]).not.toHaveProperty("companyId");
+    expect(body.leads[0]).not.toHaveProperty("contactId");
   });
 
   it("leaves a name null rather than falling back to the uuid", async () => {

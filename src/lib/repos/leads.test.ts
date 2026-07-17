@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { LEAD_SUMMARY_COLUMNS } from "@/domain";
+
 import { createSupabaseQueryMock, type MockResponse } from "./__tests__/test-helpers";
-import { countLeads, getLead, listLeads, listLeadsPage } from "./leads";
+import { countLeads, getLead, listLeads, listLeadsPage, listLeadSummariesPage } from "./leads";
 
 const validLeadRow = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -178,6 +180,94 @@ describe("listLeadsPage", () => {
     });
 
     await expect(listLeadsPage({}, supabase)).rejects.toThrow(/listLeadsPage failed: db down/);
+  });
+});
+
+describe("listLeadSummariesPage", () => {
+  it("fetches only the summary columns, never the heavy ones", async () => {
+    // The whole point of the trim: metadata, the loss/keyword arrays and the extra
+    // timestamps are never even read over the wire. If this select ever widened to
+    // "*", the summary would silently ship exactly the weight it exists to drop.
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [validLeadRow], error: null, count: 1 } satisfies MockResponse,
+    });
+
+    await listLeadSummariesPage({ limit: 25 }, supabase);
+
+    expect(supabase.calls).toContainEqual(["select", LEAD_SUMMARY_COLUMNS, { count: "exact", head: false }]);
+    for (const heavy of [
+      "metadata",
+      "loss_signals",
+      "matched_target_keywords",
+      "matched_non_target_keywords",
+      "created_at",
+      "updated_at",
+      "external_lead_id",
+      "property_id",
+    ]) {
+      expect(LEAD_SUMMARY_COLUMNS).not.toContain(heavy);
+    }
+  });
+
+  it("parses each row down to the summary shape, dropping the rest", async () => {
+    // Belt to the select's braces: even handed a full DB row, the summary schema
+    // emits only the summary keys — no metadata/arrays/timestamps reach the caller.
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [validLeadRow], error: null, count: 200 } satisfies MockResponse,
+    });
+
+    const page = await listLeadSummariesPage({ limit: 1 }, supabase);
+
+    expect(page.total).toBe(200);
+    expect(page.leads).toHaveLength(1);
+    expect(page.leads[0]).toEqual({
+      id: validLeadRow.id,
+      companyId: validLeadRow.company_id,
+      contactId: validLeadRow.contact_id,
+      persona: validLeadRow.persona,
+      status: validLeadRow.status,
+      routingRecommendation: validLeadRow.routing_recommendation,
+      source: validLeadRow.source,
+      lossSummary: validLeadRow.loss_summary,
+      leadScore: validLeadRow.lead_score,
+      receivedAt: validLeadRow.received_at,
+    });
+    expect(page.leads[0]).not.toHaveProperty("metadata");
+    expect(page.leads[0]).not.toHaveProperty("lossSignals");
+    expect(page.leads[0]).not.toHaveProperty("createdAt");
+  });
+
+  it("counts without fetching any rows when limit is 0", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null, count: 200 } satisfies MockResponse,
+    });
+
+    const page = await listLeadSummariesPage({ limit: 0 }, supabase);
+
+    expect(page).toEqual({ leads: [], total: 200 });
+    expect(supabase.calls).toContainEqual(["select", LEAD_SUMMARY_COLUMNS, { count: "exact", head: true }]);
+    expect(supabase.calls).not.toContainEqual(["limit", 0]);
+  });
+
+  it("applies the same filters to the count as to the rows", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null, count: 3 } satisfies MockResponse,
+    });
+
+    await listLeadSummariesPage({ status: "qualified", q: "flood", minScore: 10, maxScore: 90 }, supabase);
+
+    expect(supabase.calls).toContainEqual(["eq", "status", "qualified"]);
+    expect(supabase.calls).toContainEqual(["ilike", "loss_summary", "%flood%"]);
+    expect(supabase.calls).toContainEqual(["gte", "lead_score", 10]);
+    expect(supabase.calls).toContainEqual(["lte", "lead_score", 90]);
+  });
+
+  it("throws when Supabase returns an error", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: null, error: { message: "db down" } },
+    });
+
+    await expect(listLeadSummariesPage({}, supabase)).rejects.toThrow(/listLeadSummariesPage failed: db down/);
   });
 });
 

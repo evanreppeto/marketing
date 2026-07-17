@@ -105,3 +105,22 @@ export function withCrmNames<T extends { companyId?: string | null; contactId?: 
     contactName: row.contactId ? (names.contacts.get(row.contactId) ?? null) : null,
   };
 }
+
+/**
+ * Like `withCrmNames`, but REPLACES the raw `companyId`/`contactId` with the
+ * resolved names instead of carrying both. For compact list projections (Arc's
+ * lead search) where the uuids are pure weight once the name is attached — and a
+ * uuid is exactly the kind of thing that should never reach operator-facing prose.
+ * Same null-fallback as `withCrmNames`: a missing name is `null`, never the uuid.
+ */
+export function withCrmNamesCompact<T extends { companyId?: string | null; contactId?: string | null }>(
+  row: T,
+  names: CrmNameMaps,
+): Omit<T, "companyId" | "contactId"> & { companyName: string | null; contactName: string | null } {
+  const { companyId, contactId, ...rest } = row;
+  return {
+    ...rest,
+    companyName: companyId ? (names.companies.get(companyId) ?? null) : null,
+    contactName: contactId ? (names.contacts.get(contactId) ?? null) : null,
+  };
+}
