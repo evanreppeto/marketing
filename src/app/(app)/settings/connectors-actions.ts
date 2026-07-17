@@ -7,10 +7,13 @@ import { requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config";
 import { readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
+import { listWorkspaceConnectors, resolveConnectorCredentialRef } from "@/lib/connectors/read-model";
 import { checkConnectorCredential } from "@/lib/connectors/health";
 import { runCrmImport, runCsvImport, runMailchimpImport, CSV_IMPORT_CONNECTOR_KEY, MAILCHIMP_IMPORT_CONNECTOR_KEY } from "@/lib/connectors/import";
 import { checkHubspotConnection } from "@/lib/integrations/crm/hubspot";
 import { checkMailchimpConnection } from "@/lib/integrations/crm/mailchimp";
+import { buildOpportunityDigest, postSlackWebhook } from "@/lib/integrations/slack/notify";
+import { listOpenOpportunities } from "@/lib/opportunities/read-model";
 import { checkNwsConnection } from "@/lib/integrations/weather/nws-source";
 import {
   disconnectConnector as disconnectConnectorRow,
@@ -178,6 +181,14 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
       return { ok: true, persisted: true, message: `HubSpot reachable — ${countNote}.` };
     }
 
+    // Slack: the natural test is posting a message to the webhook.
+    if (connector.key === SLACK_ALERTS_CONNECTOR_KEY) {
+      const sl = await postSlackWebhook(plaintext, { text: "✅ Arc is connected. Opportunity alerts will post here when you send them." });
+      await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: { ok: sl.ok, error: sl.ok ? undefined : sl.error } });
+      revalidatePath("/settings");
+      return sl.ok ? { ok: true, persisted: true, message: "Test alert posted to your Slack channel." } : { ok: false, error: `Test failed: ${sl.error}` };
+    }
+
     // Mailchimp needs both the key and the configured audience id to probe.
     if (connector.key === MAILCHIMP_IMPORT_CONNECTOR_KEY) {
       const config = await getConnectorConfig(client, workspaceId, connector.key);
@@ -312,6 +323,47 @@ export async function runConnectorImport(input: { connectorKey: string }): Promi
     };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not run the import." };
+  }
+}
+
+const SLACK_ALERTS_CONNECTOR_KEY = "slack-alerts";
+
+/** Resolve the workspace's stored Slack webhook URL, or a structured miss. */
+async function resolveSlackWebhook(): Promise<{ ok: true; url: string; orgId: string | null } | { ok: false; error: string }> {
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Connect this workspace first." };
+  const ctx = await getCurrentWorkspaceContext();
+  if (!ctx.workspaceId) return { ok: false, error: "No active workspace." };
+  const client = getSupabaseAdminClient();
+  const views = await listWorkspaceConnectors(client, ctx.workspaceId);
+  const view = views.find((v) => v.key === SLACK_ALERTS_CONNECTOR_KEY);
+  if (!view || view.status !== "connected") return { ok: false, error: "Connect + enable Slack Alerts first." };
+  const ref = await resolveConnectorCredentialRef(client, ctx.workspaceId, SLACK_ALERTS_CONNECTOR_KEY);
+  const url = await readConnectorCredential(client, ref);
+  if (!url) return { ok: false, error: "No Slack webhook stored — connect Slack Alerts first." };
+  return { ok: true, url, orgId: ctx.orgId ?? null };
+}
+
+/**
+ * Post a digest of the current open opportunities to Slack. Operator-triggered — a
+ * button, never automatic — so it stays inside "no outbound without a human". Internal
+ * only: it summarises what Arc found for the team, never contacts a customer.
+ */
+export async function sendSlackDigestAction(): Promise<SettingsWriteResult> {
+  await requireOperator();
+  const resolved = await resolveSlackWebhook();
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+  try {
+    const opps = await listOpenOpportunities(getSupabaseAdminClient(), resolved.orgId ?? undefined);
+    const digest = buildOpportunityDigest(
+      opps.map((o) => ({ title: o.title, urgency: o.urgency, confidence: o.confidence })),
+      { appUrl: "https://arc-studio.ai" },
+    );
+    const res = await postSlackWebhook(resolved.url, digest);
+    return res.ok
+      ? { ok: true, persisted: true, message: `Posted a digest of ${opps.length} open opportunit${opps.length === 1 ? "y" : "ies"} to Slack.` }
+      : { ok: false, error: res.error };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not build the digest." };
   }
 }
 

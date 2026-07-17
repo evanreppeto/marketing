@@ -351,6 +351,28 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     mcpUrl: null,
     toolNamespace: "webhook-dispatch",
   },
+  {
+    key: "slack-alerts",
+    kind: "channel",
+    label: "Slack Alerts",
+    description:
+      "Internal alerts to your own Slack channel — Arc posts a summary of the opportunities it found so your team " +
+      "sees them without opening the app. It NEVER messages customers and doesn't touch the campaign-send path. " +
+      "Posts only when you click; nothing is sent automatically.",
+    costTier: "free",
+    // Universal — every team runs Slack or nothing; a no-op when not connected.
+    verticals: [],
+    capability: { summary: "Posts internal opportunity/approval alerts to a Slack channel (operator-triggered).", channelMedium: "slack" },
+    credentialSchema: {
+      kind: "api_key",
+      label: "Slack Incoming Webhook URL",
+      hint: "Create an Incoming Webhook in your Slack workspace (Apps → Incoming Webhooks) and paste the https://hooks.slack.com/… URL. Stored encrypted in your Vault.",
+    },
+    authKind: "api_key",
+    access: "gated_write",
+    mcpUrl: null,
+    toolNamespace: "slack-alerts",
+  },
   // --- The `metered` reference connector: a paid third-party data vendor, GOVERNED
   //     by the cost model (BSR-372) — a scan meters billable lookups against the
   //     workspace spend cap. The vendor itself is unbuilt (BSR-368), so this is
