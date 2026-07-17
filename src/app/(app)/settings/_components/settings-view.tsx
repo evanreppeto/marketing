@@ -337,6 +337,9 @@ const CONNECTOR_STATUS_PILL: Record<ConnectorStatus, { kind: string; label: stri
   not_configured: { kind: "off", label: "Not connected" },
   disabled: { kind: "warn", label: "Paused" },
   error: { kind: "err", label: "Error" },
+  // The integration isn't written. "Planned" rather than "Not connected", which
+  // would imply connecting is something you could go and do.
+  unavailable: { kind: "off", label: "Planned" },
 };
 
 const MEDIA_MODELS: Record<string, [string, string, string, number?][]> = {
@@ -1442,7 +1445,11 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
     setPending(false);
   }
 
-  const canTest = !noCredential || hasConnectivityTest;
+  // The integration isn't written, so there is nothing to test, key, switch on or
+  // configure. Show what it WILL do and why it can't run — an interactive control
+  // that refuses on click is a worse answer than no control.
+  const isPlanned = view.status === "unavailable";
+  const canTest = (!noCredential || hasConnectivityTest) && !isPlanned;
 
   return (
     <Modal open onClose={onClose} width={480} title={view.label} description={view.description}>
@@ -1469,7 +1476,16 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
         ) : null}
 
         {/* Credential / enable */}
-        {noCredential ? (
+        {isPlanned ? (
+          <div className="cxm-sec">
+            <div className="cxm-label">Not built yet</div>
+            <p className="cxm-hint">
+              This connector is in the catalog so you can see it&apos;s coming, but the integration it needs
+              doesn&apos;t exist yet — so it can&apos;t be switched on, and it proposes nothing. It&apos;ll become
+              available here once that lands. Nothing it ever produces goes outbound without your approval.
+            </p>
+          </div>
+        ) : noCredential ? (
           <div className="cxm-sec">
             <div className="cxm-label">{view.enabled ? "Turned on" : "Turn on"}</div>
             <p className="cxm-hint">{meta.credHint || "No key needed — just switch it on to let Arc use it. Signal sources only propose; channels send only from the approved path."}</p>
@@ -1512,12 +1528,12 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
         )}
 
         {/* Per-workspace config (watched locations, endpoint, default persona…) */}
-        {configFields.map((field) => (
+        {!isPlanned && configFields.map((field) => (
           <ConnectorConfigSection key={field.key} view={view} field={field} />
         ))}
 
         {/* Import sources — an explicit, deliberate pull */}
-        {view.kind === "import_source" ? (
+        {view.kind === "import_source" && !isPlanned ? (
           <div className="cxm-sec">
             <div className="cxm-label">Import contacts</div>
             <p className="cxm-hint">Runs only when you click — never automatically. A re-run updates existing leads (deduped on the source id), never duplicates. Nothing goes outbound.</p>

@@ -20,7 +20,12 @@ export function intelligenceTools(client: ArcClient, step: StepFn) {
 
   const readPersonaIntelligence = tool(
     "read_persona_intelligence",
-    "Read the Persona Revenue Intelligence overview — persona segments, scores, signals, and persisted knowledge. Use when reasoning about which persona to target or how a segment is trending.",
+    // `roster` is the workspace's defined personas — who it sells to, the answer to
+    // "which persona to target". `personas`/`stats.Tracked personas` are per-record
+    // snapshot memory and can be 0 while the roster is full; a 0 there means no
+    // record has a current snapshot yet, NOT that the workspace has no personas.
+    // Don't report the roster as empty when only the snapshots are.
+    "Read the Persona Revenue Intelligence overview. `roster` = the workspace's defined personas (use this to pick which persona to target). `personas`/`stats` = per-record snapshot memory + persisted knowledge (may be empty even when the roster is full — that only means no record has a snapshot yet, not that personas are undefined).",
     {},
     async () => runTool(step, "Reading persona intelligence", () => client.apiGet("/api/v1/arc/persona-intelligence")),
   );
