@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, useTransition } from "react";
 
 import type { BrandProfileView } from "@/lib/brand-kit/profile-view";
+import type { BrandKnowledgeSyncSummary } from "@/lib/brand-knowledge/sync-summary";
 
-import { updateBrandIdentity } from "../actions";
+import { resyncBrandSources, updateBrandIdentity, uploadBrandDocuments, type BrandUploadResult } from "../actions";
 import { EditIdentityModal } from "./edit-identity-modal";
 
 const PREVIEW_IMG = "https://d8j0ntlcm91z4.cloudfront.net/user_3FaOq1cCR2Izxa2haYxVnIrhIBK/hf_20260625_205928_16464999-955a-4ad8-9f7e-44da9947830a_min.webp";
@@ -18,6 +19,11 @@ const DOC = <svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z" /><path d="M14 3
 
 const ASPECTS = ["1 / 1", "4 / 5", "16 / 9", "9 / 16"];
 const ASPECT_LABELS = ["1:1", "4:5", "16:9", "9:16"];
+
+// Mirrors the server-side gate (acceptUpload): the picker filters, the action
+// re-validates. `.md`/`.csv` are extension-only because browsers rarely type
+// them.
+const DOC_ACCEPT = ".docx,.pdf,.md,.markdown,.csv,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 /** Relative luminance test so swatch text stays legible on any palette color. */
 function isLight(hex: string): boolean {
@@ -34,6 +40,41 @@ export function BrandView({ view }: { view: BrandProfileView }) {
   const [aspect, setAspect] = useState(0);
   const [editOpen, setEditOpen] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Brand document intake: one in-flight action at a time, one banner of its
+  // result. `busy` covers both upload and re-sync so the UI can't fire twice.
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [intake, startIntake] = useTransition();
+  const [busy, setBusy] = useState<null | "upload" | "resync" | string>(null);
+  const [syncSummary, setSyncSummary] = useState<BrandKnowledgeSyncSummary | null>(null);
+  const [intakeError, setIntakeError] = useState<string | null>(null);
+
+  function runIntake(kind: "upload" | "resync" | string, action: () => Promise<BrandUploadResult>) {
+    setBusy(kind);
+    setIntakeError(null);
+    startIntake(async () => {
+      try {
+        const result = await action();
+        if (result.ok) {
+          setSyncSummary(result.persisted ? result.summary : { ok: false, message: "Connect a workspace to learn from documents.", items: [] });
+        } else {
+          setIntakeError(result.error);
+          setSyncSummary(null);
+        }
+      } catch {
+        setIntakeError("Something went wrong. Try again.");
+      } finally {
+        setBusy(null);
+      }
+    });
+  }
+
+  function onFilesPicked(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const fd = new FormData();
+    for (const file of Array.from(files)) fd.append("files", file);
+    runIntake("upload", () => uploadBrandDocuments(fd));
+  }
   const accent = palette[active]?.hex ?? palette[0]?.hex ?? "var(--accent)";
   const tagline = identity.tagline ?? "";
   const headingFont = view.headingFont ?? "Fraunces";
@@ -83,9 +124,25 @@ export function BrandView({ view }: { view: BrandProfileView }) {
             <div className="urow"><input defaultValue={identity.website ?? ""} placeholder="https://yourbrand.com" spellCheck={false} /><span className="ibtn" data-soon="Website analysis is coming soon">Analyze</span></div>
           </div>
           <div className="isrc">
-            <span className="tg est">preview</span>
+            <span className="tg ok">wired · Brain</span>
             <div className="si"><span className="ic gd">{DOC}</span><div><div className="nm">Documents</div><div className="ds">.docx · .pdf · .md · .csv · txt — up to 50&nbsp;MB</div></div></div>
-            <div className="ucta drop" data-soon="Document upload is coming soon"><svg className="upi" viewBox="0 0 24 24"><path d="M12 16V6M8 10l4-4 4 4" /><path d="M5 16v3a1 1 0 001 1h12a1 1 0 001-1v-3" /></svg><span><b>Drop files</b> or browse</span></div>
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              accept={DOC_ACCEPT}
+              hidden
+              onChange={(e) => { onFilesPicked(e.target.files); e.target.value = ""; }}
+            />
+            <button
+              type="button"
+              className={`ucta drop${busy === "upload" ? " is-busy" : ""}`}
+              disabled={intake}
+              onClick={() => fileInput.current?.click()}
+            >
+              <svg className="upi" viewBox="0 0 24 24"><path d="M12 16V6M8 10l4-4 4 4" /><path d="M5 16v3a1 1 0 001 1h12a1 1 0 001-1v-3" /></svg>
+              <span>{busy === "upload" ? <b>Reading your files…</b> : <><b>Browse files</b> to upload</>}</span>
+            </button>
           </div>
           <div className="isrc">
             <span className="tg est">vision · partial</span>
@@ -209,21 +266,42 @@ export function BrandView({ view }: { view: BrandProfileView }) {
 
           {/* BRAND SOURCES */}
           <div className="bsec">
-            <div className="bsh"><h3>Brand sources</h3><span className="tg ok">wired · media_assets</span><div className="sx"><span className="resyncall" data-soon="Re-syncing all sources is coming soon">{RESYNC}Re-sync all</span><span className="gbtn gold sm" data-soon="Uploading sources is coming soon"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>Upload</span></div></div>
+            <div className="bsh"><h3>Brand sources</h3><span className="tg ok">wired · media_assets</span><div className="sx">
+              <button type="button" className="resyncall" disabled={intake || sources.length === 0} onClick={() => runIntake("resync", () => resyncBrandSources())}>{RESYNC}{busy === "resync" ? "Re-syncing…" : "Re-sync all"}</button>
+              <button type="button" className="gbtn gold sm" disabled={intake} onClick={() => fileInput.current?.click()}><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>Upload</button>
+            </div></div>
+            {(syncSummary || intakeError) && (
+              <div className={`bsync${intakeError ? " err" : syncSummary?.ok ? " ok" : " warn"}`} role="status" aria-live="polite">
+                <b>{intakeError ?? syncSummary?.message}</b>
+                {!intakeError && syncSummary?.items.length ? (
+                  <ul>{syncSummary.items.map((item, i) => <li key={i}>{item}</li>)}</ul>
+                ) : null}
+                {!intakeError && (syncSummary?.items.length ?? 0) > 0 ? <a className="bsync-go" href={BRAIN}>Review in Brain →</a> : null}
+              </div>
+            )}
             <div className="bsb" style={{ paddingTop: 6 }}>
               {sources.length === 0 ? (
                 <div className="bsnote" style={{ margin: 0 }}>No brand sources yet — upload a deck, brief, or guidelines and Arc will read them into your Brain.</div>
               ) : (
                 sources.map((s) => (
-                  <a key={s.name} className="src" href={BRAIN}>
+                  <a key={s.id ?? s.name} className="src" href={BRAIN}>
                     <span className="di">{DOC}<span className="ext" style={s.extColor ? { background: s.extColor } : undefined}>{s.ext}</span></span>
                     <div className="si"><div className="sn">{s.name}</div><div className="sm"><b>{s.facts}</b>{s.when && ` · ${s.when}`}{s.stale && <span className="stale">stale</span>}</div></div>
-                    <span className="resync" title="Re-sync" data-soon="Re-syncing this source is coming soon">{RESYNC}</span><span className="sgo">→</span>
+                    {s.id ? (
+                      <button
+                        type="button"
+                        className={`resync${busy === s.id ? " is-busy" : ""}`}
+                        title="Re-sync this source"
+                        disabled={intake}
+                        onClick={(e) => { e.preventDefault(); runIntake(s.id!, () => resyncBrandSources(s.id)); }}
+                      >{RESYNC}</button>
+                    ) : null}
+                    <span className="sgo">→</span>
                   </a>
                 ))
               )}
             </div>
-            <div className="bsnote">Upload a deck, brief, or guidelines — Arc parses it (docx/pdf/md/csv) and writes what it learns into the <b>Brain</b>. <b>Re-sync</b> re-learns a source when your site or docs change. Click a source to see its facts.</div>
+            <div className="bsnote">Upload a deck, brief, or guidelines — Arc parses it (docx/pdf/md/csv) and writes what it learns into the <b>Brain</b> as proposed facts you approve. <b>Re-sync</b> re-learns a source when your docs change. Click a source to see its facts.</div>
           </div>
 
           {/* ARC USES THIS */}
