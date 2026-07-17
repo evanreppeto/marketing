@@ -19,7 +19,17 @@
  * product decision. Accepting an unlisted one is not: it costs the dedup.
  */
 
-/** The seven from CLAUDE.md, then the three earned in production. */
+/**
+ * The seven from CLAUDE.md, the three earned in production, and the ones the
+ * app's own deterministic detectors emit.
+ *
+ * That last group is not optional. This vocabulary is what Arc is *allowed to
+ * say*, so anything the detectors can produce, Arc must be able to propose too —
+ * otherwise the agent is barred from a category its own product already renders.
+ * `next_iteration` is exactly that: detectNextIterationOpportunities emits it, the
+ * inbox renders it as "Repeat a winner", and the first cut of this list left it
+ * out — so Arc could no longer suggest repeating a winning campaign.
+ */
 export const OPPORTUNITY_KINDS = [
   "crm_inactivity",
   "new_lead_discovery",
@@ -32,10 +42,20 @@ export const OPPORTUNITY_KINDS = [
   "account_expansion", // grow an existing customer (expansion / lifecycle upsell)
   "partner_network", // referral-partner lane (plumbing/HVAC/insurance flywheel)
   "attribution_gap", // revenue that can't be learned from (unassigned persona, data holes)
+  // Emitted by a detector in src/domain/opportunity-detection.ts:
+  "next_iteration", // a campaign worth repeating — the inbox calls it "Repeat a winner"
 ] as const;
 
 export type OpportunityKind = (typeof OPPORTUNITY_KINDS)[number];
 
+/**
+ * What an opportunity can be *about*. The last three are not CRM records: the
+ * detectors use them as synthetic subjects (a weather alert, a competitor signal,
+ * the campaign a next-iteration learned from), and the inbox keys its icon and
+ * type label straight off them — `classify()` branches on "campaign",
+ * "weather_event" and "competitor_signal" by name. Omitting them here made Arc
+ * unable to name subjects the app already knows how to render.
+ */
 export const OPPORTUNITY_SUBJECT_TYPES = [
   "company",
   "contact",
@@ -43,6 +63,9 @@ export const OPPORTUNITY_SUBJECT_TYPES = [
   "persona",
   "competitor",
   "segment",
+  "campaign", // the source campaign a next_iteration opportunity learned from
+  "weather_event", // a weather alert row, not a CRM record
+  "competitor_signal", // a competitor activity signal, not a CRM record
 ] as const;
 
 export type OpportunitySubjectType = (typeof OPPORTUNITY_SUBJECT_TYPES)[number];
