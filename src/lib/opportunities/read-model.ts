@@ -27,6 +27,11 @@ type OpportunityEvidence = {
   creativeCount?: number;
   keywords?: string[];
   capturedAt?: string;
+  // Feed/news evidence (kind='news_signal', from rss-signals / news-search).
+  feedKind?: string;
+  source?: string;
+  link?: string;
+  matchedKeywords?: string[];
   // Next-iteration evidence (kind='next_iteration').
   campaignName?: string;
   topChannel?: string;
