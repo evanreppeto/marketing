@@ -3,6 +3,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import {
   CONNECTOR_REGISTRY,
   computeConnectorStatus,
+  connectorConfigSatisfied,
   connectorRequiresCredential,
   type ConnectorAccess,
   type ConnectorAuthKind,
@@ -69,6 +70,7 @@ export async function listWorkspaceConnectors(client: SupabaseClient, workspaceI
     const row = byKey.get(entry.key);
     const credentialPresent = Boolean(row?.credential_ref);
     const requiresCredential = connectorRequiresCredential(entry);
+    const configPresent = connectorConfigSatisfied(entry, row?.config ?? {});
     return {
       key: entry.key,
       kind: entry.kind,
@@ -86,6 +88,7 @@ export async function listWorkspaceConnectors(client: SupabaseClient, workspaceI
         enabled: row?.enabled ?? false,
         lastTestOk: row?.last_test_ok ?? null,
         requiresCredential,
+        configPresent,
       }),
       lastTestedAt: row?.last_tested_at ?? null,
       lastTestOk: row?.last_test_ok ?? null,
