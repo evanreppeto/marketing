@@ -444,6 +444,32 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     toolNamespace: "csv-import",
   },
   {
+    key: "mailchimp-import",
+    kind: "import_source",
+    label: "Mailchimp Import",
+    description:
+      "Read-only import: pulls a Mailchimp audience into CRM leads — persona-mapped and deduped on the Mailchimp " +
+      "member id (a re-import updates, never duplicates) — so Arc can work your email list. Uses your own Mailchimp " +
+      "API key on read-only member access; it never writes back to Mailchimp and never contacts anyone.",
+    costTier: "byo_key",
+    verticals: [],
+    capability: {
+      summary: "Imports a Mailchimp audience's members as persona-mapped CRM leads, idempotent on the member id.",
+      importsInto: ["contacts", "leads"],
+    },
+    credentialSchema: {
+      kind: "api_key",
+      label: "Mailchimp API key",
+      hint: "From Mailchimp → Account → Extras → API keys (the '…-us21' form). Stored encrypted in your Vault; used read-only.",
+    },
+    // Leads carry a NOT NULL persona; the audience id is validated at import time.
+    requiredConfigKeys: ["defaultPersona"],
+    authKind: "api_key",
+    access: "read_only",
+    mcpUrl: null,
+    toolNamespace: "mailchimp-import",
+  },
+  {
     key: "lead-enrichment",
     kind: "import_source",
     label: "Lead Enrichment",

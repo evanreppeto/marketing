@@ -269,6 +269,12 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
     credLabel: "",
     credHint: "No account to connect — set a default persona, then paste a CSV of contacts. Columns are auto-mapped; leads dedupe on email/phone.",
   },
+  "mailchimp-import": {
+    c: "#ffe01b",
+    l: "Mc",
+    credLabel: "Mailchimp API key",
+    credHint: "From Mailchimp → Account → Extras → API keys (the '…-us21' form). Stored in your Vault; used read-only — imports members, never writes back.",
+  },
   "lead-enrichment": {
     c: "#5b8def",
     l: "En",
@@ -377,6 +383,22 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       label: "Default persona",
       placeholder: "persona_homeowner_emergency",
       hint: "Official persona key for imported leads (they carry a required persona). A `persona` column in your CSV overrides it per row. Set this, then paste your CSV below.",
+    },
+  ],
+  "mailchimp-import": [
+    {
+      key: "audienceId",
+      kind: "text",
+      label: "Audience (list) id",
+      placeholder: "a1b2c3d4e5",
+      hint: "The Mailchimp audience to import. Find it in Mailchimp → Audience → Settings → 'Audience name and defaults' → Audience ID.",
+    },
+    {
+      key: "defaultPersona",
+      kind: "text",
+      label: "Default persona",
+      placeholder: "persona_homeowner_emergency",
+      hint: "Official persona key assigned to every imported member (they carry a required persona).",
     },
   ],
   "lead-enrichment": [

@@ -9,6 +9,7 @@ import {
   type ImportRunResult,
 } from "@/lib/integrations/crm/import-run";
 import { hubspotCrmImportSource } from "@/lib/integrations/crm/hubspot";
+import { mailchimpImportSource } from "@/lib/integrations/crm/mailchimp";
 import { fixtureCrmImportSourceFromContacts } from "@/lib/integrations/crm/source";
 import { type EnrichmentLookupKeys, type EnrichmentProvider } from "@/lib/integrations/enrichment/provider";
 import { vendorEnrichmentProvider } from "@/lib/integrations/enrichment/vendor";
@@ -35,6 +36,7 @@ import { listWorkspaceConnectors, resolveConnectorCredentialRef } from "./read-m
 export const HUBSPOT_IMPORT_CONNECTOR_KEY = "hubspot-import";
 export const LEAD_ENRICHMENT_CONNECTOR_KEY = "lead-enrichment";
 export const CSV_IMPORT_CONNECTOR_KEY = "csv-import";
+export const MAILCHIMP_IMPORT_CONNECTOR_KEY = "mailchimp-import";
 
 export type RunCrmImportInput = {
   workspaceId: string;
@@ -147,6 +149,43 @@ export async function runCrmImport(input: RunCrmImportInput): Promise<RunCrmImpo
   });
 
   return { ok: true, result, enrichmentEnabled: Boolean(enrichment) };
+}
+
+/**
+ * Run a Mailchimp audience import for the workspace's enabled connector. Resolves the
+ * API key + audience id + default persona, builds the live Mailchimp source, and runs
+ * the same provider-agnostic import engine as HubSpot. Structured errors, never throws
+ * for an expected "not connected" / "misconfigured" case.
+ */
+export async function runMailchimpImport(input: RunCrmImportInput): Promise<RunCrmImportResult> {
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "not_configured" };
+  const client = input.client ?? getSupabaseAdminClient();
+
+  const views = await listWorkspaceConnectors(client, input.workspaceId);
+  const view = views.find((v) => v.key === MAILCHIMP_IMPORT_CONNECTOR_KEY);
+  if (!view || view.status !== "connected") return { ok: false, error: "mailchimp_import_not_connected" };
+
+  const ref = await resolveConnectorCredentialRef(client, input.workspaceId, MAILCHIMP_IMPORT_CONNECTOR_KEY);
+  const apiKey = await readConnectorCredential(client, ref);
+  if (!apiKey) return { ok: false, error: "missing_credential" };
+
+  const config = await getConnectorConfig(client, input.workspaceId, MAILCHIMP_IMPORT_CONNECTOR_KEY);
+  const audienceId = typeof config.audienceId === "string" && config.audienceId.trim() ? config.audienceId.trim() : null;
+  if (!audienceId) return { ok: false, error: "missing_audience" };
+  const defaultPersona = asOfficialPersona(config.defaultPersona);
+  if (!defaultPersona) return { ok: false, error: "missing_default_persona" };
+
+  const result = await importContactsFromSource({
+    client,
+    orgId: input.orgId,
+    source: mailchimpImportSource(apiKey, audienceId),
+    options: { defaultPersona, source: "mailchimp" },
+    now: input.now,
+    allowedPersonaKeys: input.allowedPersonaKeys,
+    maxPages: input.maxPages,
+  });
+
+  return { ok: true, result, enrichmentEnabled: false };
 }
 
 export type RunCsvImportInput = {
