@@ -49,6 +49,15 @@ function inTab(tone: CampaignTone, tab: string): boolean {
   return tone === tab;
 }
 
+type SortKey = "recent" | "name" | "status";
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "recent", label: "Recently updated" },
+  { key: "name", label: "Name (A–Z)" },
+  { key: "status", label: "Status" },
+];
+// Status order surfaces what needs you first, then live work, then the rest.
+const TONE_RANK: Record<CampaignTone, number> = { review: 0, revise: 1, live: 2, approved: 3, draft: 4, archived: 5 };
+
 // --- Optimistic row for a just-created campaign (mirrors page.tsx derivations) ---
 function personaLabelOf(persona: string): string {
   const s = (persona || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
@@ -96,6 +105,8 @@ export function CampaignsBoard({
 }) {
   const [tab, setTab] = useState("all");
   const [q, setQ] = useState("");
+  const [sort, setSort] = useState<SortKey>("recent");
+  const [sortOpen, setSortOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   // Draft rows created this session, shown until a real write revalidates.
   const [localRows, setLocalRows] = useState<CampaignRow[]>([]);
@@ -118,12 +129,17 @@ export function CampaignsBoard({
 
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return allRows.filter((r) => {
+    const filtered = allRows.filter((r) => {
       if (!inTab(r.tone, tab)) return false;
       if (needle && !`${r.name} ${r.brief} ${r.audience}`.toLowerCase().includes(needle)) return false;
       return true;
     });
-  }, [allRows, tab, q]);
+    // "recent" keeps the server's updated-desc order (fresh local drafts already
+    // lead); the others sort a copy so the source order stays intact.
+    if (sort === "name") return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === "status") return [...filtered].sort((a, b) => (TONE_RANK[a.tone] ?? 9) - (TONE_RANK[b.tone] ?? 9));
+    return filtered;
+  }, [allRows, tab, q, sort]);
 
   // Create a campaign: when it persists, jump into the new draft's detail page;
   // offline it drops in an optimistic draft row and stays on the board. Failures
@@ -198,10 +214,37 @@ export function CampaignsBoard({
           />
         </span>
         <span className="gspacer" />
-        <span className="fbtn" data-soon="Sorting is coming soon">
-          <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
-          Recently updated <span className="cv">▾</span>
-        </span>
+        <div className="sortwrap">
+          <button
+            type="button"
+            className="fbtn"
+            aria-haspopup="listbox"
+            aria-expanded={sortOpen}
+            onClick={() => setSortOpen((o) => !o)}
+          >
+            <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
+            {SORT_OPTIONS.find((o) => o.key === sort)?.label} <span className="cv">▾</span>
+          </button>
+          {sortOpen && (
+            <>
+              <div className="sortscrim" onClick={() => setSortOpen(false)} />
+              <div className="sortmenu" role="listbox" aria-label="Sort campaigns">
+                {SORT_OPTIONS.map((o) => (
+                  <button
+                    key={o.key}
+                    type="button"
+                    role="option"
+                    aria-selected={sort === o.key}
+                    className={`sortopt${sort === o.key ? " on" : ""}`}
+                    onClick={() => { setSort(o.key); setSortOpen(false); }}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="tablewrap">

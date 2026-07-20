@@ -15,7 +15,7 @@ import { LOCKED_CLAIMS, MEASUREMENT_PLAN } from "@/lib/performance/measurement-c
 import { buildPerformanceLearning, type CampaignPerformancePanel, type PerformanceTrendPoint } from "@/lib/performance/campaign-panel";
 
 import { ShareDialog } from "../../../_components/share-dialog";
-import { decideCampaignAsset, launchCampaignAction, requestCampaignRevision } from "../actions";
+import { decideCampaignAsset, editCampaignDraftAction, launchCampaignAction, requestCampaignRevision } from "../actions";
 import {
   getCampaignSharingStateAction,
   setCampaignSharingAction,
@@ -358,6 +358,10 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
   const [tab, setTab] = useState("deliverables");
   const [reviseFor, setReviseFor] = useState<string | null>(null);
   const [reviseText, setReviseText] = useState("");
+  // Inline copy editing: which asset is open, and its working title/body.
+  const [editFor, setEditFor] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [confirmLaunch, setConfirmLaunch] = useState(false);
@@ -400,6 +404,33 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
       const res = await requestCampaignRevision(campaign.id, asset.id, instruction);
       if (!res.ok) {
         setAssetStatus(asset.id, prev);
+        setErr(res.error);
+      }
+    });
+  }
+
+  function openEdit(asset: CampaignWorkspaceAsset) {
+    setErr(null);
+    setReviseFor(null);
+    setEditFor(asset.id);
+    setEditTitle(asset.title);
+    setEditBody(asset.preview ?? "");
+  }
+
+  function saveEdit(asset: CampaignWorkspaceAsset) {
+    const body = editBody.trim();
+    const title = editTitle.trim();
+    if (pending || (!body && !title)) return;
+    setErr(null);
+    const prev = { title: asset.title, preview: asset.preview };
+    // Optimistically reflect the edit; the read path coalesces edited_body so a
+    // refresh keeps it. Editing never changes the decision — it stays actionable.
+    setAssets((as) => as.map((a) => (a.id === asset.id ? { ...a, title: title || a.title, preview: body || a.preview } : a)));
+    setEditFor(null);
+    startTransition(async () => {
+      const res = await editCampaignDraftAction({ campaignId: campaign.id, assetId: asset.id, title, body });
+      if (!res.ok) {
+        setAssets((as) => as.map((a) => (a.id === asset.id ? { ...a, title: prev.title, preview: prev.preview } : a)));
         setErr(res.error);
       }
     });
@@ -586,7 +617,36 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
                           </div>
                         )}
 
-                        {reviseFor === asset.id ? (
+                        {editFor === asset.id ? (
+                          <div className="revbox editbox">
+                            <input
+                              className="editrow-title"
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              placeholder="Title"
+                              disabled={pending}
+                              aria-label="Deliverable title"
+                            />
+                            <textarea
+                              value={editBody}
+                              onChange={(e) => setEditBody(e.target.value)}
+                              placeholder="Edit the copy…"
+                              rows={5}
+                              disabled={pending}
+                              aria-label="Deliverable copy"
+                            />
+                            <div className="revactions">
+                              <span className="editnote">Edits stay approval-gated — outbound is untouched.</span>
+                              <button className="cbtn ghost" onClick={() => setEditFor(null)} disabled={pending}>
+                                Cancel
+                              </button>
+                              <button className="cbtn gold" onClick={() => saveEdit(asset)} disabled={pending || (!editBody.trim() && !editTitle.trim())}>
+                                {svg('<path d="M5 12l4 4L19 6"/>')}
+                                Save edit
+                              </button>
+                            </div>
+                          </div>
+                        ) : reviseFor === asset.id ? (
                           <div className="revbox">
                             <textarea
                               value={reviseText}
@@ -609,6 +669,10 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
                             <button className="cbtn gold" onClick={() => decide(asset, "approved")} disabled={pending}>
                               {svg('<path d="M5 12l4 4L19 6"/>')}
                               Approve
+                            </button>
+                            <button className="cbtn ghost" onClick={() => openEdit(asset)} disabled={pending}>
+                              {svg('<path d="M4 20h4L18.5 9.5a2.1 2.1 0 00-3-3L5 17v3z"/>')}
+                              Edit
                             </button>
                             <button className="cbtn ghost" onClick={() => setReviseFor(asset.id)} disabled={pending}>
                               {svg('<path d="M4 7h16M4 12h10M4 17h7"/>')}

@@ -100,7 +100,16 @@
 .arc-campaign .revbox textarea { width: 100%; resize: vertical; border: 1px solid var(--line-2); border-radius: 9px; background: var(--inset); color: var(--text); font-family: inherit; font-size: 12.5px; line-height: 1.5; padding: 10px 12px; outline: none; }
 .arc-campaign .revbox textarea:focus { border-color: var(--accent-border); }
 .arc-campaign .revbox textarea::placeholder { color: var(--muted); }
-.arc-campaign .revactions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 9px; }
+.arc-campaign .revactions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 9px; }
+/* inline copy editing — reuses the revbox frame with a title row above the body */
+.arc-campaign .editbox { display: flex; flex-direction: column; gap: 8px; }
+.arc-campaign .editbox .editrow-title { width: 100%; border: 1px solid var(--line-2); border-radius: 9px; background: var(--inset); color: var(--text); font-family: inherit; font-weight: 600; font-size: 13px; padding: 8px 12px; outline: none; }
+.arc-campaign .editbox .editrow-title:focus { border-color: var(--accent-border); }
+.arc-campaign .editbox .editrow-title::placeholder { color: var(--muted); }
+.arc-campaign .editbox textarea { width: 100%; resize: vertical; border: 1px solid var(--line-2); border-radius: 9px; background: var(--inset); color: var(--text); font-family: inherit; font-size: 12.5px; line-height: 1.5; padding: 10px 12px; outline: none; }
+.arc-campaign .editbox textarea:focus { border-color: var(--accent-border); }
+.arc-campaign .editbox textarea::placeholder { color: var(--muted); }
+.arc-campaign .editnote { margin-right: auto; font-size: 10.5px; color: var(--muted); }
 
 /* Media tiles */
 .arc-campaign .mediagrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-top: 12px; }

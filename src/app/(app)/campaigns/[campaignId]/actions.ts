@@ -6,6 +6,7 @@ import { validateRevisionInstruction } from "@/domain";
 import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { decideAsset, type ApprovalDecision } from "@/lib/campaigns/decisions";
+import { editDraftAsset } from "@/lib/campaigns/draft-editing";
 import { launchCampaign } from "@/lib/campaigns/launch";
 import { requestAssetRevision } from "@/lib/campaigns/revisions";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -61,6 +62,40 @@ export async function requestCampaignRevision(campaignId: string, assetId: strin
     return { ok: true, persisted: true, status: "revision_requested" };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not request the revision." };
+  }
+}
+
+/**
+ * Persist an operator's in-canvas edit to a deliverable's copy (title / body).
+ * Wraps `editDraftAsset`, which writes edited_body/edited_fields and logs an
+ * `asset_edited` event — and never touches dispatch_locked/launch_locked, so
+ * outbound stays locked. The read path coalesces edited_body, so the edit shows
+ * immediately and feeds the revision diff. Lets the operator fix copy in place
+ * instead of round-tripping every wording tweak through Arc. Gated by
+ * requireOperator(). `persisted: false` is the honest offline/demo signal.
+ */
+export async function editCampaignDraftAction(input: {
+  campaignId: string;
+  assetId: string;
+  title?: string;
+  body?: string;
+}): Promise<CampaignActionResult> {
+  await requireOperator();
+  if (!input.assetId) return { ok: false, error: "Missing asset." };
+
+  const body = typeof input.body === "string" ? input.body.trim() : undefined;
+  const title = typeof input.title === "string" ? input.title.trim() : undefined;
+  if (!body && !title) return { ok: false, error: "Nothing to save." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false, status: "edited" };
+
+  try {
+    const operator = await getOperatorActor();
+    await editDraftAsset({ assetId: input.assetId, campaignId: input.campaignId, title, body, fields: {} }, operator);
+    revalidatePath(`/campaigns/${input.campaignId}`);
+    return { ok: true, persisted: true, status: "edited" };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not save your edit." };
   }
 }
 
