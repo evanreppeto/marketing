@@ -1,59 +1,45 @@
-# Arc campaign and skills workspace design QA
+# Outbox responsive header design QA
 
-- Source visual truth: `/var/folders/2g/05frnm2118b30sj5k5_zmcqm0000gn/T/codex-clipboard-d6e53f3c-2c2f-4060-9fe8-836dbe03be2a.png`
-- Implementation screenshots:
-  - `/Users/evanreppeto/.codex/visualizations/2026/07/17/019f7045-211e-7b11-a88d-921d8cbe7972/arc-premium-qa/20-skills-quiet-list.png`
-  - `/Users/evanreppeto/.codex/visualizations/2026/07/17/019f7045-211e-7b11-a88d-921d8cbe7972/arc-premium-qa/21-conversations-by-campaign.png`
-  - `/Users/evanreppeto/.codex/visualizations/2026/07/17/019f7045-211e-7b11-a88d-921d8cbe7972/arc-premium-qa/22-github-skill-import.png`
-  - `/Users/evanreppeto/.codex/visualizations/2026/07/17/019f7045-211e-7b11-a88d-921d8cbe7972/arc-premium-qa/23-add-skill-command.png`
-  - `/Users/evanreppeto/.codex/visualizations/2026/07/17/019f7045-211e-7b11-a88d-921d8cbe7972/arc-premium-qa/24-conversations-recent-final.png`
-  - `/Users/evanreppeto/.codex/visualizations/2026/07/17/019f7045-211e-7b11-a88d-921d8cbe7972/arc-premium-qa/25-chat-campaign-linker.png`
-  - `/Users/evanreppeto/.codex/visualizations/2026/07/17/019f7045-211e-7b11-a88d-921d8cbe7972/arc-premium-qa/26-campaign-group-symbols.png`
-- Source crop: 810 x 1237
-- Implementation viewport: 1269 x 1255
-- State: seeded Arc conversation; recent and campaign-grouped conversation drawer, installed Skills view, GitHub import view, and selected `/add-skill` composer state
+- Source visual truth: `/var/folders/2g/05frnm2118b30sj5k5_zmcqm0000gn/T/codex-clipboard-d910175b-bc95-4220-b25e-098223f71b1c.png`
+- Normalized before capture: `/tmp/outbox-before-1133x719.png`
+- Implementation screenshot: `/tmp/outbox-after-1291x701.png`
+- Combined comparison input: `/tmp/outbox-responsive-normalized-comparison.png`
+- Viewport: 1291 x 701 browser content viewport
+- State: demo Outbox with two sends awaiting confirmation, one scheduled send, two recently sent items, and one failed item
 
 ## Full-view and focused comparison evidence
 
-The source crop and `24-conversations-recent-final.png` were opened together in the same comparison input. The implementation preserves the source hierarchy: uppercase time labels, generous vertical grouping, quiet unboxed rows, a stronger active row with a slim gold rail, pinned metadata, and a distinct working indicator. The implementation intentionally retains Arc's existing drawer header, search, review summary, and grouping controls above the source region.
+The normalized before and after captures were stacked in the same comparison image. The before state reserved 364 pixels above the send queue: 100 pixels for the page heading, 103 pixels for the repeated outbound-lock explainer, 85 pixels for KPIs, and 35 pixels for filters plus their gaps. The first actionable queue began at y=419 and received only 282 pixels of viewport height.
 
-The same quiet-row language was checked in `20-skills-quiet-list.png`. Built-in skills are no longer a wall of bordered cards; only system actions, the active/focused item, and workspace-installed skills receive stronger surfaces. `21-conversations-by-campaign.png` keeps the same row hierarchy while replacing time buckets with campaign names. `22-github-skill-import.png` was inspected as the focused install state: import, review, installed source, library search, and safety boundary remain visible without clipping.
+The implementation removes the redundant explainer while preserving the real two-step send confirmation on each card. It shortens the description, tightens short-window spacing, and prevents KPI and filter rows from wrapping into extra vertical rows at narrow desktop widths. The first queue now begins at y=254 and receives 452 pixels of viewport height, a 165-pixel improvement above the queue and 170 additional visible pixels for work.
+
+The full view was sufficient for the layout problem because typography, card actions, filters, and queue section boundaries remain legible at the captured viewport. The queue header and first two confirmation cards were also inspected directly in the browser for clipping and alignment.
 
 ## Required fidelity surfaces
 
-- Fonts and typography: Arc's serif section titles, sans-serif controls, and mono command tags remain consistent. Time/campaign section labels use the source's compact uppercase hierarchy, and real skill descriptions truncate without overlapping commands or controls.
-- Spacing and layout rhythm: The drawer preserves the source's vertical breathing room and quiet list rhythm. Active rows are compact but clearly surfaced; non-active rows do not add unnecessary boxes. Header and install controls stay fixed while long lists scroll independently.
-- Colors and visual tokens: The source's near-black canvas, muted secondary copy, and gold active-conversation accent are retained. Skills use Arc's established blue interaction token for icons, commands, focus, and installed state.
-- Image quality and assets: The target contains no raster assets. All visible controls use the existing product icon library; GitHub-imported skills have a distinct repository/fork mark.
-- Copy and content: Conversations can be organized by recent activity or campaign. Skills clearly distinguish built-in, Arc Library, and GitHub sources. GitHub copy states that imported instructions are untrusted and run inside a read-only tool boundary.
-- Accessibility and behavior: Slash results, skill actions, installed skills, and conversation rows are reachable with Arrow Up/Down, Home/End, and Enter. Focused slash skills receive the same blue highlight as hover. Inputs and icon-only controls retain accessible labels.
+- Fonts and typography: Existing serif page and section headings, sans-serif controls, numeric hierarchy, weights, line heights, and antialiasing remain unchanged. Only the description copy was shortened to prevent unnecessary wrapping.
+- Spacing and layout rhythm: The redundant 103-pixel panel is gone. Short-window paddings and KPI gaps are reduced without collapsing the existing rhythm. The queue is now the dominant vertical region.
+- Colors and visual tokens: Existing canvas, panel, accent, warning, border, and muted tokens are unchanged. No new colors or gradients were introduced.
+- Image quality and asset fidelity: The Outbox has no raster assets. Existing product icons and card channel marks remain unchanged; no placeholder or approximate asset was added.
+- Copy and content: The description now says, “Review approved sends, then confirm exactly what goes out.” All counts, recipient details, campaign names, statuses, and send warnings remain visible.
+- Accessibility and behavior: Filter buttons keep their accessible names and selected styling. The send safety model remains the card-level two-step confirmation, so removing the explanatory banner does not reduce protection.
 
 ## Primary interactions tested
 
-- Switched Conversations between Recent and Campaigns and verified the six demo threads regrouped under named campaigns plus No campaign.
-- Assigned, changed, and removed a conversation's campaign from its options menu; verified Arrow Down and Enter select a campaign and immediately move the chat into the matching group.
-- Right-clicked a conversation row and verified it opens the same complete options menu without navigating away from the current chat.
-- Verified campaign groups use a bare neutral glyph with no badge, border, background, or blue treatment; recent-date headings and conversation rows remain unchanged.
-- Used Arrow Down from Create a skill and verified focus moved to Add from GitHub.
-- Imported a real public GitHub `SKILL.md`, reviewed its parsed name/description/command/source, installed it, and verified it appeared immediately in the installed list and `/` menu.
-- Typed `/creative`, used Arrow Down and Enter, and verified the imported skill became the blue composer chip.
-- Typed `/add`, used Arrow Down and Enter, and verified the `/add-skill` workflow selected with the GitHub URL placeholder.
-- Verified campaign mentions persist the conversation's campaign link and are forwarded to the runner as working context.
-- Browser console errors checked: none.
+- Selected Email and verified the visible queue changed from six cards to five email cards.
+- Returned to All channels and verified all six cards were restored.
+- Confirmed the lock explainer is absent while Confirm send, Cancel, Send now, Mark delivered, and Retry controls remain present.
+- Checked browser console errors and warnings: none.
 
 ## Comparison history
 
-- Earlier P2: Skills used the same boxed card treatment for every item, which did not match the source's calm hierarchy and made long lists feel heavy.
-- Fix: Removed default borders and panel fills from ordinary skill/library rows; retained stronger surfaces only for actions, focus, installed workspace skills, and active state.
-- Post-fix evidence: `20-skills-quiet-list.png` shows a scan-friendly list with blue command tags and only the GitHub-installed item receiving a soft surface.
-- Earlier P2: Conversations could only be scanned by time, so campaign-specific work had no visible organization or durable working context.
-- Fix: Added Recent/Campaigns organization, campaign-name grouping, and campaign persistence when a campaign is mentioned.
-- Post-fix evidence: `21-conversations-by-campaign.png` shows three named campaign groups and a No campaign fallback without changing the source row language.
+- Earlier P1: At the resized viewport, explanatory chrome pushed the first actionable queue to y=419, hiding most of the send list.
+- Fix: Removed the repeated lock explainer, shortened the header copy, tightened short-height spacing, and kept KPI and filter groups to a single horizontally scrollable row when width is constrained.
+- Post-fix evidence: The normalized after capture starts the queue at y=254 and shows confirmation, scheduled, recently sent, and failed sections within the same viewport.
 
 ## Findings
 
-- No actionable P0, P1, or P2 visual, interaction, accessibility, or responsive issue remains in the tested desktop viewport.
-- P3: GitHub imports intentionally consume only `SKILL.md`; repository scripts and assets are not executed or installed. This keeps workspace imports reviewable and prevents a public repository from expanding Arc's tool permissions.
-- P3: Backend-less local preview installs last for the current session only and say so. Connected workspaces persist imported and Arc Library skills in workspace settings.
+- No actionable P0, P1, or P2 issue remains in the tested desktop viewport.
+- P3: The browser viewport override did not resize an already-claimed in-app tab, so the narrow-width breakpoint was verified through CSS inspection and the current resized desktop viewport rather than a second browser-rendered width.
 
 final result: passed
