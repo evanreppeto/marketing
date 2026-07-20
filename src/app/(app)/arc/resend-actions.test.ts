@@ -22,6 +22,7 @@ vi.mock("@/lib/arc-chat/sharing", () => ({
 }));
 vi.mock("@/lib/arc-chat/persistence", () => ({
   getArcMessage: vi.fn(),
+  getConversation: vi.fn(async () => ({ projectId: "project-1", campaignId: "campaign-1" })),
   getPrecedingOperatorMessage: vi.fn(),
   deleteMessagesAfter: vi.fn(async () => 1),
   updateOperatorMessageBody: vi.fn(async () => true),

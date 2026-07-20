@@ -9,28 +9,30 @@ import type { ArcActionCard, ArcMention, ArcRecall } from "@/domain";
 import type { ArcAttachment, ArcStep, ArcToolCall } from "@/lib/arc-chat/persistence";
 import type { ArcThreadGroupVM } from "@/lib/arc-chat/read-model";
 
-import type { ArcWaiting, RunRow } from "./arc-view.types";
+import type { ArcWaiting } from "./arc-view.types";
+
+export { buildDemoLiveWork } from "@/lib/arc-chat/demo-live-work";
 
 export const DEMO_THREADS: ArcThreadGroupVM[] = [
   {
     group: "Today",
     items: [
-      { id: "storm", title: "Storm-damage homeowners", when: "9:38 AM", active: true, pinned: true, running: false },
-      { id: "past", title: "Past-customer outreach", when: "8:12 AM", active: false, pinned: false, running: true },
+      { id: "storm", title: "Storm-damage homeowners", when: "9:38 AM", active: true, pinned: true, running: false, campaignId: "demo-camp" },
+      { id: "past", title: "Past-customer outreach", when: "8:12 AM", active: false, pinned: false, running: true, campaignId: "past-customer" },
     ],
   },
   {
     group: "Yesterday",
     items: [
-      { id: "property", title: "Property-manager list", when: "4:46 PM", active: false, pinned: false, running: false },
-      { id: "noaa", title: "NOAA hail report read", when: "2:10 PM", active: false, pinned: false, running: false },
+      { id: "property", title: "Property-manager list", when: "4:46 PM", active: false, pinned: false, running: false, campaignId: "property-partners" },
+      { id: "noaa", title: "NOAA hail report read", when: "2:10 PM", active: false, pinned: false, running: false, campaignId: "demo-camp" },
     ],
   },
   {
     group: "Previous 7 days",
     items: [
-      { id: "inspection", title: "Inspection page rewrite", when: "Jul 10", active: false, pinned: false, running: false },
-      { id: "adjuster", title: "Adjuster follow-ups", when: "Jul 8", active: false, pinned: false, running: false },
+      { id: "inspection", title: "Inspection page rewrite", when: "Jul 10", active: false, pinned: false, running: false, campaignId: "demo-camp" },
+      { id: "adjuster", title: "Adjuster follow-ups", when: "Jul 8", active: false, pinned: false, running: false, campaignId: null },
     ],
   },
 ];
@@ -161,42 +163,3 @@ export const DEMO_WAITING: ArcWaiting = {
     },
   ],
 };
-
-/** The staged live-work commentary + rows shown while a demo run is "thinking",
- *  chosen from the request so the offline preview reads like a real run. */
-export function buildDemoLiveWork(request?: string | null): { commentary: string; rows: RunRow[] } {
-  const normalized = request?.trim().toLowerCase() ?? "";
-
-  if (/(email|sms|campaign|draft|write|create|landing)/.test(normalized)) {
-    return {
-      commentary: "I’m reading the approved Storm Rapid Response package and brand profile before I draft. I’ll keep the message inspection-first, use only approved claims, and prepare everything for review.",
-      rows: [
-        { id: "demo-campaign", label: "Read Storm Rapid Response campaign package", detail: "4 approved channel assets", status: "queued", kind: "draft" },
-        { id: "demo-brand", label: "Loaded the workspace brand voice", detail: "Approved proof points and messaging rules", status: "queued", kind: "tool" },
-        { id: "demo-audience", label: "Reading the 142-home approved audience", detail: "Naperville hailstorm segment", status: "queued", kind: "match" },
-        { id: "demo-draft", label: "Drafting the inspection-first message", detail: "Preparing a review-ready draft", status: "queued", kind: "draft" },
-      ],
-    };
-  }
-
-  if (/(search|find|look up|research|which|who|audience|lead)/.test(normalized)) {
-    return {
-      commentary: "I’m checking the selected workspace sources against the request now. I’ll show each source as it is used and separate confirmed matches from anything that still needs review.",
-      rows: [
-        { id: "demo-crm", label: "Searching CRM property records", detail: "Naperville storm footprint", status: "queued", kind: "search" },
-        { id: "demo-weather", label: "Reading the hail exposure model", detail: "Severity and address confidence", status: "queued", kind: "search" },
-        { id: "demo-history", label: "Checking inspection and claim history", detail: "Approved workspace records", status: "queued", kind: "match" },
-        { id: "demo-rank", label: "Ranking matching homeowners", detail: "Urgency and data confidence", status: "queued", kind: "match" },
-      ],
-    };
-  }
-
-  return {
-    commentary: "I’m reading the active campaign, audience, and conversation context so I can answer from the current workspace instead of guessing. I’ll keep each source and action visible as I use it.",
-    rows: [
-      { id: "demo-context", label: "Reading active campaign context", detail: "Storm Rapid Response", status: "queued", kind: "think" },
-      { id: "demo-sources", label: "Loading selected workspace sources", detail: "Brand, CRM, and campaigns", status: "queued", kind: "tool" },
-      { id: "demo-answer", label: "Preparing a source-backed response", status: "queued", kind: "draft" },
-    ],
-  };
-}

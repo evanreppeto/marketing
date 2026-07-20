@@ -12,6 +12,8 @@ import { insertPendingArcMessage, type ArcAttachment } from "./persistence";
 
 export type EnqueueChatTaskInput = {
   conversationId: string;
+  projectId?: string | null;
+  campaignId?: string | null;
   messageId: string;
   message: string;
   mentions: ArcMention[];
@@ -90,6 +92,8 @@ export async function enqueueArcChatTask(
         attachments: input.attachments ?? [],
         context_scopes: input.contextScopes ?? [],
         source: "arc_chat",
+        project_id: input.projectId ?? null,
+        campaign_id: input.campaignId ?? null,
         model_route: input.route ?? "fast",
         mode: input.mode ?? "act",
         assistant_tone: input.assistantTone ?? "direct",
@@ -120,6 +124,8 @@ export async function enqueueArcChatTask(
       skill_id: input.skillId ?? null,
       attachments: input.attachments ?? [],
       context_scopes: input.contextScopes ?? [],
+      project_id: input.projectId ?? null,
+      campaign_id: input.campaignId ?? null,
     },
   });
   assertOk("agent_task_inputs insert", inputError);
@@ -141,8 +147,8 @@ export async function enqueueArcChatTask(
     await notifyArcWebhook({
       messageId: input.messageId,
       conversationId: input.conversationId,
-      projectId: null,
-      campaignId: null,
+      projectId: input.projectId ?? null,
+      campaignId: input.campaignId ?? null,
       agentTaskId: task.id,
       message: input.message,
       mentions: input.mentions,

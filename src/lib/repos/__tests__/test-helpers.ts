@@ -74,5 +74,14 @@ export function createSupabaseQueryMock(
     return makeChain(tableName);
   };
 
-  return { from, calls } as unknown as MockSupabase;
+  const rpc = (functionName: string, args?: Record<string, unknown>) => {
+    calls.push(["rpc", functionName, args]);
+    const queue = responseQueues.get(`rpc:${functionName}`);
+    const response: MockResponse = queue && queue.length > 0
+      ? (queue.length > 1 ? queue.shift()! : queue[0]!)
+      : { data: null, error: null };
+    return Promise.resolve(response);
+  };
+
+  return { from, rpc, calls } as unknown as MockSupabase;
 }

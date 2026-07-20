@@ -14,6 +14,7 @@ import {
   listConversations,
   setConversationPinned,
   setArcMessageFeedback,
+  streamArcMessageReasoning,
 } from "./persistence";
 
 function calls(supabase: MockSupabase, method: string): Array<Record<string, unknown>> {
@@ -400,13 +401,10 @@ describe("findPendingMessageByTask", () => {
 });
 
 describe("appendArcStep", () => {
-  it("verifies the agent task belongs to the resolved Arc workspace before updating steps", async () => {
+  it("verifies scope then uses the atomic database mutation for steps", async () => {
     const supabase = createSupabaseQueryMock({
       agent_tasks: { data: { id: "task-1" }, error: null },
-      arc_messages: [
-        { data: { id: "m1", metadata: {} }, error: null },
-        { data: null, error: null },
-      ],
+      "rpc:arc_append_message_step": { data: true, error: null },
     });
 
     const applied = await appendArcStep(
@@ -419,5 +417,35 @@ describe("appendArcStep", () => {
     expect(supabase.calls).toContainEqual(["from", "agent_tasks"]);
     expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
     expect(supabase.calls).toContainEqual(["eq", "workspace_id", "workspace-1"]);
+    expect(supabase.calls).toContainEqual([
+      "rpc",
+      "arc_append_message_step",
+      {
+        p_agent_task_id: "task-1",
+        p_label: "Checking leads",
+        p_status: "running",
+        p_at: "2026-06-19T12:00:00.000Z",
+      },
+    ]);
+  });
+});
+
+describe("streamArcMessageReasoning", () => {
+  it("patches reasoning through the atomic database mutation", async () => {
+    const supabase = createSupabaseQueryMock({
+      "rpc:arc_stream_message_reasoning": { data: true, error: null },
+    });
+
+    await streamArcMessageReasoning(
+      { agentTaskId: "task-1", reasoning: "Comparing the two audiences" },
+      supabase,
+    );
+
+    expect(supabase.calls).toContainEqual([
+      "rpc",
+      "arc_stream_message_reasoning",
+      { p_agent_task_id: "task-1", p_reasoning: "Comparing the two audiences" },
+    ]);
+    expect(supabase.calls.some(([method]) => method === "update")).toBe(false);
   });
 });

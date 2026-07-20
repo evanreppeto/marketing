@@ -13,6 +13,25 @@ export type ArcSkill = {
 
 export const ARC_SKILLS: readonly ArcSkill[] = [
   {
+    id: "skill-authoring",
+    name: "Skill authoring",
+    description: "Guide an operator through defining a safe, reusable Arc workflow.",
+    businessAgnostic: true,
+    approvalPolicy: "propose_only",
+    allowedTools: ["get_app_map", "get_workspace_settings", "emit_card", "suggest_followups", "ask_operator"],
+    instructions: [
+      "Use this skill only when the operator wants to create or revise a reusable Arc skill.",
+      "Gather the skill name, trigger, required context, ordered instructions, expected output, and approval rules. Ask focused questions when any of these are missing.",
+      "Return a concise skill specification the operator can review before installation. Never claim the skill is installed until the product confirms it.",
+      "Keep the workflow business-agnostic unless the operator explicitly grounds it in workspace context.",
+    ],
+    outputContract: [
+      "Provide a proposed name, slash command, purpose, trigger, inputs, ordered instructions, tools or connectors, output contract, and approval policy.",
+      "Clearly label assumptions and unresolved questions.",
+      "End by asking the operator to approve or revise the proposed specification.",
+    ],
+  },
+  {
     id: "company-research",
     name: "Company research",
     description: "Research a company, market, or prospect using public and workspace sources.",

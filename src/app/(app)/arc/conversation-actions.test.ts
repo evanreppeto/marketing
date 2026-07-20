@@ -9,6 +9,12 @@ vi.mock("@/lib/supabase/server", () => ({
   isSupabaseAdminConfigured: vi.fn(() => true),
   getSupabaseAdminClient: vi.fn(),
 }));
+vi.mock("@/lib/auth/org", () => ({ getCurrentOrgId: vi.fn(async () => "org-1") }));
+vi.mock("@/lib/campaigns/read-model", () => ({
+  listCampaignNames: vi.fn(async () => [
+    { id: "campaign-1", name: "Storm Rapid Response", href: "/campaigns/campaign-1" },
+  ]),
+}));
 vi.mock("@/lib/arc-chat/sharing", () => ({
   assertConversationAccess: vi.fn(async () => ({})),
   getCreationTenancy: vi.fn(async () => ({})),
@@ -18,9 +24,10 @@ vi.mock("@/lib/arc-chat/persistence", () => ({
   setConversationPinned: vi.fn(async () => undefined),
   archiveConversation: vi.fn(async () => undefined),
   deleteConversation: vi.fn(async () => undefined),
+  assignConversationToCampaign: vi.fn(async () => undefined),
 }));
 
-import { renameConversation, setConversationPinned, archiveConversation, deleteConversation } from "@/lib/arc-chat/persistence";
+import { renameConversation, setConversationPinned, archiveConversation, deleteConversation, assignConversationToCampaign } from "@/lib/arc-chat/persistence";
 import { assertConversationAccess } from "@/lib/arc-chat/sharing";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import {
@@ -28,12 +35,14 @@ import {
   pinArcConversationAction,
   archiveArcConversationAction,
   deleteArcConversationAction,
+  assignArcConversationCampaignAction,
 } from "./actions";
 
 const renameMock = vi.mocked(renameConversation);
 const pinMock = vi.mocked(setConversationPinned);
 const archiveMock = vi.mocked(archiveConversation);
 const deleteMock = vi.mocked(deleteConversation);
+const assignCampaignMock = vi.mocked(assignConversationToCampaign);
 const accessMock = vi.mocked(assertConversationAccess);
 const configured = vi.mocked(isSupabaseAdminConfigured);
 
@@ -69,6 +78,20 @@ describe("conversation management actions", () => {
     const result = await archiveArcConversationAction("c1");
     expect(result).toEqual({ ok: true });
     expect(archiveMock).toHaveBeenCalledWith("c1");
+  });
+
+  it("links and unlinks a conversation campaign", async () => {
+    expect(await assignArcConversationCampaignAction({ conversationId: "c1", campaignId: "campaign-1" })).toEqual({ ok: true });
+    expect(assignCampaignMock).toHaveBeenLastCalledWith("c1", "campaign-1");
+
+    expect(await assignArcConversationCampaignAction({ conversationId: "c1", campaignId: null })).toEqual({ ok: true });
+    expect(assignCampaignMock).toHaveBeenLastCalledWith("c1", null);
+  });
+
+  it("rejects a campaign outside the active workspace", async () => {
+    const result = await assignArcConversationCampaignAction({ conversationId: "c1", campaignId: "campaign-other" });
+    expect(result.ok).toBe(false);
+    expect(assignCampaignMock).not.toHaveBeenCalled();
   });
 
   it("deletes", async () => {

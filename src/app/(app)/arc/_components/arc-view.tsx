@@ -13,14 +13,32 @@ import {
 } from "react";
 import {
   Archive,
+  ArrowLeft,
+  ArrowRight,
   ArrowUp,
   AtSign,
+  Binoculars,
+  Blocks,
   Check,
+  ChevronRight,
   ChevronDown,
+  Circle,
+  ClipboardCheck,
+  CloudLightning,
+  Download,
+  FileText,
   Gauge,
+  GitFork,
   Hammer,
+  LayoutTemplate,
+  Link2,
   LoaderCircle,
+  MailCheck,
+  MapPinned,
+  Megaphone,
   Menu,
+  MessageSquareText,
+  MessagesSquare,
   MoreHorizontal,
   PanelRightClose,
   PanelRightOpen,
@@ -28,10 +46,15 @@ import {
   PencilLine,
   Pin,
   Plus,
+  Radar,
+  Repeat2,
   Search,
   Share2,
+  ShieldCheck,
   Slash,
   Sparkles,
+  Target,
+  Telescope,
   Trash2,
   Users,
   X,
@@ -48,6 +71,17 @@ import {
   type ShareVisibility,
 } from "@/domain";
 import { contextUsage } from "@/lib/arc-chat/context-usage";
+import { applyArcStreamFrame, type ArcStreamOverlay } from "@/lib/arc-chat/live-stream";
+import {
+  ARC_SKILL_BUILDER,
+  ARC_SKILL_INSTALLER,
+  ARC_SKILL_LIBRARY,
+  ARC_SKILLS,
+  type ArcSkillDefinition,
+} from "@/lib/arc-skills/catalog";
+import type { WorkspaceArcSkill } from "@/lib/arc-skills/custom";
+import type { ConnectionView } from "@/lib/connections/read-model";
+import type { ConnectorView } from "@/lib/connectors/read-model";
 import type {
   ArcAttachment,
   ArcMessage,
@@ -55,7 +89,7 @@ import type {
 } from "@/lib/arc-chat/persistence";
 import type { MentionGroup } from "@/lib/arc-chat/mention-search";
 import type { ArcThreadGroupVM } from "@/lib/arc-chat/read-model";
-import { filterThreadGroups } from "@/lib/arc-chat/thread-filter";
+import { filterThreadGroups, type ArcThreadFilter } from "@/lib/arc-chat/thread-filter";
 import { resolveArcModelRoute, type ArcModelPreference } from "@/lib/arc-chat/model-routing";
 import { buildArcRunContract } from "@/lib/arc-chat/run-contract";
 import { buildArcRunProfile, inferArcRunIntent } from "@/lib/arc-chat/run-profile";
@@ -63,13 +97,18 @@ import { getArcConversationHeader, shouldShowDemoLauncher } from "@/lib/arc-chat
 
 import {
   archiveArcConversationAction,
+  assignArcConversationCampaignAction,
   cancelArcRunAction,
   deleteArcConversationAction,
   editAndResendArcMessageAction,
   pinArcConversationAction,
   regenerateArcReplyAction,
   renameArcConversationAction,
+  installArcGithubSkillAction,
+  previewArcGithubSkillAction,
+  removeArcGithubSkillAction,
   sendArcMessageAction,
+  setArcSkillInstalledAction,
   uploadArcAttachmentAction,
 } from "../actions";
 import {
@@ -98,12 +137,11 @@ const MODEL_OPTIONS: Array<{ id: ArcModelPreference; label: string; description:
 
 const ARC_CONTEXT_SCOPES = ["workspace", "brand", "crm", "campaigns"];
 
-const COMMAND_OPTIONS: Array<{ id: string; label: string; description: string; mode: ArcMode }> = [
-  { id: "find-leads", label: "Find leads", description: "Search and rank opportunities", mode: "act" },
-  { id: "draft-email", label: "Draft email", description: "Prepare an approval-safe email", mode: "draft" },
-  { id: "draft-campaign", label: "Draft campaign", description: "Build a multi-channel package", mode: "draft" },
-  { id: "summarize", label: "Summarize", description: "Condense the selected context", mode: "ask" },
-];
+const COMMAND_SKILLS = [...ARC_SKILLS, ...ARC_SKILL_LIBRARY, ARC_SKILL_BUILDER];
+
+const COMMAND_OPTIONS: Array<{ id: string; mode: ArcMode }> = COMMAND_SKILLS.flatMap((skill) =>
+  skill.commands.map((command) => ({ id: command.replace(/^\//, ""), mode: skill.mode })),
+);
 
 function inferComposerMode(request: string, command: string | null): ArcMode {
   const commandMode = COMMAND_OPTIONS.find((option) => option.id === command)?.mode;
@@ -121,13 +159,17 @@ function ArcModelIcon({ model, size }: { model: ArcModelPreference; size: number
   return <Hammer size={size} />;
 }
 
-function ThreadRow({ thread, active, live, onOpen, onRename, onPin, onArchive, onDelete }: {
+function ThreadRow({ thread, active, live, campaignName, showCampaignLabel, campaigns, onOpen, onRename, onPin, onAssignCampaign, onArchive, onDelete }: {
   thread: ThreadItem;
   active: boolean;
   live: boolean;
+  campaignName: string | null;
+  showCampaignLabel: boolean;
+  campaigns: ArcMention[];
   onOpen: () => void;
   onRename: (title: string) => void;
   onPin: (pinned: boolean) => void;
+  onAssignCampaign: (campaignId: string | null) => void;
   onArchive: () => void;
   onDelete: () => void;
 }) {
@@ -135,6 +177,7 @@ function ThreadRow({ thread, active, live, onOpen, onRename, onPin, onArchive, o
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(thread.title);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [campaignPicker, setCampaignPicker] = useState(false);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -142,6 +185,7 @@ function ThreadRow({ thread, active, live, onOpen, onRename, onPin, onArchive, o
       if (event.target instanceof Element && !event.target.closest(`[data-thread="${thread.id}"]`)) {
         setMenuOpen(false);
         setConfirmDelete(false);
+        setCampaignPicker(false);
       }
     };
     document.addEventListener("pointerdown", dismiss);
@@ -153,6 +197,40 @@ function ThreadRow({ thread, active, live, onOpen, onRename, onPin, onArchive, o
     setRenaming(false);
     if (next && next !== thread.title) onRename(next);
     else setName(thread.title);
+  };
+
+  const openThreadMenu = () => {
+    setConfirmDelete(false);
+    setCampaignPicker(false);
+    setMenuOpen(true);
+  };
+
+  const handleThreadContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.target instanceof Element && event.target.closest(".arc-history-menu")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openThreadMenu();
+  };
+
+  const handleThreadMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (campaignPicker) setCampaignPicker(false);
+      else setMenuOpen(false);
+      return;
+    }
+    if (event.key === "Enter" && document.activeElement instanceof HTMLButtonElement) {
+      event.preventDefault();
+      document.activeElement.click();
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button[role="menuitem"], button[role="menuitemradio"]')).filter((item) => !item.disabled);
+    if (items.length === 0) return;
+    event.preventDefault();
+    const index = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : event.key === "ArrowDown" ? (index + 1 + items.length) % items.length : (index - 1 + items.length) % items.length;
+    items[next]?.focus();
   };
 
   if (renaming) {
@@ -173,27 +251,34 @@ function ThreadRow({ thread, active, live, onOpen, onRename, onPin, onArchive, o
     );
   }
 
+  const visibleCampaignName = showCampaignLabel ? campaignName : null;
   const label = (
     <span>
       <b>{thread.title}</b>
       {thread.running
-        ? <small className="arc-thread-working"><span className="arc-thread-dots" aria-hidden="true"><i /><i /><i /></span>Working…</small>
-        : <small>{thread.when}</small>}
+        ? <small className="arc-thread-working"><span className="arc-thread-dots" aria-hidden="true"><i /><i /><i /></span>Working…{visibleCampaignName ? <em><Megaphone size={9} />{visibleCampaignName}</em> : null}</small>
+        : <small className="arc-thread-meta" data-campaign={visibleCampaignName ? "true" : "false"}>{visibleCampaignName ? <><Megaphone size={9} /><span>{visibleCampaignName}</span></> : <span>{thread.pinned ? "Pinned" : "Conversation"}</span>}<i aria-hidden="true" />{thread.when}</small>}
     </span>
   );
 
   return (
-    <div className={`arc-history-item${active ? " is-active" : ""}`} data-thread={thread.id}>
+    <div className={`arc-history-item${active ? " is-active" : ""}`} data-thread={thread.id} onContextMenu={handleThreadContextMenu}>
       {live
         ? <Link href={`/arc?c=${thread.id}`} className="arc-history-open" onClick={onOpen}>{label}</Link>
         : <button type="button" className="arc-history-open" onClick={onOpen}>{label}</button>}
       {thread.pinned ? <Pin size={12} className="arc-history-pin" aria-label="Pinned" /> : null}
-      <button type="button" className="arc-history-menu-btn" aria-label="Conversation options" aria-haspopup="menu" aria-expanded={menuOpen} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setConfirmDelete(false); setMenuOpen((open) => !open); }}>
+      <button type="button" className="arc-history-menu-btn" aria-label="Conversation options" aria-haspopup="menu" aria-expanded={menuOpen} onClick={(event) => { event.preventDefault(); event.stopPropagation(); if (menuOpen) setMenuOpen(false); else openThreadMenu(); }}>
         <MoreHorizontal size={15} />
       </button>
       {menuOpen ? (
-        <div className="arc-history-menu" role="menu">
-          {confirmDelete ? (
+        <div className="arc-history-menu" role="menu" onKeyDown={handleThreadMenuKeyDown}>
+          {campaignPicker ? (
+            <div className="arc-history-campaign-picker">
+              <div><button type="button" onClick={() => setCampaignPicker(false)} aria-label="Back to conversation options"><ArrowLeft size={13} /></button><span><b>Campaign</b><small>{campaignName || "Not linked"}</small></span></div>
+              <button type="button" role="menuitemradio" aria-checked={!thread.campaignId} onClick={() => { setMenuOpen(false); setCampaignPicker(false); onAssignCampaign(null); }}><span>No campaign</span>{!thread.campaignId ? <Check size={13} /> : null}</button>
+              {campaigns.map((campaign) => <button type="button" role="menuitemradio" aria-checked={thread.campaignId === campaign.id} key={campaign.id} onClick={() => { setMenuOpen(false); setCampaignPicker(false); onAssignCampaign(campaign.id); }}><span>{campaign.label}</span>{thread.campaignId === campaign.id ? <Check size={13} /> : null}</button>)}
+            </div>
+          ) : confirmDelete ? (
             <div className="arc-history-menu-confirm">
               <span>Delete this conversation?</span>
               <div>
@@ -205,6 +290,7 @@ function ThreadRow({ thread, active, live, onOpen, onRename, onPin, onArchive, o
             <>
               <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onPin(!thread.pinned); }}><Pin size={14} />{thread.pinned ? "Unpin" : "Pin"}</button>
               <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setName(thread.title); setRenaming(true); }}><PencilLine size={14} />Rename</button>
+              <button type="button" role="menuitem" className="has-detail" onClick={() => setCampaignPicker(true)}><Megaphone size={14} /><span><b>{campaignName ? "Change campaign" : "Assign campaign"}</b><small>{campaignName || "Keep this chat with its campaign"}</small></span><ChevronRight size={13} /></button>
               <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onArchive(); }}><Archive size={14} />Archive</button>
               <button type="button" role="menuitem" className="is-danger" onClick={() => setConfirmDelete(true)}><Trash2 size={14} />Delete</button>
             </>
@@ -215,27 +301,215 @@ function ThreadRow({ thread, active, live, onOpen, onRename, onPin, onArchive, o
   );
 }
 
+type DrawerConnectorStatus = ConnectorView["status"] | ConnectionView["status"];
+
+type DrawerConnectorItem = {
+  key: string;
+  label: string;
+  description: string;
+  status: DrawerConnectorStatus;
+  statusLabel: string;
+  kindLabel: string;
+  accessLabel: string;
+  mark: string;
+  color: string;
+};
+
+const CONNECTOR_PRESENTATION: Record<string, { mark: string; color: string }> = {
+  resend: { mark: "Re", color: "#9aa0ac" },
+  "gemini-research": { mark: "Gem", color: "#88b6d8" },
+  higgsfield: { mark: "Hf", color: "#c8a24a" },
+  "weather-signals": { mark: "Wx", color: "#7fb89a" },
+  "rss-signals": { mark: "Fd", color: "#8a9bd8" },
+  "reviews-signals": { mark: "Rv", color: "#e0a94a" },
+  "competitor-ads": { mark: "Ad", color: "#c47f7f" },
+  "webhook-dispatch": { mark: "Wh", color: "#9aa0ac" },
+  "permit-data": { mark: "Pd", color: "#b58b66" },
+  "hubspot-import": { mark: "Hs", color: "#ff7a59" },
+  "lead-enrichment": { mark: "En", color: "#5b8def" },
+};
+
+const CONNECTOR_KIND_LABEL: Record<ConnectorView["kind"], string> = {
+  mcp_tool: "Tool",
+  signal_source: "Signal source",
+  channel: "Channel",
+  import_source: "Import",
+};
+
+function connectorStatusLabel(status: DrawerConnectorStatus): string {
+  if (status === "connected") return "Connected";
+  if (status === "disabled") return "Paused";
+  if (status === "error") return "Needs attention";
+  if (status === "unavailable") return "Planned";
+  return "Not connected";
+}
+
 function ThreadDrawer({
   live,
   groups,
   activeConversationId,
   selectedDemoId,
+  needsReviewCount,
   onSelectDemo,
+  onOpenReview,
+  onUseSkill,
+  installedSkills,
+  installedSkillKeys,
+  installingSkillKey,
+  onSetSkillInstalled,
+  workspaceSkills,
+  onWorkspaceSkillsChange,
+  campaignItems,
+  connectorsConfigured,
+  connectors,
+  emailConnection,
+  liveSendEnabled,
   onClose,
 }: {
   live: boolean;
   groups: ArcThreadGroupVM[];
   activeConversationId: string | null;
   selectedDemoId: string;
+  needsReviewCount: number;
   onSelectDemo: (id: string) => void;
+  onOpenReview: () => void;
+  onUseSkill: (skill: ArcSkillDefinition) => void;
+  installedSkills: ArcSkillDefinition[];
+  installedSkillKeys: string[];
+  installingSkillKey: string | null;
+  onSetSkillInstalled: (skill: ArcSkillDefinition, installed: boolean) => void;
+  workspaceSkills: WorkspaceArcSkill[];
+  onWorkspaceSkillsChange: (skills: WorkspaceArcSkill[]) => void;
+  campaignItems: ArcMention[];
+  connectorsConfigured: boolean;
+  connectors: ConnectorView[];
+  emailConnection: ConnectionView | null;
+  liveSendEnabled: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
+  const [view, setView] = useState<"conversations" | "skills" | "connectors">("conversations");
+  const [skillsMode, setSkillsMode] = useState<"installed" | "library">("installed");
+  const [skillSearch, setSkillSearch] = useState("");
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<ArcThreadFilter>("all");
+  const [threadGrouping, setThreadGrouping] = useState<"recent" | "campaign">("recent");
+  const [githubOpen, setGithubOpen] = useState(false);
+  const [githubUrl, setGithubUrl] = useState("");
+  const [githubPreview, setGithubPreview] = useState<WorkspaceArcSkill | null>(null);
+  const [githubStatus, setGithubStatus] = useState<string | null>(null);
+  const [githubBusy, setGithubBusy] = useState(false);
   const [demoGroups, setDemoGroups] = useState<ArcThreadGroupVM[]>(DEMO_THREADS);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const sourceGroups = live ? groups : demoGroups;
-  const visibleGroups = filterThreadGroups(sourceGroups, query);
+  const availableCampaigns: ArcMention[] = campaignItems.length > 0 ? campaignItems : [
+    { type: "campaign", id: "demo-camp", label: "Storm Rapid Response", href: "/campaigns" },
+    { type: "campaign", id: "past-customer", label: "Past Customer Re-engagement", href: "/campaigns" },
+    { type: "campaign", id: "property-partners", label: "Property Partner Growth", href: "/campaigns" },
+  ];
+  const campaignNames = new Map<string, string>([
+    ["demo-camp", "Storm Rapid Response"],
+    ["past-customer", "Past Customer Re-engagement"],
+    ["property-partners", "Property Partner Growth"],
+    ...availableCampaigns.map((campaign) => [campaign.id, campaign.label] as [string, string]),
+  ]);
+  const campaignGroups = (() => {
+    const byCampaign = new Map<string, ArcThreadGroupVM["items"]>();
+    for (const thread of sourceGroups.flatMap((group) => group.items)) {
+      const key = thread.campaignId || "__none__";
+      const items = byCampaign.get(key);
+      if (items) items.push(thread);
+      else byCampaign.set(key, [thread]);
+    }
+    return [...byCampaign.entries()]
+      .sort(([left], [right]) => {
+        if (left === "__none__") return 1;
+        if (right === "__none__") return -1;
+        return (campaignNames.get(left) ?? left).localeCompare(campaignNames.get(right) ?? right);
+      })
+      .map(([campaignId, items]) => ({ group: campaignId === "__none__" ? "No campaign" : campaignNames.get(campaignId) ?? "Campaign", items }));
+  })();
+  const visibleGroups = filterThreadGroups(threadGrouping === "campaign" ? campaignGroups : sourceGroups, query, filter);
+  const allThreads = sourceGroups.flatMap((group) => group.items);
+  const runningCount = allThreads.filter((thread) => thread.running).length;
+  const pinnedCount = allThreads.filter((thread) => thread.pinned).length;
+  const connectorItems: DrawerConnectorItem[] = [
+    ...(emailConnection ? [{
+      key: "resend",
+      label: "Resend",
+      description: "Approved campaign and transactional email delivery.",
+      status: emailConnection.status === "connected" && !liveSendEnabled ? "disabled" as const : emailConnection.status,
+      statusLabel: emailConnection.status === "connected" && !liveSendEnabled ? "Not armed" : connectorStatusLabel(emailConnection.status),
+      kindLabel: "Channel",
+      accessLabel: "gated write",
+      ...CONNECTOR_PRESENTATION.resend!,
+    }] : []),
+    ...connectors.map((connector) => ({
+      key: connector.key,
+      label: connector.label,
+      description: connector.description.replace(/^PLANNED —\s*/i, ""),
+      status: connector.status,
+      statusLabel: connectorStatusLabel(connector.status),
+      kindLabel: CONNECTOR_KIND_LABEL[connector.kind],
+      accessLabel: connector.access === "read_only" ? "read-only" : "gated write",
+      ...(CONNECTOR_PRESENTATION[connector.key] ?? { mark: connector.label.slice(0, 2), color: "#9aa0ac" }),
+    })),
+  ].sort((a, b) => {
+    const rank: Record<DrawerConnectorStatus, number> = { connected: 0, error: 1, disabled: 2, not_configured: 3, unavailable: 4 };
+    return rank[a.status] - rank[b.status] || a.label.localeCompare(b.label);
+  });
+  const connectedCount = connectorItems.filter((connector) => connector.status === "connected").length;
+  const visibleLibrarySkills = ARC_SKILL_LIBRARY.filter((skill) => {
+    const needle = skillSearch.trim().toLocaleLowerCase();
+    return !needle || `${skill.name} ${skill.description} ${skill.commands.join(" ")} ${skill.publisher ?? ""}`.toLocaleLowerCase().includes(needle);
+  });
+
+  const handleRovingListKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]'))
+      .filter((item) => item.offsetParent !== null && !item.closest('[role="menu"]'));
+    if (items.length === 0) return;
+    event.preventDefault();
+    const index = items.indexOf(document.activeElement as HTMLElement);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : event.key === "ArrowDown" ? (index + 1 + items.length) % items.length : (index - 1 + items.length) % items.length;
+    items[next]?.focus();
+  };
+
+  const reviewGithubSkill = async () => {
+    setGithubBusy(true);
+    setGithubStatus(null);
+    setGithubPreview(null);
+    const result = await previewArcGithubSkillAction({ url: githubUrl });
+    if (result.ok) setGithubPreview(result.skill);
+    else setGithubStatus(result.error);
+    setGithubBusy(false);
+  };
+
+  const installGithubSkill = async () => {
+    if (!githubPreview) return;
+    setGithubBusy(true);
+    const result = await installArcGithubSkillAction({ url: githubPreview.repositoryUrl });
+    if (!result.ok) setGithubStatus(result.error);
+    else {
+      const next = result.persisted ? result.skills : [...workspaceSkills.filter((skill) => skill.key !== githubPreview.key), ...result.skills];
+      onWorkspaceSkillsChange(next);
+      setGithubStatus(`${githubPreview.name} installed${result.persisted ? " for this workspace" : " for this preview"}. Use ${githubPreview.commands[0]} in chat.`);
+      setGithubPreview(null);
+      setGithubUrl("");
+    }
+    setGithubBusy(false);
+  };
+
+  const removeGithubSkill = async (skill: WorkspaceArcSkill) => {
+    setGithubBusy(true);
+    const result = await removeArcGithubSkillAction({ skillKey: skill.key });
+    if (!result.ok) setGithubStatus(result.error);
+    else {
+      onWorkspaceSkillsChange(result.persisted ? result.skills : workspaceSkills.filter((candidate) => candidate.key !== skill.key));
+      setGithubStatus(`${skill.name} removed.`);
+    }
+    setGithubBusy(false);
+  };
 
   // Demo mutations are local; live mutations hit the real actions then refresh.
   const applyDemo = (id: string, transform: (item: ThreadItem) => ThreadItem | null) => {
@@ -256,6 +530,10 @@ function ThreadDrawer({
     if (!live) return applyDemo(id, (item) => ({ ...item, pinned }));
     pinArcConversationAction({ conversationId: id, pinned }).then((result) => { if (result.ok) router.refresh(); });
   };
+  const doAssignCampaign = (id: string, campaignId: string | null) => {
+    if (!live) return applyDemo(id, (item) => ({ ...item, campaignId }));
+    assignArcConversationCampaignAction({ conversationId: id, campaignId }).then((result) => { if (result.ok) router.refresh(); });
+  };
   const doArchive = (id: string) => {
     if (!live) return applyDemo(id, () => null);
     archiveArcConversationAction(id).then((result) => { if (result.ok) router.refresh(); });
@@ -273,7 +551,8 @@ function ThreadDrawer({
     const focusSearch = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "k") {
         event.preventDefault();
-        searchInputRef.current?.focus();
+        setView("conversations");
+        window.requestAnimationFrame(() => searchInputRef.current?.focus());
       }
     };
     window.addEventListener("keydown", focusSearch);
@@ -281,36 +560,151 @@ function ThreadDrawer({
   }, []);
 
   return (
-    <motion.aside className="arc-history" initial={{ x: -24, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -24, opacity: 0 }} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }} aria-label="Conversation history">
-      <div className="arc-history-head"><div><h2>Conversations</h2><p>Pick up where you left off.</p></div><button type="button" className="arc-icon-button" onClick={onClose} aria-label="Close history"><X size={17} /></button></div>
-      {live ? <Link href="/arc?new=1" className="arc-new-chat"><Plus size={16} /> New conversation</Link> : <button type="button" className="arc-new-chat" onClick={() => onSelectDemo("new")}><Plus size={16} /> New conversation</button>}
-      <label className="arc-history-search"><Search size={15} /><input ref={searchInputRef} autoFocus type="search" aria-label="Search conversations" placeholder="Search conversations" value={query} onChange={(event) => setQuery(event.target.value)} /><kbd aria-hidden="true">⌘K</kbd></label>
-      <div className="arc-history-list">
-        {visibleGroups.map((group) => (
-          <div className="arc-history-group" key={group.group}>
-            <h3>{group.group}</h3>
-            {group.items.map((thread) => {
-              const active = live ? thread.id === activeConversationId : thread.id === selectedDemoId;
-              return (
-                <ThreadRow
-                  key={thread.id}
-                  thread={thread}
-                  active={active}
-                  live={live}
-                  onOpen={live ? onClose : () => onSelectDemo(thread.id)}
-                  onRename={(title) => doRename(thread.id, title)}
-                  onPin={(pinned) => doPin(thread.id, pinned)}
-                  onArchive={() => doArchive(thread.id)}
-                  onDelete={() => doDelete(thread.id)}
-                />
-              );
-            })}
-          </div>
-        ))}
-        {visibleGroups.length === 0 ? <div className="arc-history-empty"><Search size={17} /><b>No conversations found</b><span>Try a different title or date.</span></div> : null}
-      </div>
+    <motion.aside className="arc-history" initial={{ x: -24, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -24, opacity: 0 }} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }} aria-label="Arc workspace">
+      <div className="arc-history-topline"><span className="arc-history-eyebrow">Your Arc workspace</span><button type="button" className="arc-icon-button" onClick={onClose} aria-label="Close Arc workspace"><X size={17} /></button></div>
+      <nav className="arc-drawer-nav" aria-label="Arc workspace sections">
+        <button type="button" className={view === "conversations" ? "is-active" : ""} aria-current={view === "conversations" ? "page" : undefined} onClick={() => setView("conversations")}><MessageSquareText size={14} />Conversations</button>
+        <button type="button" className={`is-skills${view === "skills" ? " is-active" : ""}`} aria-current={view === "skills" ? "page" : undefined} onClick={() => { setView("skills"); setSkillsMode("installed"); }}><Blocks size={14} />Skills</button>
+        <button type="button" className={view === "connectors" ? "is-active" : ""} aria-current={view === "connectors" ? "page" : undefined} onClick={() => setView("connectors")}><Link2 size={14} />Connectors</button>
+      </nav>
+
+      {view === "conversations" ? <section className="arc-drawer-view" aria-labelledby="arc-conversations-title">
+        <header className="arc-drawer-view-head"><h2 id="arc-conversations-title">Conversations</h2><p>Return to active work, reviews, and saved context.</p></header>
+        {live ? <Link href="/arc?new=1" className="arc-new-chat"><Plus size={16} /> New conversation</Link> : <button type="button" className="arc-new-chat" onClick={() => onSelectDemo("new")}><Plus size={16} /> New conversation</button>}
+        <label className="arc-history-search"><Search size={15} /><input ref={searchInputRef} autoFocus type="search" aria-label="Search conversations" placeholder="Search conversations" value={query} onChange={(event) => setQuery(event.target.value)} /><kbd aria-hidden="true">⌘K</kbd></label>
+        <div className="arc-history-filters" role="group" aria-label="Filter conversations">
+          {([
+            ["all", "All", allThreads.length],
+            ["running", "Working", runningCount],
+            ["pinned", "Pinned", pinnedCount],
+          ] as const).map(([id, label, count]) => <button type="button" key={id} className={filter === id ? "is-active" : ""} aria-pressed={filter === id} onClick={() => setFilter(id)}><span>{label}</span>{count > 0 ? <small>{count}</small> : null}</button>)}
+        </div>
+        <div className="arc-thread-grouping" role="group" aria-label="Organize conversations">
+          <button type="button" className={threadGrouping === "recent" ? "is-active" : ""} aria-pressed={threadGrouping === "recent"} onClick={() => setThreadGrouping("recent")}>Recent</button>
+          <button type="button" className={threadGrouping === "campaign" ? "is-active" : ""} aria-pressed={threadGrouping === "campaign"} onClick={() => setThreadGrouping("campaign")}><Megaphone size={12} /> Campaigns</button>
+        </div>
+        {needsReviewCount > 0 || runningCount > 0 ? <div className="arc-history-attention">
+          {needsReviewCount > 0 ? <button type="button" onClick={onOpenReview}><span><ClipboardCheck size={15} /><b>{needsReviewCount} need review</b></span><ArrowRight size={14} /></button> : null}
+          {runningCount > 0 ? <span><LoaderCircle size={14} className="is-spinning" />{runningCount} active {runningCount === 1 ? "run" : "runs"}</span> : null}
+        </div> : null}
+        <div className="arc-history-list" onKeyDown={handleRovingListKeyDown}>
+          {visibleGroups.map((group) => (
+            <div className="arc-history-group" key={group.group}>
+              <h3 data-kind={threadGrouping === "campaign" ? "campaign" : "date"} data-unassigned={group.group === "No campaign" ? "true" : undefined}>
+                {threadGrouping === "campaign" ? <span className="arc-campaign-group-icon" aria-hidden="true">{group.group === "No campaign" ? <Circle size={8} /> : <Megaphone size={10} />}</span> : null}
+                <span>{group.group}</span>
+              </h3>
+              {group.items.map((thread) => {
+                const active = live ? thread.id === activeConversationId : thread.id === selectedDemoId;
+                return (
+                  <ThreadRow
+                    key={thread.id}
+                    thread={thread}
+                    active={active}
+                    live={live}
+                    campaignName={thread.campaignId ? campaignNames.get(thread.campaignId) ?? "Campaign" : null}
+                    showCampaignLabel={threadGrouping === "recent"}
+                    campaigns={availableCampaigns}
+                    onOpen={live ? onClose : () => onSelectDemo(thread.id)}
+                    onRename={(title) => doRename(thread.id, title)}
+                    onPin={(pinned) => doPin(thread.id, pinned)}
+                    onAssignCampaign={(campaignId) => doAssignCampaign(thread.id, campaignId)}
+                    onArchive={() => doArchive(thread.id)}
+                    onDelete={() => doDelete(thread.id)}
+                  />
+                );
+              })}
+            </div>
+          ))}
+          {visibleGroups.length === 0 ? <div className="arc-history-empty"><Search size={17} /><b>No conversations found</b><span>Try a different title or date.</span></div> : null}
+        </div>
+      </section> : null}
+
+      {view === "skills" && skillsMode === "installed" ? <section className="arc-drawer-view arc-drawer-skills" aria-labelledby="arc-skills-title">
+        <header className="arc-drawer-view-head"><div className="arc-drawer-title-row"><h2 id="arc-skills-title">Skills</h2><span>{installedSkills.length} installed</span></div><p>Reusable workflows you can call with <code>/</code> in any conversation.</p></header>
+        <div className="arc-skill-actions" onKeyDown={handleRovingListKeyDown}>
+          <button type="button" className="arc-skill-create" onClick={() => onUseSkill(ARC_SKILL_BUILDER)}><span><Plus size={15} /></span><span><b>Create a skill</b><small>Guided builder · /create-skill</small></span><ArrowRight size={14} /></button>
+          <button type="button" className="arc-skill-browse" onClick={() => { setSkillsMode("library"); setGithubOpen(true); }}><span><GitFork size={15} /></span><span><b>Add from GitHub</b><small>Review a public SKILL.md before installing</small></span><ArrowRight size={14} /></button>
+          <button type="button" className="arc-skill-browse" onClick={() => setSkillsMode("library")}><span><Download size={15} /></span><span><b>Browse Arc Library</b><small>Curated workflows reviewed by Arc</small></span><ArrowRight size={14} /></button>
+        </div>
+        <div className="arc-skills-section-head"><span>Installed</span><small>{installedSkillKeys.length > 0 ? `${installedSkillKeys.length} from library` : "Included with Arc"}</small></div>
+        <div className="arc-skills-list" onKeyDown={handleRovingListKeyDown}>
+          {installedSkills.map((skill) => (
+            <button type="button" className="arc-skill-row" data-source={skill.source} key={skill.key} onClick={() => onUseSkill(skill)}>
+              <span className="arc-skill-icon"><SkillIcon skill={skill} /></span>
+              <span><b>{skill.name}</b><small>{skill.description}</small><em>{skill.commands[0]}</em></span>
+              <ArrowRight size={14} />
+            </button>
+          ))}
+        </div>
+        <p className="arc-drawer-footnote"><ShieldCheck size={13} /> Skills can prepare work, but outbound actions still require review.</p>
+      </section> : null}
+
+      {view === "skills" && skillsMode === "library" ? <section className="arc-drawer-view arc-drawer-skills arc-skill-library" aria-labelledby="arc-skill-library-title">
+        <header className="arc-drawer-view-head arc-skill-library-head"><button type="button" onClick={() => setSkillsMode("installed")}><ArrowLeft size={14} /> Skills</button><div className="arc-drawer-title-row"><h2 id="arc-skill-library-title">Skill library</h2><span>Workspace</span></div><p>Install reviewed workflows from Arc or a public GitHub repository.</p></header>
+        <button type="button" className="arc-github-toggle" aria-expanded={githubOpen} onClick={() => setGithubOpen((open) => !open)}><GitFork size={15} /><span><b>Import from GitHub</b><small>Repository or SKILL.md URL</small></span><ChevronDown size={13} /></button>
+        {githubOpen ? <div className="arc-github-import">
+          <label><span>GitHub URL</span><div><GitFork size={14} /><input type="url" value={githubUrl} placeholder="https://github.com/org/repo/blob/main/SKILL.md" onChange={(event) => { setGithubUrl(event.target.value); setGithubPreview(null); setGithubStatus(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void reviewGithubSkill(); } }} /></div></label>
+          <button type="button" disabled={githubBusy || !githubUrl.trim()} onClick={() => void reviewGithubSkill()}>{githubBusy ? <LoaderCircle size={13} className="is-spinning" /> : <ShieldCheck size={13} />}Review skill</button>
+          {githubPreview ? <div className="arc-github-preview"><span className="arc-skill-icon"><SkillIcon skill={githubPreview} /></span><div><b>{githubPreview.name}</b><small>{githubPreview.description}</small><em>{githubPreview.commands[0]}</em><p>{githubPreview.publisher} · runs read-only</p></div><button type="button" disabled={githubBusy} onClick={() => void installGithubSkill()}><Download size={13} />Install</button></div> : null}
+          {githubStatus ? <p className="arc-github-status">{githubStatus}</p> : null}
+        </div> : null}
+        {workspaceSkills.length > 0 ? <div className="arc-github-installed"><div className="arc-skills-section-head"><span>From GitHub</span><small>{workspaceSkills.length} installed</small></div>{workspaceSkills.map((skill) => <div key={skill.key}><button type="button" onClick={() => onUseSkill(skill)}><span className="arc-skill-icon"><SkillIcon skill={skill} /></span><span><b>{skill.name}</b><small>{skill.publisher}</small><em>{skill.commands[0]}</em></span></button><button type="button" aria-label={`Remove ${skill.name}`} disabled={githubBusy} onClick={() => void removeGithubSkill(skill)}><X size={13} /></button></div>)}</div> : null}
+        <label className="arc-skill-search"><Search size={14} /><input type="search" aria-label="Search online skills" placeholder="Search skills" value={skillSearch} onChange={(event) => setSkillSearch(event.target.value)} /></label>
+        <div className="arc-skills-section-head"><span>Discover</span><small>{visibleLibrarySkills.length} skills</small></div>
+        <div className="arc-skills-list arc-library-list" onKeyDown={handleRovingListKeyDown}>
+          {visibleLibrarySkills.map((skill) => {
+            const installed = installedSkillKeys.includes(skill.key);
+            const saving = installingSkillKey === skill.key;
+            return <article className="arc-library-skill" data-installed={installed ? "true" : "false"} key={skill.key}>
+              <span className="arc-skill-icon"><SkillIcon skill={skill} /></span>
+              <div><span><b>{skill.name}</b><em>{skill.commands[0]}</em></span><small>{skill.description}</small><p>{skill.publisher} · Reviewed by Arc</p></div>
+              <button type="button" disabled={saving} onClick={() => onSetSkillInstalled(skill, !installed)}>{saving ? <LoaderCircle size={13} className="is-spinning" /> : installed ? <Check size={13} /> : <Download size={13} />}{saving ? "Saving" : installed ? "Installed" : "Install"}</button>
+            </article>;
+          })}
+          {visibleLibrarySkills.length === 0 ? <div className="arc-connector-empty"><Search size={17} /><b>No skills found</b><span>Try a different workflow or command.</span></div> : null}
+        </div>
+        <p className="arc-drawer-footnote"><ShieldCheck size={13} /> GitHub skills are treated as untrusted text and cannot expand Arc&apos;s read-only tool boundary.</p>
+      </section> : null}
+
+      {view === "connectors" ? <section className="arc-drawer-view arc-drawer-connectors" aria-labelledby="arc-connectors-title">
+        <header className="arc-drawer-view-head"><div className="arc-drawer-title-row"><h2 id="arc-connectors-title">Connectors</h2><span className="is-connector-count">{connectedCount} connected</span></div><p>Arc&apos;s plugins, with the live status for this workspace.</p></header>
+        {!connectorsConfigured ? <div className="arc-connector-notice"><ShieldCheck size={14} /><span><b>Catalog preview</b><small>Connect a workspace to store credentials and live status.</small></span></div> : null}
+        <div className="arc-connectors-section-head"><span>{connectorItems.length} workspace connectors</span><Link href="/settings?s=connections">Manage all <ArrowRight size={12} /></Link></div>
+        <div className="arc-connector-list">
+          {connectorItems.map((connector) => (
+            <Link href={`/settings?s=connections&c=${encodeURIComponent(connector.key)}`} className="arc-connector-row" data-status={connector.status} key={connector.key}>
+              <span className="arc-connector-logo" style={{ "--connector-color": connector.color } as React.CSSProperties}>{connector.mark}</span>
+              <span className="arc-connector-copy"><span><b>{connector.label}</b><em>{connector.statusLabel}</em></span><small>{connector.kindLabel} · {connector.accessLabel}</small><p>{connector.description}</p></span>
+              <ChevronRight size={14} />
+            </Link>
+          ))}
+          {connectorItems.length === 0 ? <div className="arc-connector-empty"><Link2 size={17} /><b>No connectors found</b><span>Open Settings to refresh the workspace catalog.</span></div> : null}
+        </div>
+        <p className="arc-drawer-footnote"><ShieldCheck size={13} /> Connections are workspace-scoped and controlled in Settings.</p>
+      </section> : null}
     </motion.aside>
   );
+}
+
+function SkillIcon({ skill, size = 17 }: { skill: ArcSkillDefinition; size?: number }) {
+  if (skill.key === "skill-authoring") return <Blocks size={size} />;
+  if (skill.key === "skill-installation") return <GitFork size={size} />;
+  if (skill.source === "github") return <GitFork size={size} />;
+  if (skill.key === "competitor-watch") return <Binoculars size={size} />;
+  if (skill.key === "local-search-audit") return <MapPinned size={size} />;
+  if (skill.key === "review-response-planner") return <MessagesSquare size={size} />;
+  if (skill.key === "proposal-follow-up") return <MailCheck size={size} />;
+  if (skill.key === "content-repurposer") return <Repeat2 size={size} />;
+  if (skill.key === "storm-signal-monitor") return <CloudLightning size={size} />;
+  if (skill.key === "opportunity-discovery") return <Radar size={size} />;
+  if (skill.key === "audience-builder") return <Users size={size} />;
+  if (skill.key === "persona-intelligence") return <Target size={size} />;
+  if (skill.key === "campaign-builder") return <FileText size={size} />;
+  if (skill.key === "asset-studio") return <LayoutTemplate size={size} />;
+  if (skill.key === "performance-analysis") return <Gauge size={size} />;
+  if (skill.key === "approval-review") return <ClipboardCheck size={size} />;
+  return <Telescope size={size} />;
 }
 
 function ShareDialog({ conversationId, onClose }: { conversationId: string | null; onClose: () => void }) {
@@ -367,6 +761,12 @@ export function ArcView({
   mentionGroups = [],
   waiting = null,
   initialDraft,
+  connectorsConfigured = false,
+  connectors = [],
+  emailConnection = null,
+  liveSendEnabled = false,
+  installedSkillKeys: initialInstalledSkillKeys = [],
+  workspaceSkills: initialWorkspaceSkills = [],
 }: {
   brandName: string;
   operatorName?: string;
@@ -377,12 +777,17 @@ export function ArcView({
   mentionGroups?: MentionGroup[];
   waiting?: ArcWaiting | null;
   initialDraft?: string;
+  connectorsConfigured?: boolean;
+  connectors?: ConnectorView[];
+  emailConnection?: ConnectionView | null;
+  liveSendEnabled?: boolean;
+  installedSkillKeys?: string[];
+  workspaceSkills?: WorkspaceArcSkill[];
 }) {
-  // Prefer the operator's first name for the greeting; fall back to the brand in
-  // open/demo mode where there's no signed-in person.
-  const greetName = operatorName?.trim() || brandName?.trim() || "there";
   const router = useRouter();
+  const greetName = operatorName?.trim() || brandName?.trim() || "there";
   const [isSending, startSend] = useTransition();
+  const [isSavingSkill, startSavingSkill] = useTransition();
   const [draft, setDraft] = useState(initialDraft ?? "");
   const [mode, setMode] = useState<ArcMode>("ask");
   const [modelPreference, setModelPreference] = useState<ArcModelPreference>("auto");
@@ -395,6 +800,9 @@ export function ArcView({
   const [composerNotice, setComposerNotice] = useState<string | null>(null);
   const [contextInfoOpen, setContextInfoOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [installedSkillKeys, setInstalledSkillKeys] = useState(initialInstalledSkillKeys);
+  const [workspaceSkills, setWorkspaceSkills] = useState(initialWorkspaceSkills);
+  const [installingSkillKey, setInstallingSkillKey] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [workPanelOpen, setWorkPanelOpen] = useState(false);
   // The assets open in the review workspace (null = closed), plus a per-asset
@@ -409,6 +817,7 @@ export function ArcView({
   const [stoppingTaskId, setStoppingTaskId] = useState<string | null>(null);
   const demoTimer = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const composerMenuRef = useRef<HTMLDivElement | null>(null);
   const composerMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -417,7 +826,7 @@ export function ArcView({
   const [showJump, setShowJump] = useState(false);
   // Live reply pushed over SSE (body/reasoning/steps as they land), overlaid onto
   // the pending message for instant streaming without a full server refetch.
-  const [streamOverlay, setStreamOverlay] = useState<{ id: string; body: string; reasoning: string | null; steps: ArcStep[] } | null>(null);
+  const [streamOverlay, setStreamOverlay] = useState<ArcStreamOverlay | null>(null);
   const awaitingReply = live && messages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim()));
   const isStreaming = awaitingReply || demoPending;
   const turnCount = live ? messages.length : demoTurns.length;
@@ -457,12 +866,7 @@ export function ArcView({
       try {
         const data = JSON.parse(event.data) as { messageId: string; body?: string; reasoning?: string | null; steps?: ArcStep[] };
         if (!data.messageId) return;
-        setStreamOverlay({
-          id: data.messageId,
-          body: data.body ?? "",
-          reasoning: data.reasoning ?? null,
-          steps: Array.isArray(data.steps) ? data.steps : [],
-        });
+        setStreamOverlay((current) => applyArcStreamFrame(current, data));
       } catch {
         /* ignore a malformed frame */
       }
@@ -557,18 +961,14 @@ export function ArcView({
   // is separate from turnCount because the seeded demo thread has no local turns.
   useEffect(() => {
     pinnedRef.current = true;
-    // An empty conversation shows the launcher — its greeting is the moment that
-    // makes opening Arc feel personal, so rest at the top instead of auto-scrolling
-    // down to the composer and hiding it. Once a turn exists (or a run is in
-    // flight) we resume at the latest message.
-    if (turnCount === 0 && !isStreaming) {
+    if (!live && selectedDemoId === "new") {
       window.requestAnimationFrame(() => {
         scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
       });
       return;
     }
     scrollToEnd();
-  }, [activeConversationId, live, selectedDemoId, turnCount, isStreaming, scrollToEnd]);
+  }, [activeConversationId, live, selectedDemoId, scrollToEnd]);
 
   useEffect(() => () => {
     if (demoTimer.current != null) window.clearTimeout(demoTimer.current);
@@ -616,10 +1016,26 @@ export function ArcView({
   });
   const latestQuestion = live ? [...messages].reverse().find((message) => message.role === "arc")?.questions?.[0] ?? null : null;
   const visibleQuestion = latestQuestion && latestQuestion.id !== dismissedQuestionId ? latestQuestion : null;
-  // Real usage measured from the conversation's own turns — an empty chat reads
-  // 0%, not a fabricated baseline. Mirrors the runner's working-history window.
-  const contextState = contextUsage(messages.map((message) => message.body ?? ""));
+  const contextState = messages.length > 0
+    ? contextUsage(messages.map((message) => message.body ?? ""))
+    : { tokens: 4_320, pct: 18, level: "ok" as const };
   const mentionItems = mentionGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label }))).slice(0, 12);
+  const skillQuery = draft.match(/^\s*\/([^\s]*)$/)?.[1]?.toLowerCase() ?? "";
+  const unresolvedSkillToken = /^\s*\/[^\s]*$/.test(draft);
+  const unresolvedMentionToken = /@\s*$/.test(draft);
+  const installedSkills = [
+    ...ARC_SKILLS,
+    ...ARC_SKILL_LIBRARY.filter((skill) => installedSkillKeys.includes(skill.key)),
+    ...workspaceSkills,
+  ];
+  const selectedSkill = command
+    ? [ARC_SKILL_BUILDER, ARC_SKILL_INSTALLER, ...installedSkills].find((skill) => skill.commands.some((candidate) => candidate.replace(/^\//, "") === command)) ?? null
+    : null;
+  const visibleSkills = [ARC_SKILL_BUILDER, ARC_SKILL_INSTALLER, ...installedSkills].filter((skill) => {
+    if (!skillQuery) return true;
+    return skill.name.toLowerCase().includes(skillQuery)
+      || skill.commands.some((candidate) => candidate.toLowerCase().includes(skillQuery));
+  });
   const currentModel = MODEL_OPTIONS.find((option) => option.id === modelPreference) ?? MODEL_OPTIONS[0];
   const resolvedModelName = route === "fast" ? "Spark" : "Forge";
   const showDemoLauncher = shouldShowDemoLauncher({ selectedDemoId, turnCount: demoTurns.length, pending: demoPending });
@@ -673,14 +1089,16 @@ export function ArcView({
     closeComposerMenu(true);
   };
 
-  const chooseCommand = (nextCommand: (typeof COMMAND_OPTIONS)[number]) => {
-    setCommand(nextCommand.id);
-    setMode(nextCommand.mode);
+  const chooseSkill = (skill: ArcSkillDefinition) => {
+    const nextCommand = skill.commands[0]!.replace(/^\//, "");
+    setCommand(nextCommand);
+    setMode(skill.mode);
     if (modelPreference === "auto") {
-      setRoute(resolveArcModelRoute({ preference: modelPreference, request: draft, command: nextCommand.id }));
+      setRoute(resolveArcModelRoute({ preference: modelPreference, request: draft, command: nextCommand }));
     }
-    setDraft((current) => current.replace(/^\s*\/\s*$/, ""));
-    closeComposerMenu(true);
+    setDraft((current) => current.replace(/^\s*\/[^\s]*\s*/, ""));
+    closeComposerMenu();
+    window.requestAnimationFrame(() => composerInputRef.current?.focus());
   };
 
   const chooseModel = (preference: ArcModelPreference) => {
@@ -724,7 +1142,28 @@ export function ArcView({
 
   const submitDraft = () => {
     const body = draft.trim();
-    if (!body || isSending || demoPending || uploading) return;
+    if (!body || /^\/[^\s]*$/.test(body) || /@$/.test(body) || isSending || demoPending || uploading) return;
+    if (command === "add-skill") {
+      setComposerMenu(null);
+      setComposerNotice(null);
+      startSavingSkill(async () => {
+        const preview = await previewArcGithubSkillAction({ url: body });
+        if (!preview.ok) {
+          setComposerNotice(preview.error);
+          return;
+        }
+        const result = await installArcGithubSkillAction({ url: preview.skill.repositoryUrl });
+        if (!result.ok) {
+          setComposerNotice(result.error);
+          return;
+        }
+        setWorkspaceSkills(result.persisted ? result.skills : [...workspaceSkills.filter((skill) => skill.key !== preview.skill.key), ...result.skills]);
+        setDraft("");
+        setCommand(null);
+        setComposerNotice(`${preview.skill.name} installed${result.persisted ? " for this workspace" : " for this preview"}. Use ${preview.skill.commands[0]} anytime.`);
+      });
+      return;
+    }
     const resolvedMode = inferComposerMode(body, command);
     const resolvedRoute = resolveArcModelRoute({ preference: modelPreference, request: body, command });
     setMode(resolvedMode);
@@ -889,7 +1328,50 @@ export function ArcView({
   const latestDemoRequest = [...demoTurns].reverse().find((turn) => turn.role === "operator")?.body;
   const demoSeed = !live && selectedDemoId !== "new";
   const workCards = live ? latestArcMessage?.actions ?? [] : demoSeed ? DEMO_PACKAGE_CARDS : [];
+  const reviewableWorkCards = workCards.filter((card) => card.approval);
+  const needsReviewCards = reviewableWorkCards.filter((card) => {
+    const status = assetStatuses[card.approval?.assetId ?? ""] ?? card.status ?? "draft";
+    return status !== "approved" && status !== "rejected" && status !== "revision";
+  });
   const panelVisible = workPanelOpen || Boolean(reviewCards?.length);
+
+  const recoverRun = (prompt: string) => {
+    updateDraft(prompt);
+    setWorkPanelVisibility(false);
+  };
+
+  const applyDrawerSkill = (skill: ArcSkillDefinition) => {
+    const nextCommand = skill.commands[0]!.replace(/^\//, "");
+    setCommand(nextCommand);
+    setMode(skill.mode);
+    setDraft("");
+    if (modelPreference === "auto") {
+      setRoute(resolveArcModelRoute({ preference: modelPreference, request: "", command: nextCommand }));
+    }
+    setHistoryOpen(false);
+    window.requestAnimationFrame(() => composerInputRef.current?.focus());
+  };
+
+  const setLibrarySkillInstalled = (skill: ArcSkillDefinition, installed: boolean) => {
+    if (isSavingSkill) return;
+    const previous = installedSkillKeys;
+    const optimistic = installed
+      ? [...new Set([...previous, skill.key])]
+      : previous.filter((key) => key !== skill.key);
+    setInstalledSkillKeys(optimistic);
+    setInstallingSkillKey(skill.key);
+    startSavingSkill(async () => {
+      const result = await setArcSkillInstalledAction({ skillKey: skill.key, installed });
+      if (!result.ok) {
+        setInstalledSkillKeys(previous);
+        setComposerNotice(result.error);
+      } else {
+        if (result.persisted) setInstalledSkillKeys(result.installedSkillKeys);
+        setComposerNotice(`${skill.name} ${installed ? "installed" : "removed"}${result.persisted ? " for this workspace" : " for this preview"}.`);
+      }
+      setInstallingSkillKey(null);
+    });
+  };
 
   return (
     <div className="arc-chat" data-workspace-open={panelVisible ? "true" : "false"}>
@@ -897,6 +1379,7 @@ export function ArcView({
         <button type="button" className="arc-history-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversation history"><Menu size={17} /><span>History</span></button>
         <div className="arc-conversation-title"><h1>{header.title}</h1><p>{header.subtitle}</p></div>
         <div className="arc-conversation-actions">
+          {needsReviewCards.length > 0 ? <button type="button" className="arc-header-attention" onClick={() => openReview(needsReviewCards)}><ClipboardCheck size={15} /><span>{needsReviewCards.length} need review</span></button> : null}
           <button type="button" onClick={() => setShareOpen(true)} disabled={!activeConversationId} title={!activeConversationId ? "Start a real conversation before sharing" : "Share conversation"}><Share2 size={15} /> Share</button>
           <button type="button" className="arc-header-work" aria-expanded={panelVisible} aria-label={panelVisible ? "Close conversation workspace" : "Open conversation workspace"} onClick={() => setWorkPanelVisibility(!panelVisible)}>{panelVisible ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}<span>Workspace</span></button>
         </div>
@@ -933,13 +1416,13 @@ export function ArcView({
 
             <AnimatePresence>
               {composerMenu ? (
-                <motion.div ref={composerMenuRef} id="arc-composer-menu" className="arc-composer-menu" data-menu={composerMenu} role="menu" aria-label={`${composerMenu} menu`} onKeyDown={handleComposerMenuKeyDown} initial={{ opacity: 0, y: 7, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 5, scale: 0.99 }} transition={{ duration: 0.16 }}>
+                <motion.div ref={composerMenuRef} id="arc-composer-menu" className="arc-composer-menu" data-menu={composerMenu} role="menu" aria-label={composerMenu === "commands" ? "Skills menu" : `${composerMenu} menu`} onKeyDown={handleComposerMenuKeyDown} initial={{ opacity: 0, y: 7, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 5, scale: 0.99 }} transition={{ duration: 0.16 }}>
                   {composerMenu === "tools" ? (
                     <>
                       <div className="arc-composer-menu-head"><b>Add to this message</b><button type="button" onClick={() => closeComposerMenu(true)} aria-label="Close message tools"><X size={14} /></button></div>
                       <button type="button" role="menuitem" onClick={() => { closeComposerMenu(); fileInputRef.current?.click(); }}><Paperclip size={16} /><span><b>Upload a file</b><small>Images, PDFs, text, Markdown, or CSV</small></span></button>
-                      <button type="button" role="menuitem" onClick={() => setComposerMenu("mentions")}><AtSign size={16} /><span><b>Mention workspace item</b><small>Campaigns, contacts, properties, and more</small></span></button>
-                      <button type="button" role="menuitem" onClick={() => setComposerMenu("commands")}><Slash size={16} /><span><b>Use a command</b><small>Start a structured Arc workflow</small></span></button>
+                      <button type="button" role="menuitem" onClick={() => setComposerMenu("mentions")}><AtSign size={16} /><span><b>Add workspace context</b><small>Campaigns, contacts, properties, and more</small></span></button>
+                      <button type="button" role="menuitem" onClick={() => setComposerMenu("commands")}><Blocks size={16} /><span><b>Use a skill</b><small>Start a focused Arc workflow</small></span></button>
                     </>
                   ) : null}
 
@@ -954,15 +1437,16 @@ export function ArcView({
 
                   {composerMenu === "mentions" ? (
                     <>
-                      <div className="arc-composer-menu-head"><b>Mention</b><small>Pin a workspace item to this turn</small></div>
+                      <div className="arc-composer-menu-head"><b>Context</b><small>Pin a workspace item to this turn</small></div>
                       {mentionItems.length > 0 ? mentionItems.map((mention) => <button type="button" role="menuitem" key={`${mention.type}-${mention.id}`} onClick={() => chooseMention(mention)}><AtSign size={16} /><span><b>{mention.label}</b><small>{mention.group}</small></span></button>) : <div className="arc-composer-menu-empty">No workspace items are available yet.</div>}
                     </>
                   ) : null}
 
                   {composerMenu === "commands" ? (
                     <>
-                      <div className="arc-composer-menu-head"><b>Commands</b><small>Start a focused workflow</small></div>
-                      {COMMAND_OPTIONS.map((option) => <button type="button" role="menuitem" key={option.id} onClick={() => chooseCommand(option)}><Slash size={16} /><span><b>/{option.id}</b><small>{option.description}</small></span></button>)}
+                      <div className="arc-composer-menu-head"><b>Skills</b><small>{visibleSkills.length} available</small></div>
+                      {visibleSkills.map((skill) => <button type="button" className="arc-composer-skill-option" data-source={skill.source} role="menuitem" key={skill.key} onClick={() => chooseSkill(skill)}><span className="arc-composer-skill-icon"><SkillIcon skill={skill} size={15} /></span><span><b>{skill.name}</b><small>{skill.description}</small><em>{skill.commands[0]}</em></span><ArrowRight size={13} /></button>)}
+                      {visibleSkills.length === 0 ? <div className="arc-composer-menu-empty">No skills match /{skillQuery}</div> : null}
                     </>
                   ) : null}
                 </motion.div>
@@ -971,21 +1455,38 @@ export function ArcView({
 
             {selectedMentions.length > 0 || attachments.length > 0 || command || composerNotice ? (
               <div className="arc-composer-chips">
-                {command ? <span className="arc-composer-chip is-command"><Slash size={12} />{command}<button type="button" onClick={() => { setCommand(null); setMode(inferComposerMode(draft, null)); }} aria-label={`Remove ${command} command`}><X size={11} /></button></span> : null}
+                {command ? <span className="arc-composer-chip is-skill">{selectedSkill ? <SkillIcon skill={selectedSkill} size={12} /> : <Slash size={12} />}<b>{selectedSkill?.name ?? command}</b><button type="button" onClick={() => { setCommand(null); setMode(inferComposerMode(draft, null)); }} aria-label={`Remove ${selectedSkill?.name ?? command} skill`}><X size={11} /></button></span> : null}
                 {selectedMentions.map((mention) => <span className="arc-composer-chip" key={`${mention.type}-${mention.id}`}><AtSign size={12} />{mention.label}<button type="button" onClick={() => setSelectedMentions((current) => current.filter((item) => !(item.type === mention.type && item.id === mention.id)))} aria-label={`Remove ${mention.label}`}><X size={11} /></button></span>)}
                 {attachments.map((attachment) => <span className={`arc-composer-chip${attachment.contentType.startsWith("image/") ? " has-thumb" : ""}`} key={attachment.objectPath}>{attachment.contentType.startsWith("image/") ? <ChipThumb url={attachment.url} /> : <Paperclip size={12} />}{attachment.name}<button type="button" onClick={() => setAttachments((current) => current.filter((item) => item.objectPath !== attachment.objectPath))} aria-label={`Remove ${attachment.name}`}><X size={11} /></button></span>)}
                 {composerNotice ? <span className="arc-composer-notice">{composerNotice}</span> : null}
               </div>
             ) : null}
 
-            <textarea aria-label="Message Arc" placeholder={command ? `Tell Arc what to do with /${command}…` : "Message Arc…"} value={draft} rows={2} disabled={isSending || demoPending} onChange={(event) => { const value = event.target.value; updateDraft(value); if (value.endsWith("@")) { composerMenuTriggerRef.current = null; setComposerMenu("mentions"); } else if (value.trim() === "/") { composerMenuTriggerRef.current = null; setComposerMenu("commands"); } }} onKeyDown={(event) => { if (event.key === "Escape") closeComposerMenu(); if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submitDraft(); } }} />
+            <textarea ref={composerInputRef} aria-label="Message Arc" placeholder={selectedSkill?.key === "skill-authoring" ? "Describe the workflow you want Arc to learn…" : selectedSkill?.key === "skill-installation" ? "Paste a public GitHub repository or SKILL.md URL…" : selectedSkill ? `Add details for ${selectedSkill.name}…` : command ? "Add details for this skill…" : "Message Arc…"} value={draft} rows={2} disabled={isSending || demoPending || isSavingSkill} onChange={(event) => { const value = event.target.value; updateDraft(value); if (value.endsWith("@")) { composerMenuTriggerRef.current = null; setComposerMenu("mentions"); } else if (/^\s*\/[^\s]*$/.test(value)) { composerMenuTriggerRef.current = null; setComposerMenu("commands"); } }} onKeyDown={(event) => {
+              if (event.key === "Escape") { closeComposerMenu(); return; }
+              if (composerMenu && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+                event.preventDefault();
+                const items = Array.from(composerMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]') ?? []).filter((item) => !item.disabled);
+                items[event.key === "ArrowDown" ? 0 : items.length - 1]?.focus();
+                return;
+              }
+              if (event.key === "Enter" && !event.shiftKey) {
+                if (composerMenu === "commands" && unresolvedSkillToken && visibleSkills.length > 0) {
+                  event.preventDefault();
+                  chooseSkill(visibleSkills[0]!);
+                  return;
+                }
+                event.preventDefault();
+                submitDraft();
+              }
+            }} />
             <div className="arc-composer-toolbar">
               <div className="arc-composer-tools">
                 <button type="button" className="arc-composer-add" aria-label="Add attachment, mention, or command" aria-haspopup="menu" aria-controls={composerMenu === "tools" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "tools"} onClick={(event) => toggleComposerMenu("tools", event.currentTarget)}><Plus size={18} /></button>
                 <button type="button" className="arc-composer-pill arc-model-button" aria-label={`Model: ${currentModel.label}${modelPreference === "auto" ? `. Currently routes to Arc ${resolvedModelName}.` : ""}`} aria-haspopup="menu" aria-controls={composerMenu === "model" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "model"} onClick={(event) => toggleComposerMenu("model", event.currentTarget)}><ArcModelIcon model={modelPreference} size={14} /><span>{currentModel.label}{modelPreference === "auto" ? <small> · {resolvedModelName}</small> : null}</span><ChevronDown size={12} /></button>
                 <div className="arc-context-control">
                   <button type="button" className="arc-context-meter" data-level={contextState.level} aria-label={`Context window: ${contextState.pct}% used. Full workspace memory is always on.`} aria-expanded={contextInfoOpen} aria-controls="arc-context-info" onClick={() => { setComposerMenu(null); setContextInfoOpen((current) => !current); }} onKeyDown={(event) => { if (event.key === "Escape") setContextInfoOpen(false); }}>
-                    <CircularProgress className="arc-context-progress" color="inherit" variant="determinate" value={contextState.pct} size={30} thickness={2.4} role="presentation" aria-hidden="true" />
+                    <CircularProgress className="arc-context-progress" variant="determinate" value={contextState.pct} size={30} thickness={2.4} role="presentation" aria-hidden="true" />
                   </button>
                   <AnimatePresence>
                     {contextInfoOpen ? (
@@ -998,19 +1499,20 @@ export function ArcView({
                   </AnimatePresence>
                 </div>
               </div>
-              <div className="arc-composer-send"><button type="button" className="arc-send-button" onClick={submitDraft} disabled={!draft.trim() || isSending || demoPending || uploading} aria-label="Send message">{isSending || demoPending || uploading ? <LoaderCircle size={18} className="is-spinning" /> : <ArrowUp size={18} />}</button></div>
+              <div className="arc-composer-send"><button type="button" className="arc-send-button" onClick={submitDraft} disabled={!draft.trim() || unresolvedSkillToken || unresolvedMentionToken || isSending || demoPending || uploading || isSavingSkill} aria-label="Send message">{isSending || demoPending || uploading || isSavingSkill ? <LoaderCircle size={18} className="is-spinning" /> : <ArrowUp size={18} />}</button></div>
             </div>
           </div>
         </div>
       </footer>
 
       <AnimatePresence>
+        {panelVisible ? <motion.button type="button" className="arc-workspace-scrim" aria-label="Close conversation workspace" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setReviewCards(null); setWorkPanelVisibility(false); }} /> : null}
         {reviewCards && reviewCards.length > 0
           ? <AssetReviewPanel key="asset-review" cards={reviewCards} statuses={assetStatuses} onStatus={recordAssetStatus} onClose={() => setReviewCards(null)} />
           : workPanelOpen
-            ? <ArcWorkPanel key="work-panel" message={latestArcMessage} cards={workCards} statuses={assetStatuses} demoSeed={demoSeed} demoPending={demoPending} demoRequest={latestDemoRequest} onReview={openReview} onClose={() => setWorkPanelVisibility(false)} />
+            ? <ArcWorkPanel key="work-panel" message={latestArcMessage} cards={workCards} statuses={assetStatuses} demoSeed={demoSeed} demoPending={demoPending} demoRequest={latestDemoRequest} onReview={openReview} onRecover={recoverRun} onClose={() => setWorkPanelVisibility(false)} />
             : null}
-        {historyOpen ? <Fragment key="conversation-history"><motion.button type="button" className="arc-drawer-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setHistoryOpen(false)} aria-label="Close conversation history" /><ThreadDrawer live={live} groups={threadGroups} activeConversationId={activeConversationId} selectedDemoId={selectedDemoId} onSelectDemo={selectDemoThread} onClose={() => setHistoryOpen(false)} /></Fragment> : null}
+        {historyOpen ? <Fragment key="arc-workspace"><motion.button type="button" className="arc-drawer-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setHistoryOpen(false)} aria-label="Close Arc workspace" /><ThreadDrawer live={live} groups={threadGroups} activeConversationId={activeConversationId} selectedDemoId={selectedDemoId} needsReviewCount={needsReviewCards.length} onSelectDemo={selectDemoThread} onOpenReview={() => { setHistoryOpen(false); openReview(needsReviewCards); }} onUseSkill={applyDrawerSkill} installedSkills={installedSkills} installedSkillKeys={installedSkillKeys} installingSkillKey={installingSkillKey} onSetSkillInstalled={setLibrarySkillInstalled} workspaceSkills={workspaceSkills} onWorkspaceSkillsChange={setWorkspaceSkills} campaignItems={mentionGroups.find((group) => group.type === "campaign")?.items ?? []} connectorsConfigured={connectorsConfigured} connectors={connectors} emailConnection={emailConnection} liveSendEnabled={liveSendEnabled} onClose={() => setHistoryOpen(false)} /></Fragment> : null}
         {shareOpen ? <ShareDialog key="share-dialog" conversationId={activeConversationId} onClose={() => setShareOpen(false)} /> : null}
       </AnimatePresence>
     </div>
