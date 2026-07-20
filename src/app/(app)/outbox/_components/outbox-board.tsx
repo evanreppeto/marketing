@@ -11,6 +11,7 @@ export type OutboxChannel = "email" | "sms" | "social" | "other";
 
 export type OutboxCardVM = {
   id: string;
+  status: DispatchStatus;
   channel: OutboxChannel;
   title: string;
   campaign: string;
@@ -23,18 +24,19 @@ export type OutboxCardVM = {
   // "send" performs a real outbound send (human confirm); "transition" is a
   // lifecycle status mark.
   actionKind: "send" | "transition";
+  // Queued/scheduled sends can be pulled back before they leave.
+  canCancel: boolean;
 };
 
-export type BoardCardVM = {
-  id: string;
-  ownerKind: "agent" | "human" | "system";
-  ownerLabel: string;
-  title: string;
-  relation: string;
-  href: string | null;
+// The priority-ordered send queue: what needs a human leads, then upcoming,
+// recent, and failures. Empty non-hero groups simply don't render.
+export type OutboxGroups = {
+  needsYou: OutboxCardVM[];
+  scheduled: OutboxCardVM[];
+  recent: OutboxCardVM[];
+  failed: OutboxCardVM[];
 };
 
-export type LaneVM<T> = { key: string; label: string; color: string; cards: T[] };
 export type KpiVM = { value: string; label: string; sub: string; alert: boolean };
 
 const CH_ICON: Record<OutboxChannel, React.ReactNode> = {
@@ -42,12 +44,6 @@ const CH_ICON: Record<OutboxChannel, React.ReactNode> = {
   sms: <svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-4 3z" /></svg>,
   social: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18" /></svg>,
   other: <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M4 7l8 6 8-6" /></svg>,
-};
-
-const OWNER_ICON: Record<BoardCardVM["ownerKind"], React.ReactNode> = {
-  agent: <svg viewBox="0 0 24 24"><path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4z" /></svg>,
-  human: <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2" /><path d="M5 20c0-3.3 3-5.5 7-5.5s7 2.2 7 5.5" /></svg>,
-  system: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2 2M16.4 16.4l2 2M18.4 5.6l-2 2M7.6 16.4l-2 2" /></svg>,
 };
 
 const CHANNELS: { key: string; label: string }[] = [
@@ -58,18 +54,15 @@ const CHANNELS: { key: string; label: string }[] = [
 ];
 
 export function OutboxBoard({
-  outboxLanes,
-  boardLanes,
+  groups,
   kpis,
   channelCounts,
 }: {
-  outboxLanes: LaneVM<OutboxCardVM>[];
-  boardLanes: LaneVM<BoardCardVM>[];
+  groups: OutboxGroups;
   kpis: KpiVM[];
   channelCounts: Record<string, number>;
 }) {
   const router = useRouter();
-  const [view, setView] = useState<"outbox" | "board">("outbox");
   const [channel, setChannel] = useState("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   // A real send is a two-step confirm: the first click arms this, the second sends.
@@ -77,16 +70,13 @@ export function OutboxBoard({
   const [failed, setFailed] = useState<{ id: string; message: string } | null>(null);
   const [, startTransition] = useTransition();
 
-  function runAction(card: OutboxCardVM) {
+  function run(card: OutboxCardVM, kind: "send" | "transition", to: DispatchStatus | null) {
     if (busyId) return;
-    if (card.actionKind === "transition" && !card.actionTo) return;
+    if (kind === "transition" && !to) return;
     setBusyId(card.id);
     setFailed(null);
     startTransition(async () => {
-      const res =
-        card.actionKind === "send"
-          ? await sendDispatchAction(card.id)
-          : await transitionDispatchAction(card.id, card.actionTo!);
+      const res = kind === "send" ? await sendDispatchAction(card.id) : await transitionDispatchAction(card.id, to!);
       setBusyId(null);
       setConfirmId(null);
       if (!res.ok) {
@@ -97,13 +87,95 @@ export function OutboxBoard({
     });
   }
 
-  const outboxCount = outboxLanes.reduce((n, l) => n + l.cards.length, 0);
-  const boardCount = boardLanes.reduce((n, l) => n + l.cards.length, 0);
+  const byChannel = (cards: OutboxCardVM[]) => (channel === "all" ? cards : cards.filter((c) => c.channel === channel));
+  const view = useMemo(
+    () => ({
+      needsYou: byChannel(groups.needsYou),
+      scheduled: byChannel(groups.scheduled),
+      recent: byChannel(groups.recent),
+      failed: byChannel(groups.failed),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [groups, channel],
+  );
 
-  const visibleOutbox = useMemo(() => {
-    if (channel === "all") return outboxLanes;
-    return outboxLanes.map((l) => ({ ...l, cards: l.cards.filter((c) => c.channel === channel) }));
-  }, [outboxLanes, channel]);
+  // Plain render helpers (no hooks) rather than nested components, so they close
+  // over the send/cancel state without being re-created as components each render.
+  const renderCard = (card: OutboxCardVM) => {
+    const delivered = card.status === "delivered";
+    return (
+      <div className={`card${card.status === "failed" ? " is-failed" : ""}`} key={card.id}>
+        <a className="clink" href={card.href}>
+          <div className="crow">
+            <span className={`chip-ch ch-${card.channel}`}>{CH_ICON[card.channel]}</span>
+            <div style={{ minWidth: 0 }}>
+              <div className="cdel">{card.title}</div>
+              <div className="ccamp">{card.campaign}</div>
+            </div>
+            {delivered && (
+              <span className="cbadge ok" aria-label="Delivered">
+                <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg>
+              </span>
+            )}
+          </div>
+          {card.meta && <div className="cmeta">{card.meta}</div>}
+          {card.note && <div className={`cnote${card.noteTone ? ` ${card.noteTone}` : ""}`}>{card.note}</div>}
+        </a>
+        {failed?.id === card.id && <div className="cnote red">{failed.message}</div>}
+        {card.actionKind === "send" && confirmId === card.id ? (
+          <div className="caconfirm">
+            <span className="cctext">Send this {card.channel === "sms" ? "text" : "email"} for real — there’s no undo.</span>
+            <div className="ccbtns">
+              <button type="button" className="cccancel" onClick={() => setConfirmId(null)} disabled={busyId !== null}>
+                Keep in queue
+              </button>
+              <button type="button" className="caction danger" onClick={() => run(card, "send", card.actionTo)} disabled={busyId !== null}>
+                {busyId === card.id ? "Sending…" : "Send for real"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          (card.action || card.canCancel) && (
+            <div className="cactions">
+              {card.canCancel && (
+                <button
+                  type="button"
+                  className="ccancel"
+                  onClick={() => run(card, "transition", "canceled")}
+                  disabled={busyId !== null}
+                >
+                  {busyId === card.id ? "…" : "Cancel"}
+                </button>
+              )}
+              {card.action && card.actionTo && (
+                <button
+                  type="button"
+                  className={`caction${card.actionKind === "transition" ? " ghost" : ""}`}
+                  onClick={() => (card.actionKind === "send" ? setConfirmId(card.id) : run(card, "transition", card.actionTo))}
+                  disabled={busyId !== null}
+                >
+                  {busyId === card.id ? "Working…" : card.action}
+                </button>
+              )}
+            </div>
+          )
+        )}
+      </div>
+    );
+  };
+
+  const renderSection = (label: string, cards: OutboxCardVM[], tone?: "red") => {
+    if (cards.length === 0) return null;
+    return (
+      <section className={`oq-section${tone ? ` tone-${tone}` : ""}`} key={label}>
+        <div className="oq-head">
+          <span className="oq-label">{label}</span>
+          <span className="oq-count">{cards.length}</span>
+        </div>
+        <div className="oq-cards">{cards.map(renderCard)}</div>
+      </section>
+    );
+  };
 
   return (
     <div className="arc-outbox">
@@ -147,132 +219,39 @@ export function OutboxBoard({
       </div>
 
       <div className="tabbar">
-        <div className="vtabs">
-          <button type="button" className={`vtab${view === "outbox" ? " on" : ""}`} onClick={() => setView("outbox")}>
-            <svg viewBox="0 0 24 24"><path d="M3 12l18-8-8 18-2-7z" /></svg>
-            Outbox <span className="ct">{outboxCount}</span>
-          </button>
-          <button type="button" className={`vtab${view === "board" ? " on" : ""}`} onClick={() => setView("board")}>
-            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1" /><rect x="10" y="4" width="5" height="11" rx="1" /><rect x="17" y="4" width="4" height="14" rx="1" /></svg>
-            Board <span className="ct">{boardCount}</span>
-          </button>
+        <div className="ofilters">
+          {CHANNELS.map((c) => (
+            <button key={c.key} type="button" className={`fchip${channel === c.key ? " on" : ""}`} onClick={() => setChannel(c.key)}>
+              {c.label}
+              {c.key !== "all" && <span className="fct">{channelCounts[c.key] ?? 0}</span>}
+            </button>
+          ))}
         </div>
-        {view === "outbox" && (
-          <div className="ofilters">
-            {CHANNELS.map((c) => (
-              <button key={c.key} type="button" className={`fchip${channel === c.key ? " on" : ""}`} onClick={() => setChannel(c.key)}>
-                {c.label}
-                {c.key !== "all" && <span className="fct">{channelCounts[c.key] ?? 0}</span>}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      {view === "outbox" ? (
-        <div className="lanes">
-          {visibleOutbox.map((lane) => (
-            <div className={`lane${lane.cards.length === 0 ? " empty" : ""}`} key={lane.key}>
-              <div className="laneh">
-                <span className="dot" style={{ background: lane.color }} />
-                <span className="ln">{lane.label}</span>
-                <span className="lc">{lane.cards.length}</span>
-              </div>
-              <div className="lanecards">
-                {lane.cards.length === 0 ? (
-                  <span className="en">Nothing here</span>
-                ) : (
-                  lane.cards.map((c) => (
-                    <div className="card" key={c.id}>
-                      <a className="clink" href={c.href}>
-                        <div className="crow">
-                          <span className={`chip-ch ch-${c.channel}`}>{CH_ICON[c.channel]}</span>
-                          <div style={{ minWidth: 0 }}>
-                            <div className="cdel">{c.title}</div>
-                            <div className="ccamp">{c.campaign}</div>
-                          </div>
-                        </div>
-                        {c.meta && <div className="cmeta">{c.meta}</div>}
-                        {c.note && <div className={`cnote${c.noteTone ? ` ${c.noteTone}` : ""}`}>{c.note}</div>}
-                      </a>
-                      {failed?.id === c.id && <div className="cnote red">{failed.message}</div>}
-                      {c.action && c.actionTo && (
-                        c.actionKind === "send" && confirmId === c.id ? (
-                          <div className="caconfirm">
-                            <span className="cctext">Send this email for real — there’s no undo.</span>
-                            <div className="ccbtns">
-                              <button
-                                type="button"
-                                className="cccancel"
-                                onClick={() => setConfirmId(null)}
-                                disabled={busyId !== null}
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                type="button"
-                                className="caction danger"
-                                onClick={() => runAction(c)}
-                                disabled={busyId !== null}
-                              >
-                                {busyId === c.id ? "Sending…" : "Send for real"}
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className="caction"
-                            onClick={() => (c.actionKind === "send" ? setConfirmId(c.id) : runAction(c))}
-                            disabled={busyId !== null}
-                          >
-                            {busyId === c.id ? "Working…" : c.action}
-                          </button>
-                        )
-                      )}
-                    </div>
-                  ))
-                )}
+      <div className="oq">
+        <section className="oq-section oq-hero">
+          <div className="oq-head">
+            <span className="oq-label">Needs your confirmation</span>
+            <span className="oq-count">{view.needsYou.length}</span>
+          </div>
+          {view.needsYou.length === 0 ? (
+            <div className="oq-empty">
+              <span className="oq-empty-ic"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg></span>
+              <div>
+                <b>You’re all caught up.</b>
+                <span>Nothing is waiting for your confirmation. Approved sends will queue here.</span>
               </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="lanes">
-          {boardLanes.map((lane) => (
-            <div className={`lane${lane.cards.length === 0 ? " empty" : ""}`} key={lane.key}>
-              <div className="laneh">
-                <span className="dot" style={{ background: lane.color }} />
-                <span className="ln">{lane.label}</span>
-                <span className="lc">{lane.cards.length}</span>
-              </div>
-              <div className="lanecards">
-                {lane.cards.length === 0 ? (
-                  <span className="en">Nothing here</span>
-                ) : (
-                  lane.cards.map((c) => {
-                    const inner = (
-                      <>
-                        <div className="crow">
-                          <span className={`chip-ch own-${c.ownerKind}`}>{OWNER_ICON[c.ownerKind]}</span>
-                          <div className="cdel" style={{ flex: 1, minWidth: 0 }}>{c.title}</div>
-                          <span className={`ownb ${c.ownerKind}`}>{c.ownerLabel}</span>
-                        </div>
-                        {c.relation && <div className="ccamp" style={{ marginTop: 8 }}>{c.relation}</div>}
-                      </>
-                    );
-                    return c.href ? (
-                      <a className="card link" key={c.id} href={c.href}>{inner}</a>
-                    ) : (
-                      <div className="card" key={c.id}>{inner}</div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+          ) : (
+            <div className="oq-cards">{view.needsYou.map(renderCard)}</div>
+          )}
+        </section>
+
+        {renderSection("Scheduled", view.scheduled)}
+        {renderSection("Recently sent", view.recent)}
+        {renderSection("Failed — needs attention", view.failed, "red")}
+      </div>
     </div>
   );
 }
