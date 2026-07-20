@@ -278,7 +278,7 @@ export function RunTrace({
       data-state={stopping ? "stopping" : hasError ? "error" : "running"}
     >
       <div className="arc-run-live-head">
-        <ThinkingIndicator />
+        <ThinkingIndicator label={stopping ? "Stopping" : hasError ? "Needs attention" : "Thinking"} />
         <span><b aria-hidden="true" className={!stopping && !hasError ? "arc-shimmer" : undefined}>{stopping ? "Stopping safely…" : hasError ? `Needs attention after ${elapsedLabel}` : liveText?.trim() ? `Responding · ${elapsedLabel}` : `Thinking · ${elapsedLabel}`}</b><span className="sr-only" role="status" aria-live="polite">{stopping ? "Arc is stopping safely" : hasError ? "Arc needs attention" : "Arc is working"}</span></span>
         <button type="button" className="arc-stop" aria-label="Stop Arc" onClick={onStop} disabled={!onStop || stopping}><Square size={11} /> {stopping ? "Stopping…" : "Stop"}</button>
       </div>
@@ -332,12 +332,8 @@ export function RunTrace({
   );
 }
 
-export function ThinkingIndicator() {
-  return (
-    <span className="arc-thinking-indicator" aria-hidden="true">
-      <Sparkles />
-    </span>
-  );
+export function ThinkingIndicator({ label }: { label: string }) {
+  return <span className="arc-thinking-indicator arc-spinner" role="status" aria-label={label} />;
 }
 
 /** A tiny image thumbnail (composer chip). Attachment URLs are arbitrary signed
@@ -481,6 +477,20 @@ export function DraftPackageCard({ cards, statuses, onReview }: { cards: ArcActi
   );
 }
 
+/** Approval-gated assets stay compact in the conversation; the Workspace owns
+ * the detailed preview and decision flow so the same content is not repeated. */
+export function DraftReceiptCard({ card, status, onReview }: { card: ArcActionCard; status: ArcAssetStatus | null; onReview: () => void }) {
+  const meta = assetStatusMeta(status);
+  return (
+    <button type="button" className="arc-created-receipt" data-arc-review-trigger="true" onClick={onReview}>
+      <span className="arc-created-receipt-icon"><ChannelIcon channel={card.channel} size={16} /></span>
+      <span><b>{card.title}</b><small>{[card.channel, card.format].filter(Boolean).join(" · ") || "Created by Arc"}</small></span>
+      <em className={`is-${meta.tone}`}><i />{meta.label}</em>
+      <ArrowRight size={14} />
+    </button>
+  );
+}
+
 export function ArcWorkPanel({
   message,
   cards,
@@ -489,6 +499,7 @@ export function ArcWorkPanel({
   demoPending,
   demoRequest,
   onReview,
+  onRecover,
   onClose,
 }: {
   message?: ArcMessage;
@@ -498,10 +509,12 @@ export function ArcWorkPanel({
   demoPending: boolean;
   demoRequest?: string;
   onReview: (cards: ArcActionCard[]) => void;
+  onRecover: (prompt: string) => void;
   onClose: () => void;
 }) {
   const reduceMotion = useReducedMotion();
   const [tab, setTab] = useState<WorkPanelTab>("work");
+  const [showAllActivity, setShowAllActivity] = useState(false);
 
   useEffect(() => {
     try {
@@ -559,6 +572,8 @@ export function ArcWorkPanel({
   const approvedCount = cards.filter((card) => statusOf(card) === "approved").length;
   const completedActivityCount = activityRows.filter((row) => row.status === "done").length;
   const hasActiveWork = activityRows.some((row) => row.status === "running");
+  const hasFailedWork = activityRows.some((row) => row.status === "error");
+  const visibleActivityRows = hasActiveWork || showAllActivity ? activityRows : activityRows.slice(0, 3);
 
   const tabs: Array<{ id: WorkPanelTab; label: string; icon: typeof Brain }> = [
     { id: "work", label: "Work", icon: Brain },
@@ -601,16 +616,19 @@ export function ArcWorkPanel({
                     <h4>Activity</h4>
                     {activityRows.length > 0 ? (
                       <div className="arc-work-activity">
-                        {activityRows.map((row) => (
+                        {visibleActivityRows.map((row) => (
                           <div key={row.id} className={`is-${row.status}`}>
                             <span><RunIcon kind={row.kind} size={14} /></span>
                             <div><b>{row.label}</b>{row.detail || row.result ? <small>{row.detail ?? row.result}</small> : null}<span className="sr-only">{row.status === "done" ? "Complete" : row.status === "running" ? "In progress" : row.status === "error" ? "Error" : "Queued"}</span></div>
                             {row.status === "done" ? <Check size={13} /> : row.status === "running" ? <LoaderCircle size={14} /> : row.status === "error" ? <X size={13} /> : <Circle size={9} />}
                           </div>
                         ))}
+                        {!hasActiveWork && activityRows.length > visibleActivityRows.length ? <button type="button" className="arc-work-activity-toggle" onClick={() => setShowAllActivity(true)}>View all {activityRows.length} activities <ChevronDown size={13} /></button> : null}
+                        {!hasActiveWork && showAllActivity && activityRows.length > 3 ? <button type="button" className="arc-work-activity-toggle" onClick={() => setShowAllActivity(false)}>Show key activity <ChevronDown size={13} className="is-up" /></button> : null}
                       </div>
                     ) : <div className="arc-work-empty">Activity will collect here during the next run.</div>}
                   </section>
+                  {hasFailedWork ? <div className="arc-work-recovery"><div><RotateCcw size={15} /><span><b>One step needs attention</b><small>The rest of the run is still available.</small></span></div><div><button type="button" onClick={() => onRecover("Retry the failed step from the last run and keep the completed work.")}>Retry failed step</button><button type="button" onClick={() => onRecover("Continue the last request without the failed tool and explain any limitations.")}>Continue without it</button></div></div> : null}
                 </>
               ) : null}
 
@@ -995,5 +1013,4 @@ export function operatorMessageBefore(messages: ArcMessage[], index: number): Ar
   }
   return null;
 }
-
 

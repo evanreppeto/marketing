@@ -3,6 +3,11 @@ import { getMentionables } from "@/lib/arc-chat/mention-search";
 import { buildArcWaitingOpportunities } from "@/lib/arc-chat/waiting-opps";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { resolveViewerName } from "@/lib/auth/display-name";
+import { getEmailConnection } from "@/lib/connections/read-model";
+import { getSettingsConnectorsView } from "@/lib/connectors/settings-connectors";
+import { isLiveSendEnabled } from "@/lib/dispatch/live-send";
+import { getWorkspaceArcSkills } from "@/lib/arc-skills/github";
+import { getInstalledArcSkillKeys } from "@/lib/arc-skills/installation";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getWorkspaceSummary } from "@/lib/workspace-summary/read-model";
 
@@ -33,13 +38,17 @@ export default async function ArcPage({
     : "";
   const operatorName = viewerName.trim().split(/\s+/)[0] || brandName;
 
-  const [chat, mentionGroups, summary] = await Promise.all([
+  const [chat, mentionGroups, summary, connectors, emailConnection, installedSkillKeys, workspaceSkills] = await Promise.all([
     getArcChatModel(sp.c ?? null, { startBlank: Boolean(sp.new) }),
     getMentionables(),
     // Cheap here: getWorkspaceSummary is request-cached and the nav rail already
     // computes it, so this is a cache hit. Best-effort — no summary just hides the
     // launcher's "waiting on you" strip.
     ctx?.orgId ? getWorkspaceSummary(ctx.orgId).catch(() => null) : Promise.resolve(null),
+    getSettingsConnectorsView().catch(() => ({ configured: false, connectors: [] })),
+    getEmailConnection().catch(() => null),
+    getInstalledArcSkillKeys(ctx?.orgId).catch(() => []),
+    getWorkspaceArcSkills(ctx?.orgId).catch(() => []),
   ]);
 
   // `live` = a real backend is present (conversations may still be empty on a
@@ -67,6 +76,12 @@ export default async function ArcPage({
       mentionGroups={mentionGroups}
       waiting={waiting}
       initialDraft={initialDraft}
+      connectorsConfigured={connectors.configured}
+      connectors={connectors.connectors}
+      emailConnection={emailConnection}
+      liveSendEnabled={isLiveSendEnabled()}
+      installedSkillKeys={installedSkillKeys}
+      workspaceSkills={workspaceSkills}
     />
   );
 }

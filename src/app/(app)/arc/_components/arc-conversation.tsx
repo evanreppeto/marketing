@@ -20,6 +20,7 @@ import {
   ArcDraftCard,
   AssistantMessage,
   DraftPackageCard,
+  DraftReceiptCard,
   formatMessageTime,
   MessageActions,
   operatorMessageBefore,
@@ -190,10 +191,10 @@ export function LiveConversation({
             {!pending && message.actions.length ? (() => {
               const approvalCards = message.actions.filter((card) => card.approval);
               const otherCards = message.actions.filter((card) => !card.approval);
-              const inlineCards = approvalCards.length >= 2 ? otherCards : message.actions;
               return (
                 <>
-                  {inlineCards.length ? <div className="arc-action-list">{inlineCards.map((card, index) => <ArcDraftCard card={card} key={`${card.title}-${index}`} />)}</div> : null}
+                  {otherCards.length ? <div className="arc-action-list">{otherCards.map((card, index) => <ArcDraftCard card={card} key={`${card.title}-${index}`} />)}</div> : null}
+                  {approvalCards.length === 1 ? <DraftReceiptCard card={approvalCards[0]!} status={assetStatuses[approvalCards[0]!.approval?.assetId ?? ""] ?? approvalCards[0]!.status ?? null} onReview={() => onReview(approvalCards)} /> : null}
                   {approvalCards.length >= 2 ? <DraftPackageCard cards={approvalCards} statuses={assetStatuses} onReview={() => onReview(approvalCards)} /> : null}
                 </>
               );
@@ -256,8 +257,8 @@ export function DemoConversation({
           </AssistantMessage>
           <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." onEdit={editable} />
           <AssistantMessage time="9:45 AM">
-            <div className="arc-answer"><p>Here’s the inspection email for the 64 insured, fresh-damage homes. Review it when it looks right, then approve or revise it from the workspace.</p></div>
-            <div className="arc-action-list"><ArcDraftCard card={DEMO_DRAFT_CARD} /></div>
+            <div className="arc-answer"><p>The inspection email for the 64 insured, fresh-damage homes is ready for review.</p></div>
+            <DraftReceiptCard card={DEMO_DRAFT_CARD} status={packageStatuses[DEMO_DRAFT_CARD.approval?.assetId ?? ""] ?? DEMO_DRAFT_CARD.status ?? null} onReview={() => onReview([DEMO_DRAFT_CARD])} />
           </AssistantMessage>
         </>
       ) : null}

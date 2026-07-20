@@ -16,6 +16,7 @@ import { summarizeConversation } from "./summarize";
 import { promoteConversationMemory } from "./extract-memory";
 import { resolveArcSkill, type ArcSkill } from "./skills";
 import { reviewTurnDrafts } from "./critic";
+import { createCumulativeStreamBuffer } from "./live-stream-buffer";
 import type {
   ArcActionCard,
   ArcCampaignTaskPayload,
@@ -164,13 +165,17 @@ async function runArcQuery(opts: {
   // Live-streaming buffer, accumulated from token deltas purely for the typing
   // effect. The final body is assembled below, so if partial events are
   // unavailable the reply is unchanged — streaming is additive.
-  let streamBuf = "";
-  let lastEmit = 0;
+  const partialStream = createCumulativeStreamBuffer({
+    onEmit: opts.onPartial,
+    throttleMs: STREAM_THROTTLE_MS,
+  });
   // Live-thinking buffer, accumulated from thinking-token deltas purely for the
   // "Thinking…" stream. Like streamBuf it's cosmetic — the canonical reasoning is
   // set on the final reply, so if thinking deltas are unavailable nothing breaks.
-  let thinkBuf = "";
-  let lastThinkEmit = 0;
+  const thinkingStream = createCumulativeStreamBuffer({
+    onEmit: opts.onThinking,
+    throttleMs: STREAM_THROTTLE_MS,
+  });
   let inputTokens: number | null = null;
   let outputTokens: number | null = null;
 
@@ -186,25 +191,15 @@ async function runArcQuery(opts: {
     if (message.type === "stream_event") {
       const event = message.event;
       if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-        streamBuf += event.delta.text;
-        const now = Date.now();
-        if (opts.onPartial && now - lastEmit >= STREAM_THROTTLE_MS) {
-          lastEmit = now;
-          // Awaited (not fire-and-forget) so the throttled posts stay ordered;
-          // postChatChunk swallows its own errors, so this never breaks the run.
-          await opts.onPartial(streamBuf);
-        }
+        // Awaited (not fire-and-forget) so throttled posts stay ordered;
+        // postChatChunk swallows its own errors, so this never breaks the run.
+        await partialStream.append(event.delta.text);
       } else if (event.type === "content_block_delta" && event.delta.type === "thinking_delta") {
         // Extended-thinking tokens — streamed to the "Thinking…" trace. Typed as
         // unknown on some SDK versions, so read the field defensively.
         const thinking = (event.delta as { thinking?: unknown }).thinking;
         if (typeof thinking === "string") {
-          thinkBuf += thinking;
-          const now = Date.now();
-          if (opts.onThinking && now - lastThinkEmit >= STREAM_THROTTLE_MS) {
-            lastThinkEmit = now;
-            await opts.onThinking(thinkBuf);
-          }
+          await thinkingStream.append(thinking);
         }
       }
     } else if (message.type === "assistant") {
@@ -223,15 +218,24 @@ async function runArcQuery(opts: {
     }
   }
 
+  const body = assembleReplyBody(assistantChunks, resultText);
+  const reasoning = thinkingStream.value().trim() || null;
+
+  // The last SDK deltas commonly land inside the throttle window. Flush the
+  // canonical values before the completion write so the pending bubble reaches
+  // the exact final text/reasoning instead of visibly jumping on reconciliation.
+  await thinkingStream.flush(reasoning ?? "");
+  await partialStream.flush(body);
+
   return {
-    body: assembleReplyBody(assistantChunks, resultText),
+    body,
     actions,
     suggestions: suggestions.slice(0, 4),
     sources,
     questions: questions.slice(0, 4),
     memory: opts.ctx.memory ?? [],
     drafts,
-    reasoning: thinkBuf.trim() || null,
+    reasoning,
     usage: { model: opts.inference.model, inputTokens, outputTokens },
   };
 }

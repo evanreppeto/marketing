@@ -30,6 +30,17 @@ describe("Arc skill registry", () => {
     expect(ARC_SKILLS.every((skill) => skill.businessAgnostic)).toBe(true);
   });
 
+  it("registers a propose-only authoring skill for /create-skill", () => {
+    const skill = resolveArcSkill("skill-authoring");
+
+    expect(skill).toMatchObject({
+      id: "skill-authoring",
+      approvalPolicy: "propose_only",
+    });
+    expect(skill?.allowedTools).toContain("ask_operator");
+    expect(skill?.allowedTools).not.toContain("create_campaign_draft");
+  });
+
   it("registers an approval-gated campaign-package skill that drafts but does not generate media", () => {
     const skill = resolveArcSkill("campaign-package-drafting");
 

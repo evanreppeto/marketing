@@ -106,6 +106,7 @@ export type ArcThreadVM = {
   running: boolean;
   /** Short relative-time label (e.g. "2h", "Jun 24") for the row's meta line. */
   when: string;
+  campaignId?: string | null;
 };
 
 export type ArcThreadGroupVM = { group: string; items: ArcThreadVM[] };
@@ -159,6 +160,7 @@ export function groupThreadsForRail(
       active: c.id === activeConversationId,
       running: runningIds.has(c.id),
       when: relativeWhen(c.lastMessageAt, nowMs),
+      campaignId: c.campaignId,
     };
     const list = groups.get(group);
     if (list) list.push(item);

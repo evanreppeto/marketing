@@ -277,7 +277,7 @@ function parseContextScopes(value: unknown): string[] {
 }
 function parseOptionalSkillId(value: unknown): ArcSkillId | undefined {
   const id = parseOptionalString(value);
-  return id === "company-research" || id === "opportunity-discovery" || id === "approval-gated-drafting" ? id : undefined;
+  return id === "company-research" || id === "opportunity-discovery" || id === "approval-gated-drafting" || id === "skill-authoring" ? id : undefined;
 }
 
 function assertOk(label: string, error: { message: string } | null) {
@@ -589,6 +589,7 @@ export async function createConversation(
     operator: string;
     title: string;
     projectId?: string | null;
+    campaignId?: string | null;
     ownerId?: string | null;
     workspaceId?: string | null;
     orgId?: string | null;
@@ -601,6 +602,7 @@ export async function createConversation(
       operator: input.operator,
       title: input.title,
       project_id: input.projectId ?? null,
+      campaign_id: input.campaignId ?? null,
       ...(input.ownerId != null ? { owner_id: input.ownerId } : {}),
       ...(input.workspaceId != null ? { workspace_id: input.workspaceId } : {}),
       ...(input.orgId != null ? { org_id: input.orgId } : {}),
@@ -903,30 +905,18 @@ export async function streamArcMessageBody(
  * while it's still thinking, so the chat shows the thought forming instead of a
  * post-hoc summary. Writes ONLY `metadata.reasoning`, and ONLY while the row is
  * still `pending` — once completeArcMessage runs, late chunks match nothing and
- * are harmless no-ops. Read-modify-write of metadata (like appendArcStep) so it
- * never clobbers concurrently-written steps; best-effort, like the body stream.
+ * are harmless no-ops. The database function patches the JSON field atomically,
+ * so a simultaneous step update cannot be lost; best-effort, like body streaming.
  */
 export async function streamArcMessageReasoning(
   input: { agentTaskId: string; reasoning: string },
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<void> {
-  const { data, error } = await client
-    .from("arc_messages")
-    .select("id, metadata")
-    .eq("agent_task_id", input.agentTaskId)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ id: string; metadata: Record<string, unknown> | null }>();
-  assertOk("arc_messages reasoning lookup", error);
-  if (!data) return;
-  const meta = (data.metadata ?? {}) as Record<string, unknown>;
-  const { error: upErr } = await client
-    .from("arc_messages")
-    .update({ metadata: { ...meta, reasoning: input.reasoning } })
-    .eq("id", data.id)
-    .eq("status", "pending");
-  assertOk("arc_messages reasoning stream", upErr);
+  const { error } = await client.rpc("arc_stream_message_reasoning", {
+    p_agent_task_id: input.agentTaskId,
+    p_reasoning: input.reasoning,
+  });
+  assertOk("arc_messages reasoning stream", error);
 }
 
 export async function failArcMessage(
@@ -1151,29 +1141,14 @@ export async function appendArcStep(
     return false;
   }
 
-  const { data, error } = await client
-    .from("arc_messages")
-    .select("id, metadata")
-    .eq("agent_task_id", input.agentTaskId)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ id: string; metadata: Record<string, unknown> | null }>();
-  assertOk("arc_messages step lookup", error);
-  if (!data) return false;
-
-  const meta = (data.metadata ?? {}) as Record<string, unknown>;
-  const next = mergeStep(parseSteps(meta.steps), {
-    label: input.label,
-    status: input.status,
-    at: input.at,
+  const { data, error } = await client.rpc("arc_append_message_step", {
+    p_agent_task_id: input.agentTaskId,
+    p_label: input.label,
+    p_status: input.status,
+    p_at: input.at,
   });
-  const { error: upErr } = await client
-    .from("arc_messages")
-    .update({ metadata: { ...meta, steps: next } })
-    .eq("id", data.id);
-  assertOk("arc_messages step update", upErr);
-  return true;
+  assertOk("arc_messages step update", error);
+  return data === true;
 }
 
 /** Resolve the conversation a message belongs to (for access gating). Null when

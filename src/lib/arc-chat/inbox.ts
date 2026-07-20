@@ -67,7 +67,7 @@ function toInboxItem(row: TaskRow): ChatInboxItem {
 }
 
 function parseSkillId(value: unknown): ArcSkillId | null {
-  return value === "company-research" || value === "opportunity-discovery" || value === "approval-gated-drafting"
+  return value === "company-research" || value === "opportunity-discovery" || value === "approval-gated-drafting" || value === "skill-authoring"
     ? value
     : null;
 }

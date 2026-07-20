@@ -15,6 +15,7 @@ import {
 } from "@/domain";
 import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { decideAsset, type ApprovalDecision } from "@/lib/campaigns/decisions";
+import { listCampaignNames } from "@/lib/campaigns/read-model";
 import { requestAssetRevision } from "@/lib/campaigns/revisions";
 import { getArcDisplayName } from "@/lib/arc-chat/agent-config";
 import { isAcceptedAttachment } from "@/lib/arc-chat/attachment-types";
@@ -22,10 +23,12 @@ import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
 import { cancelChatTask } from "@/lib/arc-chat/inbox";
 import {
   archiveConversation,
+  assignConversationToCampaign,
   createConversation,
   deleteConversation,
   deleteMessagesAfter,
   getArcMessage,
+  getConversation,
   getMessageConversationId,
   getPrecedingOperatorMessage,
   insertOperatorMessage,
@@ -40,7 +43,10 @@ import {
 } from "@/lib/arc-chat/persistence";
 import { saveItem } from "@/lib/arc-chat/saved";
 import { assertConversationAccess } from "@/lib/arc-chat/sharing";
-import { skillIdForArcCommand } from "@/lib/arc-skills/catalog";
+import { ALL_ARC_SKILLS, ARC_SKILL_LIBRARY, skillIdForArcCommand } from "@/lib/arc-skills/catalog";
+import { instructionForWorkspaceSkill, parseWorkspaceArcSkills, type WorkspaceArcSkill } from "@/lib/arc-skills/custom";
+import { ARC_CUSTOM_SKILLS_SETTING, getWorkspaceArcSkills, previewGithubArcSkill } from "@/lib/arc-skills/github";
+import { getInstalledArcSkillKeys, ARC_INSTALLED_SKILLS_SETTING } from "@/lib/arc-skills/installation";
 import { getCreationTenancy } from "@/lib/arc-chat/sharing";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
@@ -48,6 +54,8 @@ import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { checkUsageAllowed, formatCentsUsd } from "@/lib/billing/entitlements";
 import { storeGeneratedMedia } from "@/lib/media/storage";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { saveAppSettings } from "@/lib/settings/store";
 
 const MAX_MESSAGE_LENGTH = 8000;
 const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
@@ -62,6 +70,102 @@ export type UploadArcAttachmentResult =
   | { ok: false; error: string };
 
 export type ArcInteractionResult = { ok: true } | { ok: false; error: string };
+
+export type ArcSkillInstallResult =
+  | { ok: true; installedSkillKeys: string[]; persisted: boolean }
+  | { ok: false; error: string };
+
+export type ArcGithubSkillPreviewResult =
+  | { ok: true; skill: WorkspaceArcSkill }
+  | { ok: false; error: string };
+
+export type ArcGithubSkillInstallResult =
+  | { ok: true; skills: WorkspaceArcSkill[]; persisted: boolean }
+  | { ok: false; error: string };
+
+export async function previewArcGithubSkillAction(input: { url: string }): Promise<ArcGithubSkillPreviewResult> {
+  await requireOperator();
+  try {
+    return { ok: true, skill: await previewGithubArcSkill(input.url) };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Arc could not review that GitHub skill." };
+  }
+}
+
+/** Persist a server-reviewed GitHub skill. The server normalizes every field and
+ * rejects command collisions; arbitrary GitHub content never expands tool access. */
+export async function installArcGithubSkillAction(input: { url: string }): Promise<ArcGithubSkillInstallResult> {
+  await requireOperator();
+  let skill: WorkspaceArcSkill;
+  try {
+    skill = await previewGithubArcSkill(input.url);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "That skill did not pass Arc's review." };
+  }
+  const command = skill.commands[0]!.replace(/^\//, "");
+  const reserved = ALL_ARC_SKILLS.some((candidate) => candidate.commands.some((item) => item.replace(/^\//, "") === command));
+  if (reserved) return { ok: false, error: `${skill.commands[0]} is already used by Arc. Rename the skill command before installing it.` };
+  if (!isSupabaseAdminConfigured()) return { ok: true, skills: [skill], persisted: false };
+  try {
+    const orgId = await getCurrentOrgId();
+    if (!orgId) return { ok: false, error: "No active workspace is available." };
+    const client = getSupabaseAdminClient();
+    const current = await getWorkspaceArcSkills(orgId, client);
+    const commandCollision = current.some((candidate) => candidate.key !== skill.key && candidate.commands[0] === skill.commands[0]);
+    if (commandCollision) return { ok: false, error: `${skill.commands[0]} is already used by an installed workspace skill.` };
+    const next = parseWorkspaceArcSkills([...current.filter((candidate) => candidate.key !== skill.key), skill]);
+    await saveAppSettings(client, orgId, { [ARC_CUSTOM_SKILLS_SETTING]: next });
+    revalidatePath("/arc");
+    return { ok: true, skills: next, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not install that skill." };
+  }
+}
+
+export async function removeArcGithubSkillAction(input: { skillKey: string }): Promise<ArcGithubSkillInstallResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: true, skills: [], persisted: false };
+  try {
+    const orgId = await getCurrentOrgId();
+    if (!orgId) return { ok: false, error: "No active workspace is available." };
+    const client = getSupabaseAdminClient();
+    const next = (await getWorkspaceArcSkills(orgId, client)).filter((skill) => skill.key !== input.skillKey);
+    await saveAppSettings(client, orgId, { [ARC_CUSTOM_SKILLS_SETTING]: next });
+    revalidatePath("/arc");
+    return { ok: true, skills: next, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not remove that skill." };
+  }
+}
+
+/** Install or remove a reviewed library skill for the current workspace. */
+export async function setArcSkillInstalledAction(input: {
+  skillKey: string;
+  installed: boolean;
+}): Promise<ArcSkillInstallResult> {
+  await requireOperator();
+  const skill = ARC_SKILL_LIBRARY.find((candidate) => candidate.key === input.skillKey);
+  if (!skill) return { ok: false, error: "That skill is not available in the Arc library." };
+
+  if (!isSupabaseAdminConfigured()) {
+    return { ok: true, installedSkillKeys: input.installed ? [skill.key] : [], persisted: false };
+  }
+
+  try {
+    const orgId = await getCurrentOrgId();
+    if (!orgId) return { ok: false, error: "No active workspace is available." };
+    const client = getSupabaseAdminClient();
+    const current = await getInstalledArcSkillKeys(orgId, client);
+    const next = input.installed
+      ? [...new Set([...current, skill.key])]
+      : current.filter((key) => key !== skill.key);
+    await saveAppSettings(client, orgId, { [ARC_INSTALLED_SKILLS_SETTING]: next });
+    revalidatePath("/arc");
+    return { ok: true, installedSkillKeys: next, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not update this skill." };
+  }
+}
 
 /**
  * Send an operator chat message to Arc. Persists the operator turn and enqueues
@@ -108,20 +212,37 @@ export async function sendArcMessageAction(input: {
     const mode = parseArcMode(input.mode);
     const route = parseArcRoute(input.route);
     const command = typeof input.command === "string" ? input.command.trim().replace(/^\//, "") || null : null;
-    const skillId = skillIdForArcCommand(command);
+    const workspaceSkill = command
+      ? (await getWorkspaceArcSkills(await getCurrentOrgId())).find((skill) => skill.commands.some((candidate) => candidate.replace(/^\//, "") === command)) ?? null
+      : null;
+    const skillId = workspaceSkill?.id ?? skillIdForArcCommand(command);
+    const runnerMessage = workspaceSkill ? instructionForWorkspaceSkill(workspaceSkill, body) : body;
     const contextScopes = (input.contextScopes ?? []).filter((scope) => CONTEXT_SCOPES.has(scope));
+    const selectedCampaignId = mentions.find((mention) => mention.type === "campaign")?.id ?? null;
 
     let conversationId = input.conversationId;
+    let conversationProjectId: string | null = null;
+    let conversationCampaignId: string | null = selectedCampaignId;
     if (!conversationId) {
       const tenancy = await getCreationTenancy();
       const conversation = await createConversation({
         operator,
         title: body.length > 60 ? `${body.slice(0, 57)}…` : body,
+        campaignId: selectedCampaignId,
         ownerId: tenancy.ownerId,
         workspaceId: tenancy.workspaceId,
         orgId: tenancy.orgId,
       });
       conversationId = conversation.id;
+      conversationProjectId = conversation.projectId;
+      conversationCampaignId = conversation.campaignId;
+    } else {
+      const conversation = await getConversation(conversationId);
+      conversationProjectId = conversation?.projectId ?? null;
+      conversationCampaignId = selectedCampaignId ?? conversation?.campaignId ?? null;
+      if (selectedCampaignId && selectedCampaignId !== conversation?.campaignId) {
+        await assignConversationToCampaign(conversationId, selectedCampaignId);
+      }
     }
 
     const message = await insertOperatorMessage({
@@ -137,8 +258,10 @@ export async function sendArcMessageAction(input: {
     });
     await enqueueArcChatTask({
       conversationId,
+      projectId: conversationProjectId,
+      campaignId: conversationCampaignId,
       messageId: message.id,
-      message: body,
+      message: runnerMessage,
       mentions,
       attachments,
       operator,
@@ -168,10 +291,17 @@ export async function sendArcMessageAction(input: {
  * (via enqueueArcChatTask) and wakes the runner. Outbound stays locked.
  */
 async function reEnqueueTurn(operatorMessage: ArcMessage, body: string): Promise<void> {
+  const command = operatorMessage.command?.replace(/^\//, "") ?? null;
+  const workspaceSkill = command
+    ? (await getWorkspaceArcSkills(await getCurrentOrgId())).find((skill) => skill.commands.some((candidate) => candidate.replace(/^\//, "") === command)) ?? null
+    : null;
+  const conversation = await getConversation(operatorMessage.conversationId);
   await enqueueArcChatTask({
     conversationId: operatorMessage.conversationId,
+    projectId: conversation?.projectId ?? null,
+    campaignId: conversation?.campaignId ?? null,
     messageId: operatorMessage.id,
-    message: body,
+    message: workspaceSkill ? instructionForWorkspaceSkill(workspaceSkill, body) : body,
     mentions: operatorMessage.mentions,
     attachments: operatorMessage.attachments,
     operator: await getOperatorActor(),
@@ -274,6 +404,31 @@ export async function pinArcConversationAction(input: { conversationId: string; 
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Couldn't update that conversation." };
+  }
+}
+
+/** Explicitly link a conversation to one workspace campaign, or remove the
+ * relationship. This is the operator-facing counterpart to automatic linking
+ * when a campaign is @-mentioned in chat. */
+export async function assignArcConversationCampaignAction(input: {
+  conversationId: string;
+  campaignId: string | null;
+}): Promise<ArcInteractionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Campaign linking needs a connected backend." };
+  const campaignId = input.campaignId?.trim() || null;
+  try {
+    await assertConversationAccess(input.conversationId, "collaborate");
+    if (campaignId) {
+      const orgId = await getCurrentOrgId();
+      const campaign = (await listCampaignNames(orgId)).find((candidate) => candidate.id === campaignId);
+      if (!campaign) return { ok: false, error: "That campaign is not available in this workspace." };
+    }
+    await assignConversationToCampaign(input.conversationId, campaignId);
+    revalidatePath("/arc");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't update this conversation's campaign." };
   }
 }
 

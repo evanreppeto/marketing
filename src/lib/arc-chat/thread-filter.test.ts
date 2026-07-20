@@ -37,4 +37,14 @@ describe("filterThreadGroups", () => {
   it("returns the original grouping for an empty query", () => {
     expect(filterThreadGroups(groups, "  ")).toBe(groups);
   });
+
+  it("filters to running and pinned work", () => {
+    const groupsWithRunning: ArcThreadGroupVM[] = [{
+      ...groups[0]!,
+      items: groups[0]!.items.map((item) => item.id === "past" ? { ...item, running: true } : item),
+    }];
+
+    expect(filterThreadGroups(groupsWithRunning, "", "running")[0]?.items.map((item) => item.id)).toEqual(["past"]);
+    expect(filterThreadGroups(groups, "", "pinned")[0]?.items.map((item) => item.id)).toEqual(["storm"]);
+  });
 });
