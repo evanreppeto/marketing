@@ -183,7 +183,7 @@ export function OutboxBoard({
         <div className="otitle">
           <div>
             <h1 className="pt">Outbox</h1>
-            <div className="psub">Approved deliverables in flight. Nothing goes out until you confirm — then it sends for real via Resend.</div>
+            <div className="psub">Review approved sends, then confirm exactly what goes out.</div>
           </div>
           <div style={{ display: "flex", gap: 9 }}>
             <button type="button" className="gbtn" onClick={() => router.refresh()}>
@@ -191,20 +191,6 @@ export function OutboxBoard({
               Refresh
             </button>
           </div>
-        </div>
-      </div>
-
-      <div className="lockpanel">
-        <div className="lp-top">
-          <span className="lk-ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 018 0v3" /></svg></span>
-          <div className="lt"><b>Outbound is locked.</b> Arc never sends, posts, or spends on its own — every send is your call.</div>
-          <span className="tg ok">approval-gated</span>
-        </div>
-        <div className="lp-flow">
-          <span className="gf"><b>Arc</b> drafts</span><span className="ar">→</span>
-          <span className="gf">you <b>approve</b> in Campaigns</span><span className="ar">→</span>
-          <span className="gf lit">queues here <b>(Outbox)</b></span><span className="ar">→</span>
-          <span className="gf">you <b>confirm</b> the send</span>
         </div>
       </div>
 

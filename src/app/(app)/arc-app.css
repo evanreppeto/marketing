@@ -520,31 +520,16 @@
   flex-direction: column;
   min-width: 0;
 }
-.arc-app .arc-outbox .ohead { padding: 18px clamp(20px, 2.6vw, 30px) 0; flex-shrink: 0; }
+.arc-app .arc-outbox .ohead { padding: 16px clamp(20px, 2.6vw, 30px) 0; flex-shrink: 0; }
 .arc-app .arc-outbox .otitle { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
 .arc-app .arc-outbox .pt { font-family: var(--serif); font-weight: 500; font-size: 27px; letter-spacing: -.02em; margin: 0; color: var(--text); }
-.arc-app .arc-outbox .psub { font-size: 12.5px; color: var(--muted); margin-top: 4px; max-width: 60ch; }
+.arc-app .arc-outbox .psub { font-size: 12.5px; color: var(--muted); margin-top: 3px; max-width: 60ch; }
 .arc-app .arc-outbox .gbtn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-weight: 600; font-size: 12.5px; font-family: inherit; cursor: pointer; transition: .15s; }
 .arc-app .arc-outbox .gbtn:hover { border-color: var(--accent-border); color: var(--text); }
 .arc-app .arc-outbox .gbtn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
 
-/* lock panel — the approval-gated flow */
-.arc-app .arc-outbox .lockpanel { margin: 15px clamp(20px, 2.6vw, 30px) 0; border: 1px solid var(--line-2); border-radius: 12px; background: color-mix(in srgb, var(--panel) 82%, transparent); padding: 14px 16px; flex-shrink: 0; }
-.arc-app .arc-outbox .lp-top { display: flex; align-items: center; gap: 11px; }
-.arc-app .arc-outbox .lk-ic { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--accent-border); background: var(--accent-soft); display: grid; place-items: center; color: var(--accent); flex-shrink: 0; }
-.arc-app .arc-outbox .lk-ic svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; }
-.arc-app .arc-outbox .lt { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
-.arc-app .arc-outbox .lt b { color: var(--text); }
-.arc-app .arc-outbox .tg { margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; border-radius: 6px; padding: 3px 8px; white-space: nowrap; }
-.arc-app .arc-outbox .tg.ok { color: var(--ok-text); background: var(--ok-soft); border: 1px solid var(--ok-border); }
-.arc-app .arc-outbox .lp-flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
-.arc-app .arc-outbox .lp-flow .gf { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
-.arc-app .arc-outbox .lp-flow .gf b { color: var(--text-2); font-weight: 600; }
-.arc-app .arc-outbox .lp-flow .gf.lit b { color: var(--ok-text); }
-.arc-app .arc-outbox .lp-flow .ar { color: var(--line-3); font-size: 12px; }
-
 /* KPI strip */
-.arc-app .arc-outbox .okpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 11px; margin: 12px clamp(20px, 2.6vw, 30px) 0; flex-shrink: 0; }
+.arc-app .arc-outbox .okpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 11px; margin: 12px clamp(20px, 2.6vw, 30px) 0; flex-shrink: 0; }
 .arc-app .arc-outbox .kpi { border: 1px solid var(--line-2); border-radius: 11px; background: var(--panel); padding: 11px 13px; }
 .arc-app .arc-outbox .kpi .kv { font-family: var(--serif); font-weight: 500; font-size: 22px; letter-spacing: -.02em; line-height: 1; color: var(--text); }
 .arc-app .arc-outbox .kpi .kl { font-size: 11px; color: var(--text-2); margin-top: 5px; font-weight: 500; }
@@ -659,10 +644,28 @@
 .arc-app .arc-outbox .card button.caction.ghost:hover { border-color: var(--accent-border); color: var(--text); }
 
 @media (max-width: 900px) {
-  .arc-app .arc-outbox .okpis { grid-template-columns: repeat(2, 1fr); }
+  .arc-app .arc-outbox .okpis { grid-template-columns: repeat(4, minmax(146px, 1fr)); overflow-x: auto; scrollbar-width: none; }
+  .arc-app .arc-outbox .okpis::-webkit-scrollbar { display: none; }
+  .arc-app .arc-outbox .tabbar { flex-wrap: nowrap; }
+  .arc-app .arc-outbox .ofilters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .arc-app .arc-outbox .ofilters::-webkit-scrollbar { display: none; }
 }
 @media (max-width: 760px) {
   .arc-app .arc-outbox .oq { overflow: visible; }
+}
+
+/* Short windows need the queue, not the page chrome, to own the viewport. Keep
+   the full information hierarchy while tightening the non-scrolling header. */
+@media (max-height: 760px) and (min-width: 761px) {
+  .arc-app .arc-outbox .ohead { padding-top: 10px; }
+  .arc-app .arc-outbox .pt { font-size: 24px; }
+  .arc-app .arc-outbox .gbtn { height: 30px; padding-inline: 11px; }
+  .arc-app .arc-outbox .okpis { margin-top: 9px; gap: 8px; }
+  .arc-app .arc-outbox .kpi { padding: 8px 11px; }
+  .arc-app .arc-outbox .kpi .kv { font-size: 19px; }
+  .arc-app .arc-outbox .kpi .kl { margin-top: 3px; }
+  .arc-app .arc-outbox .tabbar { margin-top: 9px; }
+  .arc-app .arc-outbox .oq { padding-top: 11px; gap: 16px; }
 }
 
 /* ============================================================
