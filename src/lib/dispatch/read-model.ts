@@ -1,6 +1,8 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { isDemoDataEnabled } from "../demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
+import { buildDemoDispatches } from "./demo";
 import { type DispatchStatus, type DispatchView } from "./status";
 
 export type DispatchRow = {
@@ -94,6 +96,8 @@ async function loadViews(supabase: SupabaseClient, filter?: { campaignId: string
 /** Cross-campaign outbox list. */
 export async function getOutboxList(client?: SupabaseClient): Promise<OutboxList> {
   if (!client && !isSupabaseAdminConfigured()) {
+    // Offline preview: render a populated send queue instead of an empty console.
+    if (isDemoDataEnabled()) return { status: "live", dispatches: buildDemoDispatches() };
     return { status: "unavailable", message: "Supabase env vars are not configured." };
   }
   try {
