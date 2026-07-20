@@ -21,7 +21,10 @@ export default async function ArcPage({
   // "Ask Arc to draft it" CTA). Capped so a crafted URL can't stuff the box.
   const initialDraft = typeof sp.prompt === "string" && sp.prompt.trim() ? sp.prompt.slice(0, 4000) : undefined;
   const ctx = await getCurrentWorkspaceContext().catch(() => null);
-  const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
+  // The operator's own workspace name — never a hardcoded tenant. Arc is a
+  // multi-tenant product; a workspace with no name falls through to a neutral
+  // greeting ("there") in the view rather than borrowing another company's brand.
+  const brandName = ctx?.orgName?.trim() || "";
   // Greet the operator by first name (as Home does) so opening Arc reads like a
   // personal workspace, not a product splash. Falls back to the brand name in
   // open/demo mode where there's no signed-in person to resolve.
