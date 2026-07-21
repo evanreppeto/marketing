@@ -170,11 +170,11 @@ export type ArcRoute = "fast" | "standard";
 const ARC_MODES: readonly ArcMode[] = ["ask", "act", "draft"];
 const ARC_ROUTES: readonly ArcRoute[] = ["fast", "standard"];
 
-/** Parse the composer's stance; anything unrecognized falls back to read-only "ask". */
+/** Parse the composer's stance; missing/legacy values stay action-capable. */
 export function parseArcMode(value: unknown): ArcMode {
   return typeof value === "string" && (ARC_MODES as readonly string[]).includes(value)
     ? (value as ArcMode)
-    : "ask";
+    : "act";
 }
 
 /** Parse the model routing hint; anything unrecognized stays on the cheap/fast lane. */

@@ -92,9 +92,10 @@ import type {
 import type { MentionGroup } from "@/lib/arc-chat/mention-search";
 import type { ArcThreadGroupVM } from "@/lib/arc-chat/read-model";
 import { filterThreadGroups, type ArcThreadFilter } from "@/lib/arc-chat/thread-filter";
+import { resolveArcComposerMode } from "@/lib/arc-chat/composer-mode";
 import { resolveArcModelRoute, type ArcModelPreference } from "@/lib/arc-chat/model-routing";
 import { buildArcRunContract } from "@/lib/arc-chat/run-contract";
-import { buildArcRunProfile, inferArcRunIntent } from "@/lib/arc-chat/run-profile";
+import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
 import {
   getArcConversationHeader,
   getArcConversationScrollTarget,
@@ -138,7 +139,7 @@ import type {
 } from "./arc-view.types";
 import { DEMO_PACKAGE_CARDS, DEMO_THREADS, DEMO_WAITING } from "./arc-demo-data";
 import { ArcWorkPanel, AssetReviewPanel, ChipThumb, QuestionPrompt } from "./arc-messages";
-import { ArcLauncher, DemoConversation, LiveConversation } from "./arc-conversation";
+import { ArcLauncher, DemoConversation, LiveConversation, type OptimisticArcTurn } from "./arc-conversation";
 
 
 const MODEL_OPTIONS: Array<{ id: ArcModelPreference; label: string; description: string }> = [
@@ -157,12 +158,7 @@ const COMMAND_OPTIONS: Array<{ id: string; mode: ArcMode }> = COMMAND_SKILLS.fla
 
 function inferComposerMode(request: string, command: string | null): ArcMode {
   const commandMode = COMMAND_OPTIONS.find((option) => option.id === command)?.mode;
-  if (commandMode) return commandMode;
-
-  const intent = inferArcRunIntent({ request });
-  if (intent === "create") return "draft";
-  if (intent === "action") return "act";
-  return "ask";
+  return resolveArcComposerMode({ request, commandMode });
 }
 
 function ArcModelIcon({ model, size }: { model: ArcModelPreference; size: number }) {
@@ -903,7 +899,7 @@ export function ArcView({
   const [isSending, startSend] = useTransition();
   const [isSavingSkill, startSavingSkill] = useTransition();
   const [draft, setDraft] = useState(initialDraft ?? "");
-  const [mode, setMode] = useState<ArcMode>("ask");
+  const [mode, setMode] = useState<ArcMode>("act");
   const [modelPreference, setModelPreference] = useState<ArcModelPreference>("auto");
   const [route, setRoute] = useState<ArcRoute>("fast");
   const [composerMenu, setComposerMenu] = useState<ComposerMenu>(null);
@@ -915,6 +911,7 @@ export function ArcView({
   const [contextInfoOpen, setContextInfoOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [startingNewConversation, setStartingNewConversation] = useState(false);
+  const [optimisticTurn, setOptimisticTurn] = useState<(OptimisticArcTurn & { baselineMessageCount: number }) | null>(null);
   const [installedSkillKeys, setInstalledSkillKeys] = useState(initialInstalledSkillKeys);
   const [workspaceSkills, setWorkspaceSkills] = useState(initialWorkspaceSkills);
   const [installingSkillKey, setInstallingSkillKey] = useState<string | null>(null);
@@ -944,15 +941,21 @@ export function ArcView({
   const [streamOverlay, setStreamOverlay] = useState<ArcStreamOverlay | null>(null);
   const visibleConversationId = startingNewConversation ? null : activeConversationId;
   const visibleMessages = startingNewConversation ? [] : messages;
-  const awaitingReply = live && visibleMessages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim()));
+  const awaitingReply = live && (Boolean(optimisticTurn) || visibleMessages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim())));
   const isStreaming = awaitingReply || demoPending;
-  const turnCount = live ? visibleMessages.length : demoTurns.length;
+  const turnCount = live ? visibleMessages.length + (optimisticTurn ? 2 : 0) : demoTurns.length;
 
   useEffect(() => {
     if (!startingNewConversation || activeConversationId !== null || messages.length > 0) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the server has caught up with the optimistic blank-chat shell
     setStartingNewConversation(false);
   }, [activeConversationId, messages.length, startingNewConversation]);
+
+  useEffect(() => {
+    if (!optimisticTurn || messages.length <= optimisticTurn.baselineMessageCount) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- canonical server messages have replaced the local pending shell
+    setOptimisticTurn(null);
+  }, [messages.length, optimisticTurn]);
 
   useEffect(() => {
     try {
@@ -1215,7 +1218,7 @@ export function ArcView({
   const chooseSkill = (skill: ArcSkillDefinition) => {
     const nextCommand = skill.commands[0]!.replace(/^\//, "");
     setCommand(nextCommand);
-    setMode(skill.mode);
+    setMode(resolveArcComposerMode({ request: draft, commandMode: skill.mode }));
     if (modelPreference === "auto") {
       setRoute(resolveArcModelRoute({ preference: modelPreference, request: draft, command: nextCommand }));
     }
@@ -1316,31 +1319,49 @@ export function ArcView({
       }, 6000);
       return;
     }
+    const pendingTurn = {
+      body,
+      mode: resolvedMode,
+      route: resolvedRoute,
+      contextScopes: [...contextScopes],
+      baselineMessageCount: messages.length,
+    } satisfies OptimisticArcTurn & { baselineMessageCount: number };
+    const pendingMentions = selectedMentions;
+    const pendingAttachments = attachments;
+    const pendingCommand = command;
+    setOptimisticTurn(pendingTurn);
+    setDraft("");
+    setSelectedMentions([]);
+    setAttachments([]);
+    setCommand(null);
+    pinnedRef.current = true;
     startSend(async () => {
       const result = await sendArcMessageAction({
         conversationId: visibleConversationId,
         body,
-        mentions: selectedMentions,
-        attachments,
+        mentions: pendingMentions,
+        attachments: pendingAttachments,
         mode: resolvedMode,
         route: resolvedRoute,
-        command,
+        command: pendingCommand,
         contextScopes,
       });
       if (!result.ok) {
+        setOptimisticTurn(null);
+        setDraft(body);
+        setSelectedMentions(pendingMentions);
+        setAttachments(pendingAttachments);
+        setCommand(pendingCommand);
         setComposerNotice(result.error);
         return;
       }
-      setDraft("");
-      setSelectedMentions([]);
-      setAttachments([]);
-      setCommand(null);
       router.push(`/arc?c=${result.conversationId}`);
       router.refresh();
     });
   };
 
   const selectDemoThread = (id: string) => {
+    setOptimisticTurn(null);
     setSelectedDemoId(id);
     setHistoryOpen(false);
     setReviewCards(null);
@@ -1356,6 +1377,7 @@ export function ArcView({
   };
 
   const startNewConversation = () => {
+    setOptimisticTurn(null);
     setStartingNewConversation(true);
     setHistoryOpen(false);
     setReviewCards(null);
@@ -1492,7 +1514,7 @@ export function ArcView({
   const applyDrawerSkill = (skill: ArcSkillDefinition) => {
     const nextCommand = skill.commands[0]!.replace(/^\//, "");
     setCommand(nextCommand);
-    setMode(skill.mode);
+    setMode(resolveArcComposerMode({ request: "", commandMode: skill.mode }));
     setDraft("");
     if (modelPreference === "auto") {
       setRoute(resolveArcModelRoute({ preference: modelPreference, request: "", command: nextCommand }));
@@ -1523,7 +1545,7 @@ export function ArcView({
   };
 
   return (
-    <div className="arc-chat" data-workspace-open={panelVisible ? "true" : "false"} data-new-conversation={live && !visibleConversationId && visibleMessages.length === 0 ? "true" : "false"}>
+    <div className="arc-chat" data-workspace-open={panelVisible ? "true" : "false"} data-new-conversation={live && !visibleConversationId && visibleMessages.length === 0 && !optimisticTurn ? "true" : "false"}>
       <header className="arc-conversation-header">
         <button type="button" className="arc-history-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversation history"><Menu size={17} /><span>History</span></button>
         <div className="arc-conversation-title"><h1>{header.title}</h1><p>{header.subtitle}</p></div>
@@ -1536,7 +1558,7 @@ export function ArcView({
 
       <main className="arc-conversation-scroll" ref={scrollRef}>
         <div className="arc-conversation-column">
-          {live ? <LiveConversation messages={renderedMessages} operatorName={greetName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={updateDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : showDemoLauncher ? <ArcLauncher greetName={greetName} waiting={DEMO_WAITING} onPick={updateDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} includeSeed={selectedDemoId !== "new"} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
+          {live ? <LiveConversation messages={renderedMessages} optimisticTurn={optimisticTurn} operatorName={greetName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={updateDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : showDemoLauncher ? <ArcLauncher greetName={greetName} waiting={DEMO_WAITING} onPick={updateDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} includeSeed={selectedDemoId !== "new"} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
           <div ref={endRef} />
         </div>
       </main>

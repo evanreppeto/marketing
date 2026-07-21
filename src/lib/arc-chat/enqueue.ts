@@ -9,6 +9,7 @@ import { getSupabaseAdminClient } from "../supabase/server";
 import { markAgentKeys } from "./agent-config";
 import { notifyArcWebhook } from "./notify";
 import { insertPendingArcMessage, type ArcAttachment } from "./persistence";
+import { logArcChatStatus } from "./status-log";
 
 export type EnqueueChatTaskInput = {
   conversationId: string;
@@ -143,8 +144,9 @@ export async function enqueueArcChatTask(
   // queued forever. Best-effort and fully isolated: a wake failure must never
   // fail a message that's already persisted — the inbox route is the fallback.
   // Mirrors enqueueOpportunityScanTask's enqueue→notify handoff.
+  const wakeStartedAt = Date.now();
   try {
-    await notifyArcWebhook({
+    const delivered = await notifyArcWebhook({
       messageId: input.messageId,
       conversationId: input.conversationId,
       projectId: input.projectId ?? null,
@@ -163,8 +165,18 @@ export async function enqueueArcChatTask(
       assistantResponseStyle: input.assistantResponseStyle,
       approvalStrictness: input.approvalStrictness,
     });
-  } catch {
+    logArcChatStatus("waking_mark", {
+      agentTaskId: task.id,
+      conversationId: input.conversationId,
+      detail: `delivered=${delivered} wake_ms=${Date.now() - wakeStartedAt}`,
+    });
+  } catch (error) {
     // Best-effort wake; the task is queued and the inbox route can still deliver it.
+    logArcChatStatus("waking_mark", {
+      agentTaskId: task.id,
+      conversationId: input.conversationId,
+      detail: `delivered=false wake_ms=${Date.now() - wakeStartedAt} error=${error instanceof Error ? error.message : String(error)}`,
+    });
   }
 
   return task.id;

@@ -46,6 +46,7 @@ import {
 import { listSavedItems, removeSavedItem, saveItem, type SavedItem, type SavedKind } from "@/lib/arc-chat/saved";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { assertConversationAccess } from "@/lib/arc-chat/sharing";
+import { logArcChatStatus } from "@/lib/arc-chat/status-log";
 import { ALL_ARC_SKILLS, ARC_SKILL_LIBRARY, skillIdForArcCommand } from "@/lib/arc-skills/catalog";
 import { instructionForWorkspaceSkill, parseWorkspaceArcSkills, type WorkspaceArcSkill } from "@/lib/arc-skills/custom";
 import { ARC_CUSTOM_SKILLS_SETTING, getWorkspaceArcSkills, previewGithubArcSkill } from "@/lib/arc-skills/github";
@@ -187,6 +188,7 @@ export async function sendArcMessageAction(input: {
   command?: string | null;
   contextScopes?: string[];
 }): Promise<SendArcMessageResult> {
+  const acceptedAt = Date.now();
   await requireOperator();
   if (!isSupabaseAdminConfigured()) {
     return { ok: false, error: "Arc chat needs a connected backend." };
@@ -200,7 +202,8 @@ export async function sendArcMessageAction(input: {
 
   // Pre-flight plan/quota gate: don't spend Arc (Claude) budget when the org is
   // over its monthly cap. Non-blocking until ARC_BILLING_ENFORCEMENT is armed.
-  const gate = await checkUsageAllowed(await getCurrentOrgId());
+  const orgId = await getCurrentOrgId();
+  const gate = await checkUsageAllowed(orgId);
   if (!gate.allowed) {
     return {
       ok: false,
@@ -209,14 +212,18 @@ export async function sendArcMessageAction(input: {
   }
 
   try {
-    const operator = await getOperatorActor();
     const mentions = parseMentions(input.mentions);
     const attachments = parseArcAttachmentsJson(JSON.stringify(input.attachments ?? []));
     const mode = parseArcMode(input.mode);
     const route = parseArcRoute(input.route);
     const command = typeof input.command === "string" ? input.command.trim().replace(/^\//, "") || null : null;
+    const [operator, workspaceSkills, agentName] = await Promise.all([
+      getOperatorActor(),
+      command ? getWorkspaceArcSkills(orgId) : Promise.resolve([] as WorkspaceArcSkill[]),
+      getArcDisplayName(),
+    ]);
     const workspaceSkill = command
-      ? (await getWorkspaceArcSkills(await getCurrentOrgId())).find((skill) => skill.commands.some((candidate) => candidate.replace(/^\//, "") === command)) ?? null
+      ? workspaceSkills.find((skill) => skill.commands.some((candidate) => candidate.replace(/^\//, "") === command)) ?? null
       : null;
     const skillId = workspaceSkill?.id ?? skillIdForArcCommand(command);
     const runnerMessage = workspaceSkill ? instructionForWorkspaceSkill(workspaceSkill, body) : body;
@@ -259,23 +266,30 @@ export async function sendArcMessageAction(input: {
       skillId,
       contextScopes,
     });
-    await enqueueArcChatTask({
+    const [agentTaskId] = await Promise.all([
+      enqueueArcChatTask({
+        conversationId,
+        projectId: conversationProjectId,
+        campaignId: conversationCampaignId,
+        messageId: message.id,
+        message: runnerMessage,
+        mentions,
+        attachments,
+        operator,
+        mode,
+        route,
+        command,
+        skillId,
+        contextScopes,
+        agentName,
+      }),
+      touchConversation(conversationId),
+    ]);
+    logArcChatStatus("queued", {
+      agentTaskId,
       conversationId,
-      projectId: conversationProjectId,
-      campaignId: conversationCampaignId,
-      messageId: message.id,
-      message: runnerMessage,
-      mentions,
-      attachments,
-      operator,
-      mode,
-      route,
-      command,
-      skillId,
-      contextScopes,
-      agentName: await getArcDisplayName(),
+      detail: `accepted_ms=${Date.now() - acceptedAt} mode=${mode} route=${route}`,
     });
-    await touchConversation(conversationId);
 
     revalidatePath("/arc");
     return { ok: true, conversationId };
@@ -299,6 +313,7 @@ async function reEnqueueTurn(operatorMessage: ArcMessage, body: string): Promise
     ? (await getWorkspaceArcSkills(await getCurrentOrgId())).find((skill) => skill.commands.some((candidate) => candidate.replace(/^\//, "") === command)) ?? null
     : null;
   const conversation = await getConversation(operatorMessage.conversationId);
+  const mode = operatorMessage.mode === "ask" ? "act" : operatorMessage.mode;
   await enqueueArcChatTask({
     conversationId: operatorMessage.conversationId,
     projectId: conversation?.projectId ?? null,
@@ -308,7 +323,7 @@ async function reEnqueueTurn(operatorMessage: ArcMessage, body: string): Promise
     mentions: operatorMessage.mentions,
     attachments: operatorMessage.attachments,
     operator: await getOperatorActor(),
-    mode: operatorMessage.mode,
+    mode,
     route: operatorMessage.route,
     command: operatorMessage.command,
     skillId: operatorMessage.skillId,

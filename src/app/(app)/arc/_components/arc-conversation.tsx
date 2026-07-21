@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, ClipboardCheck, MessageSquareText, ShieldCheck, Target, Zap } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
-import type { ArcActionCard, ArcAssetStatus } from "@/domain";
+import type { ArcActionCard, ArcAssetStatus, ArcMode, ArcRoute } from "@/domain";
 import type { ArcMessage, ArcStep } from "@/lib/arc-chat/persistence";
 import { buildArcRunContract, type ArcRunContract } from "@/lib/arc-chat/run-contract";
 import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
@@ -47,6 +47,13 @@ export const LAUNCHER_SHORTCUTS: Array<{ icon: typeof Target; label: string; pro
   { icon: Zap, label: "Check today's signals", prompt: "What new signals or opportunities should I know about today?" },
   { icon: ShieldCheck, label: "Review approvals", prompt: "What's waiting for my approval right now?" },
 ];
+
+export type OptimisticArcTurn = {
+  body: string;
+  mode: ArcMode;
+  route: ArcRoute;
+  contextScopes: string[];
+};
 
 /** The new-conversation "work launcher": a time-of-day greeting and tappable
  *  workflow starters that prefill the composer, so a blank chat proposes work
@@ -131,6 +138,7 @@ export function ArcLauncher({ greetName, waiting, onPick }: { greetName: string;
 
 export function LiveConversation({
   messages,
+  optimisticTurn,
   operatorName,
   waiting,
   assetStatuses,
@@ -142,6 +150,7 @@ export function LiveConversation({
   stoppingTaskId,
 }: {
   messages: ArcMessage[];
+  optimisticTurn?: OptimisticArcTurn | null;
   operatorName: string;
   waiting?: ArcWaiting | null;
   assetStatuses: Record<string, ArcAssetStatus>;
@@ -152,12 +161,12 @@ export function LiveConversation({
   onCancelRun: (taskId: string, conversationId: string) => void;
   stoppingTaskId: string | null;
 }) {
-  if (messages.length === 0) {
+  if (messages.length === 0 && !optimisticTurn) {
     return <ArcLauncher greetName={operatorName} waiting={waiting} onPick={onSuggestion} />;
   }
 
   // While a reply is in flight, hide edit/regenerate — the turn is already running.
-  const awaitingReply = messages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim()));
+  const awaitingReply = Boolean(optimisticTurn) || messages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim()));
   const lastIndex = messages.length - 1;
 
   return (
@@ -199,6 +208,21 @@ export function LiveConversation({
           </AssistantMessage>
         );
       })}
+      {optimisticTurn ? (
+        <>
+          <OperatorMessage body={optimisticTurn.body} />
+          <AssistantMessage active>
+            <RunTrace
+              pending
+              contract={buildArcRunContract({
+                mode: optimisticTurn.mode,
+                route: optimisticTurn.route,
+                contextScopes: optimisticTurn.contextScopes,
+              })}
+            />
+          </AssistantMessage>
+        </>
+      ) : null}
     </>
   );
 }
@@ -239,7 +263,7 @@ export function DemoConversation({
               <p>That’s 23% of the storm zone and about $1.4M in estimated restoration work. The clearest urgency signals across them:</p>
               <ul><li>Sit in the <b>worst-hit hail swath</b>, with no inspection on file — <b>3.1× more likely</b> to have hidden damage</li><li>No inspection booked in the six days since the storm</li><li>Roof age 8+ years or prior claim history</li></ul>
             </div>
-            <RunTrace pending={false} thoughtSeconds={8} reasoning="I combined the storm footprint with property condition and recent CRM activity, then favored an inspection-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "ask", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
+            <RunTrace pending={false} thoughtSeconds={8} reasoning="I combined the storm footprint with property condition and recent CRM activity, then favored an inspection-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "act", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
             <SourcesRow mentions={DEMO_SOURCES} />
             <RecallRow recall={DEMO_RECALL} />
           </AssistantMessage>

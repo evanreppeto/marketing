@@ -3,14 +3,14 @@ import { describe, expect, it } from "vitest";
 import { buildArcRunContract } from "./run-contract";
 
 describe("buildArcRunContract", () => {
-  it("defaults to a read-only, externally locked run", () => {
+  it("defaults to an action-capable, externally locked run", () => {
     expect(buildArcRunContract({})).toMatchObject({
-      mode: "ask",
-      modeLabel: "Read only",
+      mode: "act",
+      modeLabel: "Workspace action",
       modelLabel: "Arc Spark",
-      workspaceEffect: "No workspace changes",
+      workspaceEffect: "May update internal workspace records",
       externalEffect: "No external sends or spend",
-      approval: "Not needed for read-only work",
+      approval: "Required before any outbound action",
     });
   });
 

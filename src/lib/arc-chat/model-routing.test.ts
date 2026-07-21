@@ -8,13 +8,15 @@ describe("resolveArcModelRoute", () => {
     expect(resolveArcModelRoute({ preference: "standard", request: "Hello" })).toBe("standard");
   });
 
-  it("uses Spark for direct conversational requests in auto mode", () => {
+  it("uses Spark for conversation, research, and analysis in auto mode", () => {
     expect(resolveArcModelRoute({ preference: "auto", request: "Hello, what can you help me with?" })).toBe("fast");
+    expect(resolveArcModelRoute({ preference: "auto", request: "Find and rank our strongest leads" })).toBe("fast");
+    expect(resolveArcModelRoute({ preference: "auto", request: "Analyze campaign performance" })).toBe("fast");
+    expect(resolveArcModelRoute({ preference: "auto", command: "find-leads" })).toBe("fast");
   });
 
-  it("uses Forge for structured work in auto mode", () => {
-    expect(resolveArcModelRoute({ preference: "auto", request: "Analyze our campaign performance" })).toBe("standard");
+  it("reserves Forge for creation and workspace actions in auto mode", () => {
     expect(resolveArcModelRoute({ preference: "auto", request: "Draft a follow-up email" })).toBe("standard");
-    expect(resolveArcModelRoute({ preference: "auto", command: "find-leads" })).toBe("standard");
+    expect(resolveArcModelRoute({ preference: "auto", request: "Update this lead's status" })).toBe("standard");
   });
 });

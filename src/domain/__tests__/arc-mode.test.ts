@@ -8,11 +8,11 @@ describe("parseArcMode", () => {
     expect(parseArcMode("act")).toBe("act");
     expect(parseArcMode("draft")).toBe("draft");
   });
-  it("defaults unknown / empty / non-string to 'ask'", () => {
-    expect(parseArcMode("nonsense")).toBe("ask");
-    expect(parseArcMode("")).toBe("ask");
-    expect(parseArcMode(undefined)).toBe("ask");
-    expect(parseArcMode(42)).toBe("ask");
+  it("defaults unknown / empty / non-string to action-capable mode", () => {
+    expect(parseArcMode("nonsense")).toBe("act");
+    expect(parseArcMode("")).toBe("act");
+    expect(parseArcMode(undefined)).toBe("act");
+    expect(parseArcMode(42)).toBe("act");
   });
 });
 
