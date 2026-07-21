@@ -115,6 +115,22 @@ export async function completeRecordTask(objectKey: string, recordId: string, ta
   return { ok: true, persisted: true };
 }
 
+/** Reopen a completed task (status -> open; the persistence clears completed_at).
+ *  The undo half of completeRecordTask so a mis-completed task isn't stuck done.
+ *  Internal; never outbound. Org-scoped in updateTaskStatus. */
+export async function reopenRecordTask(objectKey: string, recordId: string, taskId: string): Promise<WriteResult> {
+  await requireOperator();
+  if (!VALID_KEYS.has(objectKey)) return { ok: false, error: "Unknown record type." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const actor = await getOperatorActor();
+  const result = await updateTaskStatus(taskId, "open", { kind: "human", name: actor }, await currentScope());
+  if (!result.ok) return { ok: false, error: result.error };
+  revalidatePath(`/crm/${objectKey}/${recordId}`);
+  return { ok: true, persisted: true };
+}
+
 /** Pin or unpin a record note (internal; never outbound). The notes list already
  *  renders a pinned indicator — this is the missing write half. Org-scoped. */
 export async function setRecordNotePinned(
