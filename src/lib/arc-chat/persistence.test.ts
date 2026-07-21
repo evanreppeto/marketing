@@ -319,8 +319,8 @@ describe("linkConversationToCampaign", () => {
 });
 
 describe("completeArcMessage", () => {
-  it("writes mentions onto the row when provided", async () => {
-    const supabase = createSupabaseQueryMock({ arc_messages: { data: null, error: null } });
+  it("atomically merges final metadata and writes mentions when provided", async () => {
+    const supabase = createSupabaseQueryMock({ "rpc:arc_complete_message": { data: true, error: null } });
     await completeArcMessage(
       {
         messageId: "m1",
@@ -330,19 +330,83 @@ describe("completeArcMessage", () => {
       },
       supabase,
     );
-    const update = calls(supabase, "update")[0];
-    expect(update).toMatchObject({
-      body: "done",
-      status: "complete",
-      mentions: [{ type: "lead", id: "L1", label: "Dana", href: "/crm/leads/L1" }],
-    });
+    expect(supabase.calls).toContainEqual([
+      "rpc",
+      "arc_complete_message",
+      {
+        p_message_id: "m1",
+        p_body: "done",
+        p_metadata: { actions: [] },
+        p_mentions: [{ type: "lead", id: "L1", label: "Dana", href: "/crm/leads/L1" }],
+      },
+    ]);
   });
 
-  it("omits the mentions key when not provided (no clobber)", async () => {
-    const supabase = createSupabaseQueryMock({ arc_messages: { data: null, error: null } });
+  it("passes null mentions when omitted so the atomic mutation does not clobber them", async () => {
+    const supabase = createSupabaseQueryMock({ "rpc:arc_complete_message": { data: true, error: null } });
     await completeArcMessage({ messageId: "m1", body: "done" }, supabase);
-    const update = calls(supabase, "update")[0];
-    expect(update).not.toHaveProperty("mentions");
+    expect(supabase.calls).toContainEqual([
+      "rpc",
+      "arc_complete_message",
+      { p_message_id: "m1", p_body: "done", p_metadata: {}, p_mentions: null },
+    ]);
+  });
+
+  it("fails when the message is no longer pending", async () => {
+    const supabase = createSupabaseQueryMock({ "rpc:arc_complete_message": { data: false, error: null } });
+    await expect(completeArcMessage({ messageId: "m1", body: "done" }, supabase)).rejects.toThrow(
+      "found no pending message",
+    );
+  });
+
+  it("preserves streamed metadata when the migration is not applied yet", async () => {
+    const supabase = createSupabaseQueryMock({
+      "rpc:arc_complete_message": {
+        data: null,
+        error: { message: "Could not find the function public.arc_complete_message in the schema cache" },
+      },
+      arc_messages: [
+        {
+          data: {
+            metadata: {
+              steps: [{ label: "Researching", status: "done", at: "t" }],
+              reasoning: "Compared records",
+            },
+            mentions: [{ type: "lead", id: "L1", label: "Dana" }],
+          },
+          error: null,
+        },
+        { data: { id: "m1" }, error: null },
+      ],
+    });
+
+    await completeArcMessage(
+      { messageId: "m1", body: "done", metadata: { actions: [], runDurationMs: 1450 } },
+      supabase,
+    );
+
+    expect(calls(supabase, "update")[0]).toEqual({
+      body: "done",
+      status: "complete",
+      metadata: {
+        steps: [{ label: "Researching", status: "done", at: "t" }],
+        reasoning: "Compared records",
+        actions: [],
+        runDurationMs: 1450,
+      },
+    });
+    expect(supabase.calls).toContainEqual(["eq", "status", "pending"]);
+  });
+
+  it("does not hide genuine RPC failures behind the compatibility path", async () => {
+    const supabase = createSupabaseQueryMock({
+      "rpc:arc_complete_message": { data: null, error: { message: "permission denied" } },
+    });
+
+    await expect(completeArcMessage({ messageId: "m1", body: "done" }, supabase)).rejects.toThrow(
+      "permission denied",
+    );
+    expect(supabase.calls).not.toContainEqual(["from", "arc_messages"]);
   });
 });
 

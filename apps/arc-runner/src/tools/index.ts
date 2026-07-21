@@ -68,7 +68,7 @@ function draftTools(client: ArcClient, step: StepFn, sink: TurnSink, ctx: ToolCo
     ...draftWorkProductTools(client, step, sink, ctx),
     ...mediaTools(client, step, sink.card, ctx),
     ...variantsTools(client, step, sink.card, ctx),
-    ...libraryDraftTools(client, step, sink.card),
+    ...libraryDraftTools(client, step, sink.card, ctx),
     ...brandTools(client, step, sink.card),
   ];
 }

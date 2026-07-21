@@ -27,14 +27,14 @@ describe("attach_media", () => {
     const client = { apiPost } as unknown as ArcClient;
     const step = vi.fn(async () => {});
     const cards: ArcActionCard[] = [];
-    const [attachMedia] = libraryDraftTools(client, step, (c) => cards.push(c));
+    const [attachMedia] = libraryDraftTools(client, step, (c) => cards.push(c), { conversationId: "conv-1" });
 
     const handler = attachMedia.handler as (a: Record<string, unknown>, e?: unknown) => Promise<{ content: Array<{ type: string; text: string }> }>;
     const out = await handler({ library_asset_id: "a1", title: "Before/after", campaign_id: "c1" });
 
     expect(apiPost).toHaveBeenCalledWith(
       "/api/v1/arc/library/attach",
-      expect.objectContaining({ library_asset_id: "a1", title: "Before/after", campaign_id: "c1" }),
+      expect.objectContaining({ library_asset_id: "a1", title: "Before/after", campaign_id: "c1", conversation_id: "conv-1" }),
     );
     expect(cards[0]).toMatchObject({
       kind: "draft",

@@ -4,6 +4,7 @@ vi.mock("@/lib/campaigns/create", () => ({
   createCampaignShell: vi.fn(),
   promoteAssetToCampaign: vi.fn(),
 }));
+vi.mock("@/lib/arc-chat/persistence", () => ({ linkConversationToCampaign: vi.fn(async () => undefined) }));
 vi.mock("@/lib/media-library/arc-handoff", () => ({ resolveAvailableArcMediaAsset: vi.fn() }));
 vi.mock("@/lib/personas/read-model", () => ({
   getOrgPersonaKeys: vi.fn(async () => [
@@ -18,6 +19,7 @@ vi.mock("@/lib/auth/workspace", () => ({
 }));
 
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
+import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
 import { resolveAvailableArcMediaAsset } from "@/lib/media-library/arc-handoff";
 import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 
@@ -26,6 +28,7 @@ import { POST } from "./route";
 const shellMock = vi.mocked(createCampaignShell);
 const promoteMock = vi.mocked(promoteAssetToCampaign);
 const resolveMock = vi.mocked(resolveAvailableArcMediaAsset);
+const linkMock = vi.mocked(linkConversationToCampaign);
 
 function req(authorization: string | undefined, body?: unknown) {
   return new Request("http://localhost/api/v1/arc/library/attach", {
@@ -50,6 +53,8 @@ beforeEach(() => {
   shellMock.mockReset();
   promoteMock.mockReset();
   resolveMock.mockReset();
+  linkMock.mockReset();
+  linkMock.mockResolvedValue(undefined);
   shellMock.mockResolvedValue({ campaignId: "camp_1" });
   promoteMock.mockResolvedValue({ assetId: "asset_1" });
   resolveMock.mockResolvedValue({
@@ -110,5 +115,19 @@ describe("POST /api/v1/arc/library/attach", () => {
     );
     expect(res.status).toBe(201);
     expect(shellMock).toHaveBeenCalledWith(expect.objectContaining({ restorationFocus: "water_backup" }));
+  });
+
+  it("links the originating conversation to the campaign", async () => {
+    configure();
+    const res = await POST(
+      req("Bearer secret", {
+        library_asset_id: "lib-1",
+        title: "Proof photo",
+        campaign_id: "camp-1",
+        conversation_id: "conv-1",
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(linkMock).toHaveBeenCalledWith("conv-1", "camp-1", "Campaign workspace");
   });
 });

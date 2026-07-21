@@ -12,7 +12,7 @@ import {
   resyncMediaIntoBrain,
 } from "@/lib/brain-ingestion/sync";
 import { probeEmbedding } from "@/lib/embeddings/gemini-embeddings";
-import { decideNode } from "@/lib/knowledge-graph/persistence";
+import { archiveNode, decideNode } from "@/lib/knowledge-graph/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
@@ -33,6 +33,25 @@ export async function decideBrainNode(nodeId: string, decision: ApprovalDecision
 
   const actor = await getOperatorActor();
   const result = await decideNode(nodeId, decision, { actor });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  revalidatePath("/brain");
+  return { ok: true, persisted: true };
+}
+
+/**
+ * Archive a Brain fact — a soft, reversible curation move (trust_tier -> archived)
+ * that drops it from the working knowledge without deleting it. Internal only,
+ * never outbound; org-scoped in the persistence layer. `persisted: false` is the
+ * honest offline signal so the list can drop the row without claiming a write.
+ */
+export async function archiveBrainNode(nodeId: string): Promise<BrainDecisionResult> {
+  await requireOperator();
+  if (!nodeId) return { ok: false, error: "Missing node." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const result = await archiveNode(nodeId);
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath("/brain");

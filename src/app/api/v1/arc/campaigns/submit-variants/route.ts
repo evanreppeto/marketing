@@ -10,6 +10,7 @@ import {
   type ViralityScore,
 } from "@/domain";
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
+import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
 import {
   CampaignResolutionError,
   promoteAssetToCampaign,
@@ -151,6 +152,11 @@ export async function POST(request: Request) {
         tenant,
       });
       submitted.push({ assetId, title: v.title });
+    }
+
+    const conversationId = typeof body.conversation_id === "string" ? body.conversation_id.trim() : "";
+    if (conversationId) {
+      await linkConversationToCampaign(conversationId, campaignId, body.name?.trim() || "Campaign workspace").catch(() => undefined);
     }
 
     // Bust the campaigns list + detail caches so the drafts show up immediately.

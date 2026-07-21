@@ -87,6 +87,9 @@ export type ArcMessage = {
   contextScopes?: string[];
   command?: string | null;
   skillId?: ArcSkillId | null;
+  /** Measured runner wall-clock for this reply. Stored by the runner at
+   * completion so the receipt does not infer duration from two insert times. */
+  runDurationMs?: number | null;
   createdAt: string;
 };
 
@@ -254,6 +257,7 @@ function toMessage(row: MessageRow): ArcMessage {
     contextScopes: parseContextScopes((row.metadata as { context_scopes?: unknown } | null)?.context_scopes),
     command: parseOptionalString((row.metadata as { command?: unknown } | null)?.command) ?? null,
     skillId: parseOptionalSkillId((row.metadata as { skill_id?: unknown } | null)?.skill_id) ?? null,
+    runDurationMs: parseRunDurationMs((row.metadata as { runDurationMs?: unknown } | null)?.runDurationMs),
     createdAt: row.created_at,
   };
 }
@@ -278,6 +282,10 @@ function parseContextScopes(value: unknown): string[] {
 function parseOptionalSkillId(value: unknown): ArcSkillId | undefined {
   const id = parseOptionalString(value);
   return id === "company-research" || id === "opportunity-discovery" || id === "approval-gated-drafting" || id === "skill-authoring" ? id : undefined;
+}
+
+function parseRunDurationMs(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 function assertOk(label: string, error: { message: string } | null) {
@@ -869,15 +877,74 @@ export async function completeArcMessage(
   input: { messageId: string; body: string; metadata?: Record<string, unknown>; mentions?: ArcMention[] },
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<void> {
+  const { data, error } = await client.rpc("arc_complete_message", {
+    p_message_id: input.messageId,
+    p_body: input.body,
+    p_metadata: input.metadata ?? {},
+    // SQL treats null as "leave the existing mentions column unchanged". An
+    // explicitly provided [] still clears it, preserving the prior API contract.
+    p_mentions: input.mentions ?? null,
+  });
+  if (error && isMissingCompleteMessageRpc(error)) {
+    await completeArcMessageCompat(input, client);
+    return;
+  }
+  assertOk("arc_messages complete", error);
+  if (data !== true) throw new Error("arc_messages complete found no pending message");
+}
+
+function isMissingCompleteMessageRpc(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  const message = (error as { message?: unknown }).message;
+  return (
+    code === "PGRST202" ||
+    code === "42883" ||
+    (typeof message === "string" &&
+      message.includes("arc_complete_message") &&
+      /schema cache|does not exist|could not find/i.test(message))
+  );
+}
+
+/**
+ * Deployment-order bridge for app instances that reach a database before the
+ * arc_complete_message migration has been applied. This preserves the previous
+ * read/merge/write behavior only for a positively identified missing-function
+ * error; every other RPC failure remains loud. Remove after every environment
+ * has the migration.
+ */
+async function completeArcMessageCompat(
+  input: { messageId: string; body: string; metadata?: Record<string, unknown>; mentions?: ArcMention[] },
+  client: SupabaseClient,
+): Promise<void> {
+  const { data: current, error: readError } = await client
+    .from("arc_messages")
+    .select("metadata, mentions")
+    .eq("id", input.messageId)
+    .eq("status", "pending")
+    .maybeSingle<{ metadata: unknown; mentions: unknown }>();
+  assertOk("arc_messages complete compatibility read", readError);
+  if (!current) throw new Error("arc_messages complete found no pending message");
+
+  const currentMetadata = current.metadata && typeof current.metadata === "object" && !Array.isArray(current.metadata)
+    ? (current.metadata as Record<string, unknown>)
+    : {};
   const update: Record<string, unknown> = {
     body: input.body,
     status: "complete",
-    metadata: input.metadata ?? {},
+    metadata: { ...currentMetadata, ...(input.metadata ?? {}) },
   };
-  // Only set mentions when provided so callers that omit it don't clobber the column.
   if (input.mentions !== undefined) update.mentions = input.mentions;
-  const { error } = await client.from("arc_messages").update(update).eq("id", input.messageId);
-  assertOk("arc_messages complete", error);
+
+  const { data: completed, error: updateError } = await client
+    .from("arc_messages")
+    .update(update)
+    .eq("id", input.messageId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle<{ id: string }>();
+  assertOk("arc_messages complete compatibility update", updateError);
+  if (!completed) throw new Error("arc_messages complete found no pending message");
 }
 
 /**
