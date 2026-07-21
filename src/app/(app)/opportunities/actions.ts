@@ -82,7 +82,9 @@ export type DraftCampaignFromOpportunityInput = {
   opportunityId: string;
   name: string;
   persona: string;
-  restorationFocus: string;
+  campaignTheme?: string;
+  /** Legacy input retained for older clients during the campaign-theme migration. */
+  restorationFocus?: string;
 };
 
 export type DraftCampaignFromOpportunityResult =
@@ -126,12 +128,16 @@ async function createDraftCampaign(input: DraftCampaignFromOpportunityInput): Pr
 
   const name = input.name?.trim();
   const persona = input.persona?.trim();
-  const focus = input.restorationFocus?.trim();
+  const suppliedTheme = input.campaignTheme?.trim();
+  const legacyFocus = input.restorationFocus?.trim();
+  const focus = suppliedTheme || legacyFocus || "";
   if (!name) return { status: "error", error: "A campaign name is required." };
   if (!persona) {
     return { status: "error", error: "Choose a persona for this campaign." };
   }
-  if (!focus || !(RESTORATION_FOCUS_VALUES as readonly string[]).includes(focus)) {
+  if (suppliedTheme) {
+    if (suppliedTheme.length > 120) return { status: "error", error: "Add a campaign theme (120 characters or fewer)." };
+  } else if (!legacyFocus || !(RESTORATION_FOCUS_VALUES as readonly string[]).includes(legacyFocus)) {
     return { status: "error", error: "Choose a focus for this campaign." };
   }
 
@@ -169,7 +175,7 @@ async function createDraftCampaign(input: DraftCampaignFromOpportunityInput): Pr
       operator: actor,
       name,
       persona,
-      restorationFocus: focus,
+      ...(suppliedTheme ? { campaignTheme: suppliedTheme } : { restorationFocus: legacyFocus }),
       objective: opp.recommendedAction,
       audienceSummary: seed.audienceSummary,
       opportunity: {

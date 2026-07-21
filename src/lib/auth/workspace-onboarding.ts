@@ -6,7 +6,7 @@ import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured, type TypedSupabaseClient } from "@/lib/supabase/server";
 import { seedDefaultMediaFolders } from "@/lib/media-library/persistence";
 import { seedDefaultPersonas } from "@/lib/personas/persistence";
-import { isKnownIndustry } from "@/lib/personas/industry-templates";
+import { canonicalIndustryKey } from "@/lib/product-language";
 
 type WorkspaceType = "individual" | "company" | "agency";
 
@@ -55,7 +55,7 @@ function normalizeWorkspaceType(value: string | undefined): WorkspaceType {
 }
 
 function normalizeIndustry(value: string | undefined): string {
-  return isKnownIndustry(value) ? (value as string) : "general";
+  return canonicalIndustryKey(value);
 }
 
 function shortMarkFor(name: string) {

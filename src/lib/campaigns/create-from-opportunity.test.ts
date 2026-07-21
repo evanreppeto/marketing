@@ -18,6 +18,37 @@ function insertsFor(supabase: { calls: Array<[string, ...unknown[]]> }, table: s
 const LEAD_UUID = "11111111-2222-3333-4444-555555555555";
 
 describe("createCampaignFromOpportunity", () => {
+  it("stores an industry-neutral campaign theme without requiring a restoration focus", async () => {
+    const supabase = createSupabaseQueryMock({
+      campaigns: { data: { id: "camp-generic" }, error: null },
+      campaign_events: { data: null, error: null },
+    });
+
+    await createCampaignFromOpportunity({
+      operator: "evan@test",
+      name: "Customer adoption follow-up",
+      persona: "active-customer",
+      campaignTheme: "Product adoption",
+      objective: "Help engaged customers discover the next best step",
+      opportunity: {
+        id: "opp-adoption",
+        subjectType: "company",
+        subjectId: "account-1",
+        confidence: 84,
+        urgency: "medium",
+        recommendedAction: "Prepare a targeted adoption campaign",
+        evidence: null,
+      },
+      client: supabase,
+      tenant: { org_id: "org-1", workspace_id: "workspace-1" },
+    });
+
+    expect(insertsFor(supabase, "campaigns")[0]).toMatchObject({
+      campaign_theme: "Product adoption",
+      restoration_focus: null,
+    });
+  });
+
   it("writes a draft, launch-locked campaign seeded from the opportunity, plus a created event", async () => {
     const supabase = createSupabaseQueryMock({
       campaigns: { data: { id: "camp-9" }, error: null },

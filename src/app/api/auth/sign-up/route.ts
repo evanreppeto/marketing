@@ -15,6 +15,7 @@ export async function POST(request: Request) {
   const signUpIntent = buildSignUpIntent({
     firstName: String(form.get("firstName") ?? ""),
     fullName: String(form.get("fullName") ?? ""),
+    industry: String(form.get("industry") ?? "general"),
     inviteCode: String(form.get("inviteCode") ?? ""),
     lastName: String(form.get("lastName") ?? ""),
     organizationName: String(form.get("organizationName") ?? ""),

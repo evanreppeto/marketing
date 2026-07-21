@@ -71,6 +71,11 @@ function getPendingWorkspaceType(user: User) {
   return typeof value === "string" ? value.trim() : "company";
 }
 
+function getPendingIndustry(user: User) {
+  const value = user.user_metadata?.pending_industry;
+  return typeof value === "string" ? value.trim() : "general";
+}
+
 function organizationRoleForWorkspaceRole(role: string) {
   if (role === "owner") return "owner";
   if (role === "admin") return "admin";
@@ -311,6 +316,7 @@ export async function provisionAuthenticatedUser(user: User): Promise<ProvisionU
 
     if (getPendingWorkspaceIntent(user) === "create") {
       const created = await createWorkspaceForUser(client, user, {
+        industry: getPendingIndustry(user),
         organizationName: getPendingOrganizationName(user),
         workspaceType: getPendingWorkspaceType(user),
       });

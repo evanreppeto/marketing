@@ -1,8 +1,10 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { EtherealShadow } from "@/components/ui/etheral-shadow";
 import { FormValidityMessages } from "@/components/ui/form-validity";
 import { PasswordField } from "@/components/ui/password-field";
+import { INDUSTRY_OPTIONS } from "@/lib/personas/industry-templates";
 
 export const metadata = {
   title: "Create your workspace — Arc",
@@ -59,7 +61,14 @@ export default async function SignUpPage({
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[var(--canvas-deep)] to-transparent" />
 
         <div className="relative z-10 flex h-full flex-col justify-between px-12 py-14">
-          <img src="/icon.png" alt="Arc" className="h-9 w-auto self-start drop-shadow-[0_4px_14px_rgba(0,0,0,0.55)]" />
+          <Image
+            src="/icon.png"
+            alt="Arc"
+            width={36}
+            height={36}
+            priority
+            className="h-9 w-9 self-start drop-shadow-[0_4px_14px_rgba(0,0,0,0.55)]"
+          />
 
           <div className="max-w-[30ch]">
             <h1 className="font-serif text-[2.6rem] font-normal leading-[1.08] text-[var(--text-primary)]">
@@ -81,10 +90,10 @@ export default async function SignUpPage({
       </aside>
 
       {/* Form column */}
-      <section className="flex items-center justify-center px-6 py-12 sm:px-10">
+      <section className="flex items-center justify-center px-6 py-8 sm:px-10">
         <div className="w-full max-w-[27rem]">
           <div className="mb-9 lg:hidden">
-            <img src="/icon.png" alt="Arc" className="h-8 w-auto" />
+            <Image src="/icon.png" alt="Arc" width={32} height={32} priority className="h-8 w-8" />
           </div>
 
           <h2 className="font-[family-name:var(--font-display)] text-[1.6rem] font-semibold leading-tight text-[var(--text-primary)]">
@@ -112,7 +121,7 @@ export default async function SignUpPage({
             </p>
           ) : null}
 
-          <form action="/api/auth/sign-up" method="post" className="mt-7 space-y-4">
+          <form action="/api/auth/sign-up" method="post" className="mt-5 space-y-3">
             <FormValidityMessages />
             <input type="hidden" name="workspaceIntent" value="create" />
             <input type="hidden" name="from" value={from} />
@@ -195,6 +204,22 @@ export default async function SignUpPage({
                   </label>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="industry" className={labelClass}>
+                Your industry
+              </label>
+              <select id="industry" name="industry" defaultValue="general" className={inputClass}>
+                {INDUSTRY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-[0.75rem] leading-relaxed text-[var(--text-muted)]">
+                Arc uses this to start with relevant audiences and language. You can change them later.
+              </p>
             </div>
 
             <button

@@ -148,6 +148,7 @@ describe("provisionAuthenticatedUser", () => {
     getSupabaseAdminClientMock.mockReturnValue(client as never);
 
     const result = await provisionAuthenticatedUser(user({
+      pending_industry: "saas",
       pending_organization_name: "Big Shoulders Restoration",
       pending_workspace_intent: "create",
       pending_workspace_type: "company",
@@ -158,6 +159,15 @@ describe("provisionAuthenticatedUser", () => {
     expect(client.builders.some((builder) => builder.table === "workspaces" && builder.calls.some((call) => call[0] === "insert"))).toBe(true);
     expect(client.builders.some((builder) => builder.table === "organization_memberships" && builder.calls.some((call) => call[0] === "insert" && (call[1] as { role?: string }).role === "owner"))).toBe(true);
     expect(client.builders.some((builder) => builder.table === "arc_instances" && builder.calls.some((call) => call[0] === "upsert"))).toBe(true);
+    expect(
+      client.builders.some(
+        (builder) =>
+          builder.table === "business_profiles" &&
+          builder.calls.some(
+            (call) => call[0] === "upsert" && (call[1] as { industry?: string }).industry === "saas",
+          ),
+      ),
+    ).toBe(true);
   });
 
   it("redeems a valid pending invite code into active organization and workspace memberships", async () => {

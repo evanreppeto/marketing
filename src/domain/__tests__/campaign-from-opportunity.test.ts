@@ -38,6 +38,7 @@ describe("buildCampaignSeedFromOpportunity", () => {
 
     expect(seed.persona).toBe("persona_homeowner_emergency");
     expect(seed.restorationFocus).toBe("water_backup");
+    expect(seed.campaignTheme).toBe("Water backup");
     expect(seed.angle).toBe("Fast-track a same-day estimate with proof-of-work photos");
     expect(seed.name).toBe("Oak Park homeowner comparing water-damage estimates");
     expect(seed.campaignType).toBe("Rapid response");
@@ -56,6 +57,7 @@ describe("buildCampaignSeedFromOpportunity", () => {
 
     expect(seed.persona).toBe("");
     expect(seed.restorationFocus).toBe("");
+    expect(seed.campaignTheme).toBe("Targeted outreach");
     expect(seed.campaignType).toBe("Targeted outreach");
     expect(seed.audienceSummary).toContain("opportunity signal");
   });
@@ -71,6 +73,7 @@ describe("buildCampaignSeedFromOpportunity", () => {
     });
 
     expect(seed.campaignType).toBe("Reactivation nurture");
+    expect(seed.campaignTheme).toBe("Reactivation nurture");
     expect(seed.persona).toBe("persona_hoa_board");
   });
 

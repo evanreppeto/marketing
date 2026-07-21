@@ -976,7 +976,7 @@ export function CampaignDetailView({ detail, performance, audience, attachableMe
                 <span className="gv">{detail.metrics.sources}</span>
               </div>
               <div className="gl">
-                <span className="gk">Focus</span>
+                <span className="gk">Theme</span>
                 <span className="gv">{campaign.restorationFocus || "—"}</span>
               </div>
             </div>

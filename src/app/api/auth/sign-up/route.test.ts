@@ -47,6 +47,7 @@ describe("POST /api/auth/sign-up", () => {
         email: "owner@example.com",
         firstName: "  Evan  ",
         from: "/arc",
+        industry: "saas",
         lastName: "  Ryan  ",
         organizationName: "Big Shoulders Restoration",
         password: "strong-password",
@@ -61,6 +62,7 @@ describe("POST /api/auth/sign-up", () => {
       options: {
         data: {
           full_name: "Evan Ryan",
+          pending_industry: "saas",
           pending_organization_name: "Big Shoulders Restoration",
           pending_workspace_intent: "create",
           pending_workspace_type: "company",

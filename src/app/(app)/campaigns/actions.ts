@@ -20,29 +20,17 @@ export type CreateCampaignResult =
   | { ok: true; persisted: boolean; campaignId?: string; href?: string }
   | { ok: false; error: string };
 
-export type NewCampaignInput = { name: string; persona: string; restorationFocus: string };
-
-// The DB `restoration_focus` enum — a value outside this set is rejected by Postgres.
-const RESTORATION_FOCUS = new Set([
-  "burst_pipe",
-  "water_backup",
-  "standing_water",
-  "flood",
-  "storm_surge",
-  "sewage",
-  "mold",
-  "fire",
-]);
+export type NewCampaignInput = { name: string; persona: string; campaignTheme: string };
 
 export async function createCampaign(input: NewCampaignInput): Promise<CreateCampaignResult> {
   await requireOperator();
 
   const name = input.name?.trim();
   const persona = input.persona?.trim();
-  const focus = input.restorationFocus?.trim();
+  const campaignTheme = input.campaignTheme?.trim();
   if (!name) return { ok: false, error: "A campaign name is required." };
   if (!persona) return { ok: false, error: "Choose a persona for this campaign." };
-  if (!focus || !RESTORATION_FOCUS.has(focus)) return { ok: false, error: "Choose a focus for this campaign." };
+  if (!campaignTheme || campaignTheme.length > 120) return { ok: false, error: "Add a campaign theme (120 characters or fewer)." };
 
   const actor = await getOperatorActor();
 
@@ -59,7 +47,7 @@ export async function createCampaign(input: NewCampaignInput): Promise<CreateCam
       operator: actor,
       name,
       persona,
-      restorationFocus: focus,
+      campaignTheme,
       tenant: { org_id: ctx.orgId, workspace_id: ctx.workspaceId ?? "" },
     });
     revalidatePath("/campaigns");

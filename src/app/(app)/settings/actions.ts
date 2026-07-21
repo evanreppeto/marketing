@@ -8,6 +8,7 @@ import { requireOperator } from "@/lib/auth/operator";
 import { sendWorkspaceInviteEmail } from "@/lib/auth/send-invite-email";
 import { changeWorkspaceMemberRole, listWorkspacesForUser, removeWorkspaceMember, renameWorkspace } from "@/lib/auth/workspace-admin";
 import { ACTIVE_WORKSPACE_COOKIE, getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { canonicalIndustryKey } from "@/lib/product-language";
 import { cancelWorkspaceInvite, issueWorkspaceInviteCode } from "@/lib/auth/workspace-invites";
 import { createWorkspaceForAuthenticatedUser } from "@/lib/auth/workspace-onboarding";
 import {
@@ -145,6 +146,7 @@ export async function createWorkspace(input: {
   organizationName: string;
   workspaceName: string;
   workspaceType: string;
+  industry: string;
 }): Promise<SettingsWriteResult> {
   await requireOperator();
 
@@ -158,6 +160,7 @@ export async function createWorkspace(input: {
     organizationName: org || workspace,
     workspaceName: workspace,
     workspaceType: input.workspaceType || "company",
+    industry: canonicalIndustryKey(input.industry),
   });
   if (!result.ok) return { ok: false, error: humanizeWorkspaceError(result.status, result.message) };
 
@@ -358,11 +361,15 @@ export async function saveGeneralSettings(input: {
   }
 
   try {
-    await saveAppSettings(getSupabaseAdminClient(), ctx.orgId, {
+    const client = getSupabaseAdminClient();
+    const industry = canonicalIndustryKey(input.industry);
+    await saveAppSettings(client, ctx.orgId, {
       workspace_profile: appWorkspaceProfile(input.workspaceProfile),
-      industry: normalizeDisplayLabel(input.industry ?? "", DEFAULT_APP_SETTINGS.industry, 60),
+      industry: normalizeDisplayLabel(industry, DEFAULT_APP_SETTINGS.industry, 60),
       support_email: supportEmail,
     });
+    const { error: profileError } = await client.from("business_profiles").update({ industry }).eq("org_id", ctx.orgId);
+    if (profileError) throw profileError;
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not save general settings." };
   }

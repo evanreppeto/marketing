@@ -149,6 +149,10 @@
   & .nav .navbadge { margin-left: auto; min-width: 18px; height: 18px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-2); background: rgba(255, 255, 255, 0.055); border: 1px solid rgba(255, 255, 255, 0.07); transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease); }
   & .nav:hover .navbadge { color: var(--text); }
   & .nav.on .navbadge { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
+  & .nav-more { width: 100%; display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding: 7px 10px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--muted); font: inherit; font-size: 11.5px; cursor: pointer; transition: color 0.15s var(--ease); }
+  & .nav-more:hover { color: var(--text-2); }
+  & .nav-more svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; transition: transform 0.2s var(--ease); }
+  & .nav-more[aria-expanded="true"] svg { transform: rotate(180deg); }
   /* account control — pinned to the bottom of the rail; toggles the menu below */
   & .acct { position: relative; margin-top: 8px; border-top: 1px solid var(--line); }
   & .user { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 8px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 8px; transition: background 0.15s var(--ease); }
@@ -219,7 +223,7 @@
   & .focal { margin-top: 22px; border: 1px solid var(--accent-border); border-radius: 11px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 50%, var(--panel)), var(--panel)); padding: 18px 20px; box-shadow: 0 18px 50px -34px rgba(0, 0, 0, 0.9); }
   & .focal .lab { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; }
   & .focal .row1 { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
-  & .focal h2 { font-family: var(--serif); font-weight: 500; font-size: 19px; letter-spacing: -0.01em; margin: 0; }
+  & .focal h2 { font-family: var(--serif); font-weight: 500; font-size: 19px; letter-spacing: -0.01em; margin: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
   & .focal .cite { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 5px; border: 1px solid var(--line-2); background: var(--inset); font-family: var(--mono); font-size: 10px; color: var(--accent); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
   & .focal .cite:hover { border-color: var(--accent-border); color: var(--accent-contrast); }
   & .focal .conf { margin-left: auto; display: flex; align-items: center; gap: 9px; }
@@ -227,7 +231,7 @@
   & .focal .conf .track { width: 128px; height: 5px; border-radius: 99px; background: var(--inset); overflow: hidden; }
   & .focal .conf .fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent-contrast)); }
   & .focal .conf .val { font-family: var(--mono); font-size: 11px; color: var(--text-2); }
-  & .focal p.d { font-size: 12.5px; color: var(--text-2); margin: 11px 0 0; max-width: 64ch; line-height: 1.6; }
+  & .focal p.d { font-size: 12.5px; color: var(--text-2); margin: 11px 0 0; max-width: 64ch; line-height: 1.6; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
   & .focal .fcta { display: flex; align-items: center; gap: 11px; margin-top: 15px; }
   & .btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 15px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--accent) 66%, #fff 8%); cursor: pointer; background: linear-gradient(180deg, #e1c074, var(--accent) 58%, #a9842f); color: #1a1505; font-weight: 600; font-size: 12.5px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); transition: transform 0.15s var(--ease), filter 0.15s; text-decoration: none; }
   & .btn:hover { transform: translateY(-1px); filter: brightness(1.03); }
@@ -250,6 +254,7 @@
   & .pill.red { color: var(--red-text); background: var(--red-soft); border: 1px solid var(--red-border); }
   & .task .tt { font-size: 13.5px; font-weight: 500; flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text); }
   & .task .meta { margin-left: auto; display: flex; align-items: center; gap: 13px; min-width: 0; }
+  & .queue-more { display: inline-flex; margin-top: 10px; }
   & .chip { display: inline-flex; align-items: center; height: 21px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--inset); font-size: 10.5px; color: var(--text-2); max-width: 180px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   & .ago { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 46px; text-align: right; }
 
@@ -269,8 +274,8 @@
   & .opps { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
   & .opp { border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel); padding: 15px 16px; display: flex; flex-direction: column; cursor: pointer; transition: border-color 0.16s var(--ease), transform 0.16s var(--ease); text-decoration: none; }
   & .opp:hover { border-color: var(--accent-border); transform: translateY(-2px); }
-  & .opp .ot { font-size: 13.5px; font-weight: 600; letter-spacing: -0.005em; color: var(--text); }
-  & .opp .od { font-size: 11.5px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  & .opp .ot { font-size: 13.5px; font-weight: 600; letter-spacing: -0.005em; color: var(--text); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  & .opp .od { font-size: 11.5px; color: var(--muted); margin-top: 4px; line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
   & .miniconf { height: 4px; border-radius: 99px; background: var(--inset); overflow: hidden; margin-top: 12px; }
   & .miniconf b { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-contrast)); }
   & .opp .orow { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
