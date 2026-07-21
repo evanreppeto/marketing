@@ -21,7 +21,6 @@ import {
   AssistantMessage,
   DraftPackageCard,
   DraftReceiptCard,
-  formatMessageTime,
   MessageActions,
   operatorMessageBefore,
   OperatorMessage,
@@ -164,16 +163,12 @@ export function LiveConversation({
   return (
     <>
       {messages.map((message, index) => {
-        if (message.role === "operator") return <OperatorMessage key={message.id} body={message.body} time={formatMessageTime(message.createdAt)} attachments={message.attachments} onEdit={awaitingReply ? undefined : (newBody) => onEdit(message.id, newBody)} />;
+        if (message.role === "operator") return <OperatorMessage key={message.id} body={message.body} timeIso={message.createdAt} attachments={message.attachments} onEdit={awaitingReply ? undefined : (newBody) => onEdit(message.id, newBody)} />;
         const pending = message.status === "pending" || (message.role === "arc" && !message.body.trim());
         const operatorMessage = operatorMessageBefore(messages, index);
-        // Wall-clock of the run, from the operator's turn to this reply landing —
-        // rendered as "Thought for Ns" on the collapsed summary. Clamped so a clock
-        // skew or a very long gap never prints an absurd value.
-        const gapSeconds = operatorMessage
-          ? (new Date(message.createdAt).getTime() - new Date(operatorMessage.createdAt).getTime()) / 1000
-          : 0;
-        const thoughtSeconds = !pending && gapSeconds > 0 && gapSeconds < 900 ? gapSeconds : undefined;
+        // Runner-measured wall-clock. Message rows are inserted before the run,
+        // so subtracting their created_at values reported 0s for real work.
+        const thoughtSeconds = !pending && message.runDurationMs != null ? message.runDurationMs / 1000 : undefined;
         const contract = buildArcRunContract({
           mode: operatorMessage?.mode,
           route: operatorMessage?.route,
@@ -183,7 +178,7 @@ export function LiveConversation({
           agentTaskId: message.agentTaskId,
         });
         return (
-          <AssistantMessage key={message.id} time={formatMessageTime(message.createdAt)} active={pending}>
+          <AssistantMessage key={message.id} timeIso={message.createdAt} active={pending}>
             <RunTrace pending={pending} liveText={pending ? message.body : null} reasoning={message.reasoning} steps={message.steps} toolCalls={message.toolCalls} contract={contract} thoughtSeconds={thoughtSeconds} onStop={pending && message.agentTaskId ? () => onCancelRun(message.agentTaskId as string, message.conversationId) : undefined} stopping={stoppingTaskId === message.agentTaskId} outcome={message.status === "failed" ? (message.body.startsWith("Stopped by you") ? "canceled" : "failed") : "complete"} />
             {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div> : null}
             {!pending && message.mentions.length ? <SourcesRow mentions={message.mentions} /> : null}

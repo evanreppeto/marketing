@@ -834,7 +834,7 @@ export function ArcView({
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("arc.workPanelOpen");
-      if (window.matchMedia("(min-width: 1180px)").matches && saved !== "0") {
+      if (window.matchMedia("(min-width: 1400px)").matches && saved !== "0") {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restored after hydration so server and client markup stay identical
         setWorkPanelOpen(true);
       }

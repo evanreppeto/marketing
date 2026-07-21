@@ -9,6 +9,7 @@ import {
   normalizeRestorationFocus,
 } from "@/domain";
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
+import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
 import { resolveAvailableArcMediaAsset } from "@/lib/media-library/arc-handoff";
 import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 
@@ -97,6 +98,11 @@ export async function POST(request: Request) {
       agentName: "Arc",
       tenant,
     });
+
+    const conversationId = str(body.conversation_id);
+    if (conversationId) {
+      await linkConversationToCampaign(conversationId, campaignId, str(body.name) || "Campaign workspace").catch(() => undefined);
+    }
 
     const media = {
       kind: asset.kind === "video" ? "video" : "image",

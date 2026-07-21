@@ -11,17 +11,20 @@ vi.mock("@/lib/campaigns/create", async (orig) => ({
   resolveOrCreateCampaign: vi.fn(),
   promoteAssetToCampaign: vi.fn(),
 }));
+vi.mock("@/lib/arc-chat/persistence", () => ({ linkConversationToCampaign: vi.fn(async () => undefined) }));
 
 vi.mock("@/lib/auth/workspace", () => ({
   getCurrentWorkspaceContext: vi.fn(async () => ({ orgId: "org-1", workspaceId: "workspace-1" })),
 }));
 
 import { promoteAssetToCampaign, resolveOrCreateCampaign } from "@/lib/campaigns/create";
+import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
 
 import { POST } from "./route";
 
 const resolveMock = vi.mocked(resolveOrCreateCampaign);
 const promoteMock = vi.mocked(promoteAssetToCampaign);
+const linkMock = vi.mocked(linkConversationToCampaign);
 
 function req(body: unknown) {
   return new Request("http://localhost/api/v1/arc/campaigns/submit-variants", {
@@ -46,6 +49,8 @@ function configure() {
 beforeEach(() => {
   resolveMock.mockReset();
   promoteMock.mockReset();
+  linkMock.mockReset();
+  linkMock.mockResolvedValue(undefined);
   resolveMock.mockImplementation(async ({ campaignId }) => ({ campaignId: campaignId?.trim() || "camp-new" }));
   promoteMock.mockImplementation(async () => ({ assetId: `asset-${Math.random().toString(36).slice(2)}` }));
 });
@@ -147,6 +152,20 @@ describe("POST /api/v1/arc/campaigns/submit-variants", () => {
       expect.objectContaining({ name: "Fall Water Push", persona: "persona_homeowner_emergency", restorationFocus: "water" }),
     );
     expect((await res.json()).campaignId).toBe("camp-new");
+  });
+
+  it("links the originating conversation to the resolved campaign", async () => {
+    configure();
+    const res = await POST(
+      req({
+        campaign_id: "camp-1",
+        conversation_id: "conv-1",
+        asset_type: "image_prompt",
+        variants: [{ title: "A", media_url: "https://x/a.png" }],
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(linkMock).toHaveBeenCalledWith("conv-1", "camp-1", "Campaign workspace");
   });
 
   it("returns 503 when Supabase is not configured (arcGuard)", async () => {

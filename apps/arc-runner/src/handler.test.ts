@@ -2,10 +2,21 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ArcClient } from "./arc-client";
 import type { Config } from "./config";
-import { runArcCampaignTask, runArcOpportunityScan } from "./arc";
-import { handleCampaignTask, handleOpportunityScan } from "./handler";
+import { runArcCampaignTask, runArcOpportunityScan, runArcTurn } from "./arc";
+import { handleCampaignTask, handleChatMessage, handleOpportunityScan } from "./handler";
 
 vi.mock("./arc", () => ({
+  runArcTurn: vi.fn(async () => ({
+    body: "There are 200 leads.",
+    actions: [],
+    suggestions: [],
+    sources: [],
+    questions: [],
+    drafts: [],
+    memory: [],
+    reasoning: null,
+    usage: { model: "claude", inputTokens: 10, outputTokens: 5 },
+  })),
   runArcCampaignTask: vi.fn(async () => ({
     body: "I drafted the first campaign assets.",
     actions: [{ kind: "draft", title: "Email", rows: [], flags: [] }],
@@ -35,6 +46,50 @@ function client() {
     postUsage: ReturnType<typeof vi.fn>;
   };
 }
+
+describe("handleChatMessage", () => {
+  it("records the runner-measured duration with the final reply", async () => {
+    const fakeClient = client();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(1_000));
+    vi.mocked(runArcTurn).mockImplementationOnce(async () => {
+      vi.setSystemTime(new Date(2_450));
+      return {
+        body: "There are 200 leads.",
+        actions: [],
+        suggestions: [],
+        sources: [],
+        questions: [],
+        drafts: [],
+        memory: [],
+        reasoning: null,
+        usage: { model: "claude", inputTokens: 10, outputTokens: 5 },
+      };
+    });
+
+    await handleChatMessage(fakeClient, {} as Config, {
+      type: "arc_chat_message",
+      messageId: "message-1",
+      conversationId: "conversation-1",
+      projectId: null,
+      campaignId: null,
+      agentTaskId: "task-1",
+      message: "Count the leads.",
+      mentions: [],
+      operator: "Operator",
+      route: "fast",
+      mode: "ask",
+    });
+
+    expect(runArcTurn).toHaveBeenCalled();
+    expect(fakeClient.postChatReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ runDurationMs: 1_450 }),
+      }),
+    );
+    vi.useRealTimers();
+  });
+});
 
 describe("handleCampaignTask", () => {
   it("runs a campaign task in Arc and posts the reply to the linked conversation", async () => {

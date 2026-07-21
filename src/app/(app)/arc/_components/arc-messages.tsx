@@ -7,7 +7,7 @@
 // from this module, never the reverse.
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import {
   ArrowRight,
   Bookmark,
@@ -88,6 +88,20 @@ export function formatMessageTime(iso: string) {
   const value = new Date(iso);
   if (!Number.isFinite(value.getTime())) return "";
   return value.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+const subscribeToHydration = () => () => undefined;
+
+/** Render local wall-clock time only after hydration. Vercel renders in UTC,
+ * while the browser formats in the operator's timezone; formatting during SSR
+ * made the two trees disagree and triggered React hydration error #418. */
+function MessageTime({ iso, className }: { iso: string; className?: string }) {
+  const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
+  return (
+    <time className={className} dateTime={iso}>
+      {hydrated ? formatMessageTime(iso) : ""}
+    </time>
+  );
 }
 
 export function RunIcon({ kind, size = 15 }: { kind: RunKind; size?: number }) {
@@ -366,7 +380,7 @@ export function MessageAttachments({ attachments }: { attachments: ArcAttachment
   );
 }
 
-export function OperatorMessage({ body, time, attachments, onEdit }: { body: string; time?: string; attachments?: ArcAttachment[]; onEdit?: (newBody: string) => void }) {
+export function OperatorMessage({ body, time, timeIso, attachments, onEdit }: { body: string; time?: string; timeIso?: string; attachments?: ArcAttachment[]; onEdit?: (newBody: string) => void }) {
   const reduceMotion = useReducedMotion();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(body);
@@ -406,7 +420,7 @@ export function OperatorMessage({ body, time, attachments, onEdit }: { body: str
       initial={reduceMotion ? false : { opacity: 0, y: 7 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      {time ? <span className="arc-message-time">{time}</span> : null}
+      {time ? <span className="arc-message-time">{time}</span> : timeIso ? <MessageTime className="arc-message-time" iso={timeIso} /> : null}
       <div>{body}</div>
       {attachments && attachments.length > 0 ? <MessageAttachments attachments={attachments} /> : null}
       {onEdit ? <button type="button" className="arc-operator-edit" onClick={() => { setText(body); setEditing(true); }}><PencilLine size={12} /> Edit</button> : null}
@@ -416,10 +430,12 @@ export function OperatorMessage({ body, time, attachments, onEdit }: { body: str
 
 export function AssistantMessage({
   time,
+  timeIso,
   active = false,
   children,
 }: {
   time?: string;
+  timeIso?: string;
   active?: boolean;
   children: React.ReactNode;
 }) {
@@ -432,7 +448,7 @@ export function AssistantMessage({
       transition={{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="arc-assistant-content">
-        {!active ? <div className="arc-assistant-meta"><span className="arc-assistant-avatar" aria-hidden><Sparkles size={12} /></span><b>Arc</b>{time ? <span>{time}</span> : null}</div> : null}
+        {!active ? <div className="arc-assistant-meta"><span className="arc-assistant-avatar" aria-hidden><Sparkles size={12} /></span><b>Arc</b>{time ? <span>{time}</span> : timeIso ? <MessageTime iso={timeIso} /> : null}</div> : null}
         {children}
       </div>
     </motion.article>
@@ -610,8 +626,8 @@ export function ArcWorkPanel({
               {tab === "work" ? (
                 <>
                   {activityRows.length > 0 ? <div className={`arc-work-run-status ${hasActiveWork ? "is-running" : "is-complete"}`}><span><i />{hasActiveWork ? "Arc is working" : "Run complete"}</span><em>{completedActivityCount}/{activityRows.length} activities</em></div> : null}
-                  <div className="arc-work-heading"><span>Reasoning</span><h3>{demoPending || message?.status === "pending" ? "Working through the request" : "How Arc approached this"}</h3></div>
-                  {reasoning ? <p className="arc-work-reasoning">{reasoning}</p> : <div className="arc-work-empty">Reasoning and decisions will appear here as Arc works.</div>}
+                  <div className="arc-work-heading"><span>{reasoning ? "Reasoning" : "Run"}</span><h3>{demoPending || message?.status === "pending" ? "Working through the request" : reasoning ? "How Arc approached this" : activityRows.length > 0 ? "Completed work" : "Ready for the next request"}</h3></div>
+                  {reasoning ? <p className="arc-work-reasoning">{reasoning}</p> : activityRows.length === 0 ? <div className="arc-work-empty">Activity and decisions will appear here as Arc works.</div> : null}
                   <section className="arc-artifact-section">
                     <h4>Activity</h4>
                     {activityRows.length > 0 ? (
@@ -1013,4 +1029,3 @@ export function operatorMessageBefore(messages: ArcMessage[], index: number): Ar
   }
   return null;
 }
-
