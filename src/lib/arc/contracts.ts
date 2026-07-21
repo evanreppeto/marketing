@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { OFFICIAL_PERSONA_MAPPINGS } from "@/domain";
-
 const optionalText = z.string().trim().min(1).optional();
 
 export const arcPartnerCampaignRequestSchema = z.object({
@@ -11,9 +9,11 @@ export const arcPartnerCampaignRequestSchema = z.object({
     .trim()
     .min(1)
     .default("Create a referral partner campaign draft and submit it for human approval."),
-  // NOTE: persona is still constrained to the official BSR mappings here — a
-  // separate follow-up (per-org persona taxonomy) owns relaxing it.
-  persona: z.enum(OFFICIAL_PERSONA_MAPPINGS).default("persona_plumbing_partner"),
+  // Persona is free text at the schema layer so any workspace's own taxonomy is
+  // accepted; the /api/v1/arc/runs route validates it against the org's active
+  // personas (getOrgPersonaKeys) and 400s an unknown one. The BSR default is kept
+  // for back-compat — a non-BSR caller passes its own persona key.
+  persona: z.string().trim().min(1).default("persona_plumbing_partner"),
   channel: z.enum(["email", "sms", "call_script", "one_pager"]).default("email"),
   /** Industry-neutral campaign theme (what the campaign is about) — free text. */
   campaignTheme: optionalText,

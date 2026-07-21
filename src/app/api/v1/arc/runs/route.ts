@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { arcGuard } from "@/app/api/v1/arc/_lib/http";
+import { isAllowedPersona } from "@/domain";
+import { parseArcPartnerCampaignRequest } from "@/lib/arc/contracts";
 import { runArcPartnerCampaign } from "@/lib/arc/orchestrator";
+import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 
 export async function POST(request: Request) {
   const allowed = await arcGuard(request);
@@ -25,7 +28,20 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await runArcPartnerCampaign(payload, undefined, undefined, tenant);
+    // Parse here (applying the contract's defaults) so persona can be validated
+    // against THIS workspace's taxonomy before any row is written. getOrgPersonaKeys
+    // carries the legacy kebab↔persona_ bridge; an empty list (org defined none)
+    // skips the gate rather than rejecting every persona.
+    const request_ = parseArcPartnerCampaignRequest(payload);
+    const allowedPersonas = await getOrgPersonaKeys(allowed.scope.orgId);
+    if (allowedPersonas.length > 0 && !isAllowedPersona(request_.persona, allowedPersonas)) {
+      return NextResponse.json(
+        { ok: false, status: "rejected", message: `Unknown persona "${request_.persona}" for this workspace.` },
+        { status: 400 },
+      );
+    }
+
+    const result = await runArcPartnerCampaign(request_, undefined, undefined, tenant);
 
     return NextResponse.json(
       {
