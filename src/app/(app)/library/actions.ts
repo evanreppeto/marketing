@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { removeMediaRecordFromBrain, syncMediaRecordToBrain } from "@/lib/brain-ingestion/sync";
-import { createFolder, deleteAsset, insertAssetWithUrl, renameAsset, setAssetTags, setAvailableToArc } from "@/lib/media-library/persistence";
+import { createFolder, deleteAsset, deleteFolder, insertAssetWithUrl, renameAsset, renameFolder, setAssetTags, setAvailableToArc } from "@/lib/media-library/persistence";
 import { MAX_UPLOAD_BYTES, acceptUpload, kindForContentType } from "@/lib/media-library/upload-policy";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -36,6 +36,47 @@ export async function createLibraryFolder(name: string): Promise<CreateFolderRes
     return { ok: true, persisted: true, id };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not create the folder." };
+  }
+}
+
+export type FolderMutationResult = { ok: true; persisted: boolean } | { ok: false; error: string };
+
+/** Rename a folder. Org-scoped (renameFolder returns false when the id isn't this
+ *  workspace's row). Internal organization — never outbound. */
+export async function renameLibraryFolder(folderId: string, name: string): Promise<FolderMutationResult> {
+  await requireOperator();
+  const trimmed = name?.trim();
+  if (!folderId?.trim()) return { ok: false, error: "A folder id is required." };
+  if (!trimmed) return { ok: false, error: "A folder name is required." };
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+  try {
+    const orgId = await getCurrentOrgId();
+    const matched = await renameFolder(folderId, trimmed, orgId);
+    if (!matched) return { ok: false, error: "That folder isn't in this workspace." };
+    revalidatePath("/library");
+    return { ok: true, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not rename the folder." };
+  }
+}
+
+/**
+ * Delete a folder. Org-scoped. Its assets are not lost — the FK is
+ * `ON DELETE SET NULL`, so they fall back to "All assets", and child folders are
+ * promoted to the root. Internal organization — never outbound.
+ */
+export async function deleteLibraryFolder(folderId: string): Promise<FolderMutationResult> {
+  await requireOperator();
+  if (!folderId?.trim()) return { ok: false, error: "A folder id is required." };
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+  try {
+    const orgId = await getCurrentOrgId();
+    const matched = await deleteFolder(folderId, orgId);
+    if (!matched) return { ok: false, error: "That folder isn't in this workspace." };
+    revalidatePath("/library");
+    return { ok: true, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not delete the folder." };
   }
 }
 

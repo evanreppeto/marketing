@@ -64,6 +64,14 @@
 .arc-library .folder .ficon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; }
 .arc-library .folder .fn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .arc-library .folder .fc { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--muted); transition: opacity 0.14s; }
+.arc-library .folder .fmanage { display: none; margin-left: auto; flex: none; gap: 1px; align-items: center; }
+.arc-library .folder:hover .fmanage { display: flex; }
+.arc-library .folder:hover .fc { display: none; }
+.arc-library .folder .ficonbtn { width: 22px; height: 22px; border-radius: 6px; border: none; background: transparent; color: var(--muted); cursor: pointer; display: grid; place-items: center; transition: 0.12s; }
+.arc-library .folder .ficonbtn:hover { background: var(--panel); color: var(--text); }
+.arc-library .folder .ficonbtn.danger:hover { color: var(--red-text); background: var(--red-soft); }
+.arc-library .folder .ficonbtn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-library .folder .fn-edit { flex: 1; min-width: 0; padding: 3px 7px; border: 1px solid var(--accent-border); border-radius: 6px; background: var(--inset); color: var(--text); font-family: inherit; font-size: 12px; outline: none; }
 .arc-library .treesec { margin-top: 6px; border-top: 1px solid var(--line); padding-top: 8px; }
 .arc-library .tchev { width: 15px; height: 15px; display: grid; place-items: center; color: var(--muted); flex-shrink: 0; cursor: pointer; border-radius: 4px; transition: transform 0.15s var(--ease), background 0.14s, color 0.14s; }
 .arc-library .tchev:hover { background: rgba(255, 255, 255, 0.07); color: var(--text-2); }
