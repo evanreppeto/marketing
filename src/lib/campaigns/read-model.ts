@@ -850,7 +850,7 @@ function buildDemoCampaignWorkspaceDetail(campaign: DemoCampaign, agentName: str
     toolsUsed: campaign.toolsUsed,
     promptInputs: [
       { label: "Persona", value: campaign.persona },
-      { label: "Restoration focus", value: campaign.restorationFocus },
+      { label: "Theme", value: campaign.restorationFocus },
       { label: "Service area", value: "North Shore — 60091 / 60093 / 60201" },
       { label: "Offer", value: campaign.offerSummary },
     ],

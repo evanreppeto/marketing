@@ -56,6 +56,7 @@ type Body = {
   campaign_id?: string;
   name?: string;
   persona?: string;
+  campaign_theme?: string;
   restoration_focus?: string;
   asset_type?: string;
   top_k?: number;
@@ -126,6 +127,7 @@ export async function POST(request: Request) {
         campaignId: body.campaign_id,
         name: body.name,
         persona: body.persona,
+        campaignTheme: body.campaign_theme,
         restorationFocus: body.restoration_focus,
         agentName: "Arc",
         tenant,

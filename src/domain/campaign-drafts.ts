@@ -51,10 +51,37 @@ export function normalizeRestorationFocus(value: unknown): RestorationFocus | nu
   return RESTORATION_FOCUS_ALIASES[v] ?? null;
 }
 
+/**
+ * Title-case a raw focus/theme token into readable theme text
+ * ("water_backup" → "Water backup"). Used to seed the industry-neutral
+ * `campaignTheme` from a legacy `restorationFocus` when no explicit theme is given.
+ */
+export function humanizeCampaignFocus(value: string): string {
+  const s = (value || "").replace(/[_-]+/g, " ").trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+}
+
+/**
+ * Resolve the industry-neutral campaign theme from a draft's inputs: an explicit
+ * `campaignTheme` wins; otherwise the legacy `restorationFocus` (enum or free
+ * string) is humanized into theme text. Returns "" when neither is present.
+ */
+export function deriveCampaignTheme(campaignTheme: unknown, restorationFocus: unknown): string {
+  const explicit = typeof campaignTheme === "string" ? campaignTheme.trim() : "";
+  if (explicit) return explicit;
+  const legacy = normalizeRestorationFocus(restorationFocus);
+  if (legacy) return humanizeCampaignFocus(legacy);
+  return typeof restorationFocus === "string" ? humanizeCampaignFocus(restorationFocus) : "";
+}
+
 export type ParsedCampaignDraft = {
   name: string;
   persona: string;
-  restorationFocus: RestorationFocus;
+  /** Industry-neutral campaign theme (what the campaign is about) — free text. */
+  campaignTheme: string;
+  /** Legacy restoration enum value when the theme maps to one; "" otherwise.
+   *  Kept only to populate the nullable legacy `restoration_focus` column. */
+  restorationFocus: string;
   channel?: string;
   audienceSummary?: string;
   objective?: string;
@@ -128,15 +155,21 @@ export function parseCampaignDraft(payload: unknown): ParsedCampaignDraft {
     throw new CampaignDraftValidationError("Choose who the campaign is for (a valid persona).");
   }
 
-  const restorationFocus = typeof obj.restorationFocus === "string" ? obj.restorationFocus.trim() : "";
-  if (!(RESTORATION_FOCUS_VALUES as readonly string[]).includes(restorationFocus)) {
-    throw new CampaignDraftValidationError("Choose a valid restoration focus.");
+  // Industry-neutral: a free-text campaignTheme is the primary field. A legacy
+  // restorationFocus still works (it maps to its enum value for the legacy column
+  // and, absent an explicit theme, seeds the theme text). Non-restoration values
+  // are no longer rejected — they carry through as the theme.
+  const campaignTheme = deriveCampaignTheme(obj.campaignTheme, obj.restorationFocus);
+  if (!campaignTheme) {
+    throw new CampaignDraftValidationError("Give the campaign a theme (what it's about).");
   }
+  const legacyFocus = normalizeRestorationFocus(obj.restorationFocus);
 
   return {
     name,
     persona,
-    restorationFocus: restorationFocus as RestorationFocus,
+    campaignTheme,
+    restorationFocus: legacyFocus ?? "",
     channel: optionalTrimmed(obj.channel, "channel"),
     audienceSummary: optionalTrimmed(obj.audienceSummary, "audienceSummary"),
     objective: optionalTrimmed(obj.objective, "objective"),

@@ -3,7 +3,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { parseArcPartnerCampaignRequest, type ArcPartnerCampaignRequest } from "./contracts";
 import { createPartnerCampaignDraft } from "./draft-engine";
 import { getSupabaseAdminClient } from "../supabase/server";
-import { type ArcBusinessContext } from "@/domain";
+import { type ArcBusinessContext, deriveCampaignTheme, normalizeRestorationFocus } from "@/domain";
 import { getBusinessContext } from "../brand-kit/read-model";
 import { getCurrentOrgId } from "../auth/org";
 import { getCurrentAgentTaskTenantFields, type AgentTaskTenantFields } from "../agent-tasks/scope";
@@ -98,7 +98,8 @@ export async function runArcPartnerCampaign(
   const campaignId = await insertOne(client, "campaigns", withOrg({
     name: `${draft.campaignName} ${runId}`,
     persona: request.persona,
-    restoration_focus: request.restorationFocus,
+    campaign_theme: deriveCampaignTheme(request.campaignTheme, request.restorationFocus),
+    restoration_focus: normalizeRestorationFocus(request.restorationFocus),
     status: draft.guardrails.approvalStatus === "needs_compliance" ? "blocked" : "pending_approval",
     company_id: companyId,
     contact_id: contactId,

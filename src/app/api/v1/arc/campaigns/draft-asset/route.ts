@@ -4,10 +4,8 @@ import { NextResponse } from "next/server";
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import {
   CAMPAIGN_ASSET_TYPE_VALUES,
-  RESTORATION_FOCUS_VALUES,
   isAllowedPersona,
   normalizeCampaignAssetType,
-  normalizeRestorationFocus,
 } from "@/domain";
 import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
 import { getOrgPersonaKeys } from "@/lib/personas/read-model";
@@ -77,25 +75,14 @@ export async function POST(request: Request) {
   }
   if (!title) return fail("rejected", "title is required.", 400);
 
-  // Boundary-validate the create-path enums so an unknown persona / restoration_focus
-  // becomes a clean 400 here instead of a late, opaque Postgres enum 502 when the
-  // shell is created. Only relevant when creating a new campaign (no campaign_id).
-  let restorationFocus = str(body.restoration_focus);
+  // Boundary-validate persona so an unknown one becomes a clean 400 here instead of
+  // a late Postgres enum 502. The campaign theme is free text (industry-neutral),
+  // and a legacy restoration_focus is normalized to enum-or-null on write, so it no
+  // longer needs an enum gate. Only relevant when creating a new campaign.
   if (!campaignIdIn) {
     const personaIn = str(body.persona);
     if (personaIn && !isAllowedPersona(personaIn, await getOrgPersonaKeys(allowed.scope.orgId))) {
       return fail("rejected", `Unknown persona "${personaIn}" for this workspace.`, 400);
-    }
-    if (restorationFocus) {
-      const normalizedFocus = normalizeRestorationFocus(restorationFocus);
-      if (!normalizedFocus) {
-        return fail(
-          "rejected",
-          `Unknown restoration_focus "${restorationFocus}". Use one of: ${RESTORATION_FOCUS_VALUES.join(", ")}.`,
-          400,
-        );
-      }
-      restorationFocus = normalizedFocus;
     }
   }
 
@@ -109,7 +96,8 @@ export async function POST(request: Request) {
         campaignId: campaignIdIn,
         name: str(body.name),
         persona: str(body.persona),
-        restorationFocus,
+        campaignTheme: str(body.campaign_theme),
+        restorationFocus: str(body.restoration_focus),
         agentName: "Arc",
         tenant,
       }));

@@ -33,7 +33,7 @@ export function mediaTools(
 ) {
   const generateImage = tool(
     "generate_image",
-    "Generate an AI image for a campaign asset and surface it as an approval-gated draft with a thumbnail. Use for concept / background / lifestyle / variant creative — NEVER to fabricate proof of a real job or result. Describe the SCENE in `prompt` and the MEDIUM/LOOK in `style` (e.g. 'candid documentary photograph, natural lighting' for realism, or an illustration/3D style). Do NOT ask for any text, words, logos, or signage in the image — the server strips those and real branding is added later in design. Attach to an existing campaign with campaign_id, or start a new draft campaign with name + persona (a persona key) + restoration_focus. If the operator didn't specify these, DON'T interrogate them — infer a short descriptive campaign name and the best-fitting persona from the request and context, pick a sensible restoration_focus, generate now, and note your assumptions in your reply so they can adjust at approval. The image is AI-generated, tagged as such, risk-flagged, and awaits approval.",
+    "Generate an AI image for a campaign asset and surface it as an approval-gated draft with a thumbnail. Use for concept / background / lifestyle / variant creative — NEVER to fabricate proof of a real job or result. Describe the SCENE in `prompt` and the MEDIUM/LOOK in `style` (e.g. 'candid documentary photograph, natural lighting' for realism, or an illustration/3D style). Do NOT ask for any text, words, logos, or signage in the image — the server strips those and real branding is added later in design. Attach to an existing campaign with campaign_id, or start a new draft campaign with name + persona (a persona key) + campaign_theme. If the operator didn't specify these, DON'T interrogate them — infer a short descriptive campaign name and the best-fitting persona from the request and context, pick a sensible campaign_theme, generate now, and note your assumptions in your reply so they can adjust at approval. The image is AI-generated, tagged as such, risk-flagged, and awaits approval.",
     {
       prompt: z.string().describe("The scene/subject to generate — an illustrative concept, not a staged 'real job'. No text/logos."),
       title: z.string().describe("Short title for the asset"),
@@ -46,7 +46,8 @@ export function mediaTools(
       campaign_id: z.string().optional().describe("Existing campaign to attach to; omit to create a new draft campaign"),
       name: z.string().optional().describe("New campaign name (when campaign_id omitted)"),
       persona: z.string().optional(),
-      restoration_focus: z.string().optional(),
+      campaign_theme: z.string().optional().describe("Short, industry-appropriate campaign theme (what the campaign is about) when creating a new campaign"),
+      restoration_focus: z.string().optional().describe("Legacy restoration focus (BSR only) — optional; prefer campaign_theme"),
     },
     async (args) => {
       const label = "Generating image";
@@ -64,6 +65,7 @@ export function mediaTools(
             ...(args.campaign_id ? { campaign_id: args.campaign_id } : ctx.campaignId ? { campaign_id: ctx.campaignId } : {}),
             name: args.name,
             persona: args.persona,
+            campaign_theme: args.campaign_theme,
             restoration_focus: args.restoration_focus,
             asset_type: args.asset_type ?? "image_prompt",
             title: args.title,
@@ -100,7 +102,7 @@ export function mediaTools(
 
   const generateVideo = tool(
     "generate_video",
-    "Generate an AI VIDEO (Veo) for a campaign asset and surface it as an approval-gated draft with a playable clip. Use for short concept / lifestyle / ad clips — NEVER a fabricated 'real job' video. Describe the scene in prompt and the look in style. Videos render asynchronously (about 1-3 minutes); the operator sees progress. aspect_ratio is 16:9 or 9:16. Attach to an existing campaign with campaign_id, or start a new draft campaign with name + persona + restoration_focus.",
+    "Generate an AI VIDEO (Veo) for a campaign asset and surface it as an approval-gated draft with a playable clip. Use for short concept / lifestyle / ad clips — NEVER a fabricated 'real job' video. Describe the scene in prompt and the look in style. Videos render asynchronously (about 1-3 minutes); the operator sees progress. aspect_ratio is 16:9 or 9:16. Attach to an existing campaign with campaign_id, or start a new draft campaign with name + persona + campaign_theme.",
     {
       prompt: z.string().describe("The scene to generate. No text/logos."),
       title: z.string().describe("Short title for the asset"),
@@ -111,7 +113,8 @@ export function mediaTools(
       campaign_id: z.string().optional(),
       name: z.string().optional(),
       persona: z.string().optional(),
-      restoration_focus: z.string().optional(),
+      campaign_theme: z.string().optional().describe("Short, industry-appropriate campaign theme (what the campaign is about) when creating a new campaign"),
+      restoration_focus: z.string().optional().describe("Legacy restoration focus (BSR only) — optional; prefer campaign_theme"),
     },
     async (args) => {
       const label = "Generating video";
@@ -147,6 +150,7 @@ export function mediaTools(
             campaign_id: args.campaign_id,
             name: args.name,
             persona: args.persona,
+            campaign_theme: args.campaign_theme,
             restoration_focus: args.restoration_focus,
             asset_type: args.asset_type ?? "video_prompt",
             title: args.title,
@@ -177,7 +181,7 @@ export function mediaTools(
 
   const composeCreative = tool(
     "compose_creative",
-    "Produce a FINISHED, on-brand creative — the business's real logo + headline + CTA + brand colors/fonts composited onto an AI background — and land it as an approval-gated draft asset. Use this (not generate_image alone) whenever the operator wants a usable ad/social/one-pager creative. Provide the SCENE for the background via `prompt` (+ optional `style`), OR pass an existing `background_url`. Write the on-image words in `headline` (short, punchy), optional `kicker` (small eyebrow), and `cta_label` (button text). The server pulls the brand logo/palette/fonts from the Brand Kit and picks a layout (override with `template`). Do NOT bake text/logos into the background prompt — the compositor adds the real ones. Attach to an existing campaign with campaign_id, or start a new draft with name + persona + restoration_focus; infer sensible values rather than interrogating the operator and note your assumptions.",
+    "Produce a FINISHED, on-brand creative — the business's real logo + headline + CTA + brand colors/fonts composited onto an AI background — and land it as an approval-gated draft asset. Use this (not generate_image alone) whenever the operator wants a usable ad/social/one-pager creative. Provide the SCENE for the background via `prompt` (+ optional `style`), OR pass an existing `background_url`. Write the on-image words in `headline` (short, punchy), optional `kicker` (small eyebrow), and `cta_label` (button text). The server pulls the brand logo/palette/fonts from the Brand Kit and picks a layout (override with `template`). Do NOT bake text/logos into the background prompt — the compositor adds the real ones. Attach to an existing campaign with campaign_id, or start a new draft with name + persona + campaign_theme; infer sensible values rather than interrogating the operator and note your assumptions.",
     {
       headline: z.string().describe("The main on-image line — short and punchy. No logos/URLs."),
       title: z.string().describe("Short title for the asset"),
@@ -192,7 +196,8 @@ export function mediaTools(
       campaign_id: z.string().optional(),
       name: z.string().optional(),
       persona: z.string().optional(),
-      restoration_focus: z.string().optional(),
+      campaign_theme: z.string().optional().describe("Short, industry-appropriate campaign theme (what the campaign is about) when creating a new campaign"),
+      restoration_focus: z.string().optional().describe("Legacy restoration focus (BSR only) — optional; prefer campaign_theme"),
     },
     async (args) => {
       const label = "Composing creative";
@@ -235,6 +240,7 @@ export function mediaTools(
             ...(args.campaign_id ? { campaign_id: args.campaign_id } : ctx.campaignId ? { campaign_id: ctx.campaignId } : {}),
             name: args.name,
             persona: args.persona,
+            campaign_theme: args.campaign_theme,
             restoration_focus: args.restoration_focus,
             asset_type: args.asset_type ?? "image_prompt",
             title: args.title,

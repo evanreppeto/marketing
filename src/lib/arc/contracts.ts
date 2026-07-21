@@ -11,11 +11,16 @@ export const arcPartnerCampaignRequestSchema = z.object({
     .trim()
     .min(1)
     .default("Create a referral partner campaign draft and submit it for human approval."),
+  // NOTE: persona is still constrained to the official BSR mappings here — a
+  // separate follow-up (per-org persona taxonomy) owns relaxing it.
   persona: z.enum(OFFICIAL_PERSONA_MAPPINGS).default("persona_plumbing_partner"),
   channel: z.enum(["email", "sms", "call_script", "one_pager"]).default("email"),
-  restorationFocus: z
-    .enum(["flood", "water_backup", "burst_pipe", "storm_surge", "standing_water", "mold", "sewage", "fire"])
-    .default("water_backup"),
+  /** Industry-neutral campaign theme (what the campaign is about) — free text. */
+  campaignTheme: optionalText,
+  /** Legacy restoration focus. No longer enum-constrained so non-restoration
+   *  workspaces aren't forced to pick a water/fire term; it seeds `campaignTheme`
+   *  when no explicit theme is given. Default kept for back-compat with BSR. */
+  restorationFocus: z.string().trim().min(1).default("water_backup"),
   company: z
     .object({
       name: z.string().trim().min(1).default("Arc Plumbing Partner"),
