@@ -53,12 +53,22 @@ describe("getCampaignWorkspaceList demo gate (explicit client)", () => {
 });
 
 describe("buildDemoCampaignWorkspaceList (demo bundle shape regression)", () => {
-  it("returns demo campaigns with demo- IDs", () => {
+  it("defaults to a neutral demo library with demo- IDs", () => {
     const result = buildDemoCampaignWorkspaceList("Arc");
 
     expect(result.status).toBe("live");
     if (result.status !== "live") return;
     expect(result.campaigns.length).toBeGreaterThan(0);
     expect(result.campaigns.some((c) => c.id.startsWith("demo-"))).toBe(true);
+    expect(result.campaigns.some((c) => /water|storm|restoration/i.test(`${c.name} ${c.objective}`))).toBe(false);
+  });
+
+  it("keeps the restoration showcase available only when explicitly selected", () => {
+    vi.stubEnv("ARC_DEMO_INDUSTRY", "restoration");
+    const result = buildDemoCampaignWorkspaceList("Arc");
+
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.campaigns.some((c) => /water|storm|restoration/i.test(`${c.name} ${c.objective}`))).toBe(true);
   });
 });

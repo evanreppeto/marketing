@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 
-import { OFFICIAL_PERSONA_MAPPINGS, RESTORATION_FOCUS_VALUES } from "@/domain";
+import { DEFAULT_PERSONAS } from "@/lib/personas/default-personas";
 
 import { Modal } from "../../_components/modal";
-import { type DraftCampaignFromOpportunityInput } from "../actions";
 import { type OpportunityVM } from "./opportunity-inbox";
 
 function personaLabel(key: string): string {
@@ -13,10 +12,6 @@ function personaLabel(key: string): string {
     .replace(/^persona_/, "")
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function focusLabel(key: string): string {
-  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**
@@ -66,30 +61,32 @@ export function DraftCampaignModal({
   onClose: () => void;
   opp: OpportunityVM;
   mode?: DraftMode;
-  /** The org's own personas. Falls back to the BSR demo set when not provided. */
+  /** The org's own personas. Falls back to neutral starter personas. */
   personaOptions?: PersonaOption[];
   /** Returns the outcome so the modal can surface an error and stay open on failure. */
   onSubmit: (
-    value: Omit<DraftCampaignFromOpportunityInput, "opportunityId">,
+    value: { name: string; persona: string; campaignTheme: string },
   ) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const copy = MODE_COPY[mode];
   const personaChoices =
-    personaOptions?.length ? personaOptions : OFFICIAL_PERSONA_MAPPINGS.map((key) => ({ key, label: personaLabel(key) }));
+    personaOptions?.length
+      ? personaOptions
+      : DEFAULT_PERSONAS.map((persona) => ({ key: persona.slug, label: persona.name || personaLabel(persona.slug) }));
   const [name, setName] = useState(opp.seed.name);
   const [persona, setPersona] = useState(opp.seed.persona);
-  const [focus, setFocus] = useState(opp.seed.restorationFocus);
+  const [campaignTheme, setCampaignTheme] = useState(opp.seed.campaignTheme);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canSubmit = name.trim().length > 0 && persona.length > 0 && focus.length > 0 && !pending;
+  const canSubmit = name.trim().length > 0 && persona.length > 0 && campaignTheme.trim().length > 0 && !pending;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!canSubmit) return;
     setPending(true);
     setError(null);
-    const result = await onSubmit({ name: name.trim(), persona, restorationFocus: focus });
+    const result = await onSubmit({ name: name.trim(), persona, campaignTheme: campaignTheme.trim() });
     if (result.ok) {
       onClose();
     } else {
@@ -162,17 +159,14 @@ export function DraftCampaignModal({
             </select>
           </label>
           <label className="mfield">
-            <span className="mlabel">Focus</span>
-            <select value={focus} onChange={(e) => setFocus(e.target.value)} required>
-              <option value="" disabled>
-                Choose a focus…
-              </option>
-              {RESTORATION_FOCUS_VALUES.map((value) => (
-                <option key={value} value={value}>
-                  {focusLabel(value)}
-                </option>
-              ))}
-            </select>
+            <span className="mlabel">Campaign theme</span>
+            <input
+              value={campaignTheme}
+              onChange={(e) => setCampaignTheme(e.target.value)}
+              placeholder="Win-back, launch, referral growth…"
+              maxLength={120}
+              required
+            />
           </label>
         </div>
 

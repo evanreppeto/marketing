@@ -97,6 +97,20 @@ describe("draftCampaignFromOpportunityAction (operator shell)", () => {
 // These exercise the shared createDraftCampaign core through the operator action.
 
 describe("createDraftCampaign — input validation", () => {
+  it("accepts a free-text campaign theme without requiring a restoration focus", async () => {
+    const res = await draftCampaignFromOpportunityAction({
+      opportunityId: "opp-1",
+      name: "Customer reactivation",
+      persona: "persona_property_manager",
+      campaignTheme: "Win-back",
+    });
+
+    expect(res).toMatchObject({ ok: true, campaignId: "camp-1" });
+    expect(createCampaignFromOpportunity).toHaveBeenCalledWith(expect.objectContaining({
+      campaignTheme: "Win-back",
+    }));
+  });
+
   it("rejects a blank campaign name before touching the DB", async () => {
     const res = await draftCampaignFromOpportunityAction({ ...INPUT, name: "   " });
     expect(res).toEqual({ ok: false, error: "A campaign name is required." });

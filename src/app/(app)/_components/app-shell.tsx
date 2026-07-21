@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 
+import { getProductLanguage } from "@/lib/product-language";
+
 import { AccountMenu } from "./account-menu";
 import { ComingSoonToasts } from "./coming-soon";
 import { CommandPalette, type CommandItem } from "./command-palette";
@@ -38,20 +40,18 @@ const IconLibrary = <svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z" /></sv
 const IconBrand = <svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 4-3.5 7-8 8-4.5-1-8-4-8-8V7z" /></svg>;
 const IconOutbox = <svg viewBox="0 0 24 24"><path d="M3 12l18-8-8 18-2-7z" /></svg>;
 
-// Home + Campaigns are real routes; the rest still point at the mockup screens
-// until each is ported.
-const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: React.ReactNode }[] }[] = [
-  {
-    group: "Workspace",
-    items: [
-      { label: "Arc", href: "/arc", icon: IconArc },
-      { label: "Home", href: "/home", icon: IconHome },
-      { label: "Campaigns", href: "/campaigns", icon: IconCampaigns },
-      { label: "CRM", href: "/crm", icon: IconCrm },
-      { label: "Opportunities", href: "/opportunities", icon: IconOpp },
-    ],
-  },
-  { group: "Growth", items: [{ label: "Analytics", href: "/analytics", icon: IconAnalytics }] },
+type NavGroup = { group: string; items: { label: string; href: string; icon: React.ReactNode }[] };
+
+const PRIMARY_NAV_ITEMS: NavGroup["items"] = [
+  { label: "Arc", href: "/arc", icon: IconArc },
+  { label: "Home", href: "/home", icon: IconHome },
+  { label: "Campaigns", href: "/campaigns", icon: IconCampaigns },
+  { label: "Relationships", href: "/crm", icon: IconCrm },
+  { label: "Opportunities", href: "/opportunities", icon: IconOpp },
+];
+
+const ADVANCED_NAV_GROUPS: NavGroup[] = [
+  { group: "Measure", items: [{ label: "Analytics", href: "/analytics", icon: IconAnalytics }] },
   {
     group: "Intelligence",
     items: [
@@ -61,7 +61,7 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
     ],
   },
   {
-    group: "Assets",
+    group: "Create & manage",
     items: [
       { label: "Studio", href: "/studio", icon: IconStudio },
       { label: "Library", href: "/library", icon: IconLibrary },
@@ -71,24 +71,26 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
   },
 ];
 
+function navGroupsFor(crmLabel: string): NavGroup[] {
+  return [
+    {
+      group: "Workspace",
+      items: PRIMARY_NAV_ITEMS.map((item) => (item.href === "/crm" ? { ...item, label: crmLabel } : item)),
+    },
+    ...ADVANCED_NAV_GROUPS,
+  ];
+}
+
 // Every top-level route, warmed in the background after load (see RoutePrewarm)
 // so the first click on each tab is primed rather than a cold fetch.
-const PREWARM_HREFS = NAV_GROUPS.flatMap((g) => g.items.map((it) => it.href));
-
-// The ⌘K command menu jumps to every nav destination plus a few common actions.
-const COMMAND_ITEMS: CommandItem[] = [
-  ...NAV_GROUPS.flatMap((g) => g.items.map((it) => ({ label: it.label, href: it.href, group: g.group }))),
-  { label: "New campaign", href: "/campaigns", group: "Action", keywords: "create draft" },
-  { label: "Scan for opportunities", href: "/opportunities", group: "Action", keywords: "find leads" },
-  { label: "Settings", href: "/settings", group: "Workspace", keywords: "team account tokens" },
-];
+const PREWARM_HREFS = navGroupsFor("Relationships").flatMap((g) => g.items.map((it) => it.href));
 
 const CRUMBS: Record<string, string> = {
   "/arc": "Arc",
   "/home": "Home",
   "/campaigns": "Campaigns",
   "/campaigns/new": "New campaign",
-  "/crm": "CRM",
+  "/crm": "Relationships",
   "/analytics": "Analytics",
   "/brain": "Brain",
   "/journeys": "Journeys",
@@ -108,6 +110,7 @@ export function AppShell({
   userEmail,
   logoUrl = null,
   avatarUrl = null,
+  industry = "general",
   workspaces = [],
   navBadges = {},
   children,
@@ -118,11 +121,18 @@ export function AppShell({
   userEmail: string;
   logoUrl?: string | null;
   avatarUrl?: string | null;
+  industry?: string | null;
   workspaces?: WorkspaceOption[];
   navBadges?: Record<string, number>;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const language = getProductLanguage(industry);
+  const navGroups = navGroupsFor(language.crmLabel);
+  const advancedActive = ADVANCED_NAV_GROUPS.some((group) =>
+    group.items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)),
+  );
+  const [toolsOpen, setToolsOpen] = useState(false);
   // Mobile nav drawer. Below the shell breakpoint the rail is an off-canvas
   // drawer toggled from the top bar; on desktop `navOpen` is inert (the rail is
   // always visible). Tapping a destination closes it (see the nav links), and
@@ -132,7 +142,14 @@ export function AppShell({
   // No signed-in user (local/demo, open mode) → a neutral label instead of a
   // bare "there". Prod shows the real viewer's first name.
   const firstName = userName.split(/\s+/)[0] || "Account";
-  const crumb = CRUMBS[pathname] ?? CRUMBS[`/${pathname.split("/")[1] ?? ""}`] ?? "Home";
+  const baseCrumb = CRUMBS[pathname] ?? CRUMBS[`/${pathname.split("/")[1] ?? ""}`] ?? "Home";
+  const crumb = pathname === "/crm" || pathname.startsWith("/crm/") ? language.crmLabel : baseCrumb;
+  const commandItems: CommandItem[] = [
+    ...navGroups.flatMap((g) => g.items.map((it) => ({ label: it.label, href: it.href, group: g.group }))),
+    { label: "New campaign", href: "/campaigns", group: "Action", keywords: "create draft" },
+    { label: "Scan for opportunities", href: "/opportunities", group: "Action", keywords: "find leads" },
+    { label: "Settings", href: "/settings", group: "Workspace", keywords: "team account tokens" },
+  ];
 
   // The static mockup gallery can load a ported real screen inside its crossfade
   // iframe. When that happens the gallery host already provides the sidebar, so
@@ -167,7 +184,7 @@ export function AppShell({
             {orgName.split(/\s+/)[0]?.toUpperCase()} workspace
           </div>
           <div className="navwrap">
-            {NAV_GROUPS.map((g) => (
+            {navGroups.slice(0, 1).map((g) => (
               <div key={g.group}>
                 <div className="grp">{g.group.toUpperCase()}</div>
                 {g.items.map((it) => {
@@ -191,6 +208,32 @@ export function AppShell({
                           {badge > 99 ? "99+" : badge}
                         </span>
                       )}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+            <button
+              type="button"
+              className="nav-more"
+              aria-expanded={toolsOpen || advancedActive}
+              onClick={() => setToolsOpen((open) => !open)}
+            >
+              <span>More tools</span>
+              <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" /></svg>
+            </button>
+            {(toolsOpen || advancedActive) && navGroups.slice(1).map((g) => (
+              <div key={g.group}>
+                <div className="grp">{g.group.toUpperCase()}</div>
+                {g.items.map((it) => {
+                  const active = pathname === it.href || pathname.startsWith(`${it.href}/`);
+                  const badge = navBadges[it.href] ?? 0;
+                  return (
+                    <Link key={it.label} href={it.href} className={`nav${active ? " on" : ""}`} onClick={() => setNavOpen(false)}>
+                      {active && <span className="tick" />}
+                      {it.icon}
+                      {it.label}
+                      {badge > 0 && <span className="navbadge" aria-label={`${badge} needing attention`}>{badge > 99 ? "99+" : badge}</span>}
                     </Link>
                   );
                 })}
@@ -239,7 +282,7 @@ export function AppShell({
               )}
             </span>
           </header>
-          <CommandPalette items={COMMAND_ITEMS} />
+          <CommandPalette items={commandItems} />
           {children}
         </div>
       </div>

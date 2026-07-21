@@ -9,6 +9,26 @@ function inserts(supabase: MockSupabase): Array<Record<string, unknown>> {
 }
 
 describe("createCampaignShell", () => {
+  it("accepts a general campaign theme without a restoration focus", async () => {
+    const supabase = createSupabaseQueryMock({
+      campaigns: { data: { id: "camp-general" }, error: null },
+      campaign_events: { data: null, error: null },
+    });
+
+    await createCampaignShell({
+      operator: "op",
+      name: "Customer win-back",
+      persona: "at-risk",
+      campaignTheme: "Customer reactivation",
+      client: supabase,
+      tenant: { org_id: "org-1", workspace_id: "workspace-1" },
+    });
+
+    const [campaign] = inserts(supabase);
+    expect(campaign.campaign_theme).toBe("Customer reactivation");
+    expect(campaign.restoration_focus).toBeNull();
+  });
+
   it("inserts a draft, launch-locked campaign + created event", async () => {
     const supabase = createSupabaseQueryMock({
       campaigns: { data: { id: "camp-1" }, error: null },

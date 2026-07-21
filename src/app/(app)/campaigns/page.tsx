@@ -1,6 +1,9 @@
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
+import { personasForIndustry } from "@/lib/personas/industry-templates";
 import { getOrgPersonaOptions } from "@/lib/personas/read-model";
+import { canonicalIndustryKey } from "@/lib/product-language";
 
 import { CampaignsBoard, type CampaignRow, type CampaignTone } from "./_components/campaigns-board";
 import { needsOperatorApproval } from "./_components/tone";
@@ -107,10 +110,17 @@ function toRow(item: CampaignWorkspaceListItem): CampaignRow {
 
 export default async function CampaignsPage() {
   const ctx = await getCurrentWorkspaceContext();
-  const [list, personaOptions] = await Promise.all([
+  const [list, storedPersonaOptions] = await Promise.all([
     getCampaignWorkspaceList(undefined, "Arc", ctx.orgId).catch(() => ({ status: "unavailable" } as const)),
     getOrgPersonaOptions(ctx.orgId).catch(() => []),
   ]);
+  const demoPersonaOptions = personasForIndustry(canonicalIndustryKey(process.env.ARC_DEMO_INDUSTRY))
+    .map((persona) => ({ key: persona.slug, label: persona.name }));
+  const personaOptions = storedPersonaOptions.length > 0
+    ? storedPersonaOptions
+    : isDemoDataEnabled()
+      ? demoPersonaOptions
+      : [];
   const rows = list.status === "live" ? list.campaigns.map(toRow) : [];
 
   // Two different facts, said as two different things. They used to be one claim

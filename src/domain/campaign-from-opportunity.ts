@@ -27,6 +27,8 @@ export type CampaignSeed = {
   persona: string;
   /** Inferred `restoration_focus`, or "" when nothing matched (operator picks). */
   restorationFocus: RestorationFocus | "";
+  /** Industry-neutral theme shown to operators and stored on new campaigns. */
+  campaignTheme: string;
   /** The message angle — carries the opportunity's recommended action verbatim. */
   angle: string;
   /** Human-readable audience note for the campaign's `audience_summary`. */
@@ -105,6 +107,11 @@ export function buildCampaignSeedFromOpportunity(
   const restorationFocus = inferRestorationFocus(
     `${input.title} ${input.summary} ${input.recommendedAction}`,
   );
+  const campaignTheme = input.recommendedCampaignType?.trim()
+    ? humanize(input.recommendedCampaignType)
+    : restorationFocus
+      ? humanize(restorationFocus)
+      : suggestCampaignType(input.urgency, null);
   const label = persona ? personaLabel(persona) : "";
   const audienceSummary = label
     ? `${label} — matched by Arc from this opportunity signal.`
@@ -114,6 +121,7 @@ export function buildCampaignSeedFromOpportunity(
     name: suggestCampaignName(input.title),
     persona,
     restorationFocus,
+    campaignTheme,
     angle: (input.recommendedAction || "").trim(),
     audienceSummary,
     campaignType: suggestCampaignType(input.urgency, input.recommendedCampaignType),

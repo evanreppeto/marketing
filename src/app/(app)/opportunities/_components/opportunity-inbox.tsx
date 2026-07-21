@@ -53,7 +53,7 @@ export type OpportunityVM = {
   /** Link to the linked campaign draft once one exists; null otherwise. */
   campaignHref: string | null;
   /** Pre-filled draft fields for the "Create campaign" confirm modal. */
-  seed: { name: string; persona: string; restorationFocus: string };
+  seed: { name: string; persona: string; campaignTheme: string };
 };
 
 const ICONS: Record<OpportunityVM["icon"], React.ReactNode> = {
@@ -181,7 +181,7 @@ export function OpportunityInbox({
   // persists, jump into the new draft's detail page; offline it confirms the
   // draft was prepared without claiming a save. Failures surface in the modal.
   const handleDraft = async (
-    value: { name: string; persona: string; restorationFocus: string },
+    value: { name: string; persona: string; campaignTheme: string },
   ): Promise<{ ok: boolean; error?: string }> => {
     setNotice(null);
     const action = mode === "arc" ? askArcToDraftFromOpportunityAction : draftCampaignFromOpportunityAction;

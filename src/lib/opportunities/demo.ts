@@ -1,10 +1,13 @@
+import { canonicalIndustryKey } from "@/lib/product-language";
+import { personasForIndustry } from "@/lib/personas/industry-templates";
+
 import { type OpportunityRecord } from "./read-model";
 
 /**
  * Read-only demo opportunity inbox. Used when Supabase is not configured (local
  * preview / ARC_DEMO_DATA) so the Opportunities screen — and the home hero
  * count, "open opportunities" list, and Signals rail that all read the same
- * source — render a populated, source-backed BSR inbox instead of empty states.
+ * source — render a populated, industry-aware inbox instead of empty states.
  *
  * The records span every card type the inbox classifies (weather, partner,
  * competitor, lifecycle, buyer intent) with full evidence so the impact/evidence
@@ -17,7 +20,112 @@ function daysAgoIso(days: number): string {
   return new Date(Date.now() - days * DAY).toISOString();
 }
 
-export function buildDemoOpportunities(): OpportunityRecord[] {
+function buildGenericDemoOpportunities(industry?: string | null): OpportunityRecord[] {
+  const personas = personasForIndustry(canonicalIndustryKey(industry));
+  const persona = (index: number) => personas[index]?.slug ?? personas[0]?.slug ?? "new-lead";
+  const name = (index: number, fallback: string) => personas[index]?.name ?? fallback;
+
+  return [
+    {
+      id: "demo-opp-high-intent-lead",
+      subject_type: "lead",
+      subject_id: "demo-lead-high-intent",
+      title: `${name(0, "New lead")} returned to the pricing page three times`,
+      summary:
+        "A recent lead revisited pricing and implementation content across three sessions, then opened the comparison guide. Their activity suggests they are actively evaluating the next step.",
+      confidence: 91,
+      urgency: "high",
+      status: "pending",
+      recommended_action: "Offer a short, personalized consultation that answers the lead's remaining buying questions",
+      evidence: {
+        persona: persona(0),
+        leadScore: 93,
+        daysCold: 1,
+        lastActivityAt: daysAgoIso(0),
+        evidence_urls: [],
+      },
+    },
+    {
+      id: "demo-opp-customer-adoption",
+      subject_type: "company",
+      subject_id: "demo-account-adoption",
+      title: `${name(1, "Active customer")} is ready for the next best offer`,
+      summary:
+        "This customer has strong recent engagement and has completed the core journey. Similar customers respond well when shown one clear next step tied to the value they already receive.",
+      confidence: 84,
+      urgency: "medium",
+      status: "drafting",
+      recommended_action: "Prepare a targeted adoption campaign around the most relevant next step",
+      evidence: {
+        persona: persona(1),
+        leadScore: 86,
+        lastActivityAt: daysAgoIso(2),
+        evidence_urls: [],
+      },
+    },
+    {
+      id: "demo-opp-referral-champion",
+      subject_type: "contact",
+      subject_id: "demo-contact-champion",
+      title: `${name(2, "Champion")} has shared positive feedback twice this month`,
+      summary:
+        "A highly engaged customer recently left positive feedback and mentioned your team in a public post. This is a natural moment for a thoughtful referral or advocacy ask.",
+      confidence: 79,
+      urgency: "medium",
+      status: "pending",
+      recommended_action: "Draft a referral campaign that makes it easy to introduce a peer",
+      evidence: {
+        persona: persona(2),
+        leadScore: 88,
+        lastActivityAt: daysAgoIso(3),
+        evidence_urls: [],
+      },
+    },
+    {
+      id: "demo-opp-winback",
+      subject_type: "company",
+      subject_id: "demo-account-at-risk",
+      title: `${name(3, "At-risk customer")} engagement dropped after a strong start`,
+      summary:
+        "A previously active customer has not returned in 45 days. Their earlier engagement was strong, so a useful, low-pressure reactivation message is more likely to work than a generic promotion.",
+      confidence: 76,
+      urgency: "medium",
+      status: "drafted",
+      campaign_id: "demo-customer-winback",
+      recommended_action: "Re-engage with a useful reminder and one simple reason to return",
+      evidence: {
+        persona: persona(3),
+        leadScore: 72,
+        daysCold: 45,
+        lastActivityAt: daysAgoIso(45),
+        evidence_urls: [],
+      },
+    },
+    {
+      id: "demo-opp-competitor-positioning",
+      subject_type: "competitor_signal",
+      subject_id: "demo-competitor-positioning",
+      title: "A competitor launched a new comparison campaign",
+      summary:
+        "A direct competitor began promoting a new comparison offer across paid social and search. A focused response can clarify your strongest differentiator without copying their message.",
+      confidence: 72,
+      urgency: "medium",
+      status: "pending",
+      recommended_action: "Create a proof-led campaign around the differentiator customers mention most",
+      evidence: {
+        persona: persona(0),
+        competitor: "Direct competitor",
+        channel: "paid_social",
+        activityLevel: "high",
+        creativeCount: 5,
+        lastActivityAt: daysAgoIso(1),
+        evidence_urls: ["https://www.facebook.com/ads/library/"],
+      },
+    },
+  ];
+}
+
+function buildRestorationDemoOpportunities(): OpportunityRecord[] {
   return [
     {
       id: "demo-opp-next-iteration-storm-prep",
@@ -171,4 +279,17 @@ export function buildDemoOpportunities(): OpportunityRecord[] {
       },
     },
   ];
+}
+
+/**
+ * Industry-aware, read-only demo inbox. Neutral growth examples are the default;
+ * the original restoration showcase remains available with
+ * `ARC_DEMO_INDUSTRY=restoration` for that vertical's sales demo.
+ */
+export function buildDemoOpportunities(
+  industry: string | null | undefined = process.env.ARC_DEMO_INDUSTRY,
+): OpportunityRecord[] {
+  return canonicalIndustryKey(industry) === "restoration"
+    ? buildRestorationDemoOpportunities()
+    : buildGenericDemoOpportunities(industry);
 }

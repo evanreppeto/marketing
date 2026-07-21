@@ -569,7 +569,7 @@ export function CrmBoard({
                       {CHECK}
                     </span>
                   ) : (
-                    c.t ?? ""
+                    c.k === "primary" ? active.nameHeader : c.t ?? ""
                   )}
                 </th>
               ))}

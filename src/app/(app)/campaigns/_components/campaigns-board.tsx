@@ -77,7 +77,7 @@ function buildOptimisticCampaign(id: string, v: NewCampaignInput): CampaignRow {
   return {
     id,
     name: v.name,
-    brief: v.restorationFocus || "Campaign package",
+    brief: v.campaignTheme || "Campaign package",
     tone: "draft",
     statusLabel: "Draft",
     // A package created seconds ago has no deliverables yet, so nothing is

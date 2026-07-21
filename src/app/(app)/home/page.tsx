@@ -28,6 +28,14 @@ function relativeTime(iso: string): string {
   return `${Math.round(hr / 24)}d ago`;
 }
 
+function concise(value: string, maxLength: number): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  const clipped = normalized.slice(0, maxLength + 1);
+  const lastSpace = clipped.lastIndexOf(" ");
+  return `${clipped.slice(0, lastSpace > maxLength * 0.7 ? lastSpace : maxLength).trimEnd()}…`;
+}
+
 function pillTone(a: { status: string; statusLabel: string; riskLevel: string }): "warn" | "red" | "ok" {
   const s = `${a.status} ${a.statusLabel}`.toLowerCase();
   if (s.includes("block") || a.riskLevel === "high") return "red";
@@ -65,12 +73,12 @@ export default async function HomePage() {
     getWorkspaceSummary(ctx.orgId),
     getAnalyticsOverview(ctx.orgId),
   ]);
-  const approvals = summary.approvals;
-  const campaigns = summary.campaigns.slice(0, 5);
+  const approvalCount = summary.approvals.length;
+  const approvals = summary.approvals.slice(0, 3);
+  const campaigns = summary.campaigns.slice(0, 4);
   const openOppCount = summary.opportunities.length;
-  const opps = summary.opportunities.slice(0, 4);
+  const opps = summary.opportunities.slice(0, 3);
   const focal = opps[0] ?? null;
-  const approvalCount = approvals.length;
 
   // Right column: source-backed signals (top opportunities) + Arc activity feed.
   const signalLabel: Record<string, string> = { high: "Urgent · watched by Arc", medium: "Watched by Arc", low: "Background signal" };
@@ -80,7 +88,7 @@ export default async function HomePage() {
     source: signalLabel[o.urgency] ?? "Source-backed signal",
     time: relativeTime(o.evidence?.lastActivityAt ?? ""),
   }));
-  const activityItems = summary.activity.map((a) => ({
+  const activityItems = summary.activity.slice(0, 5).map((a) => ({
     at: relativeTime(a.occurredAt),
     actor: a.actorType === "arc" || a.actorType === "sub_agent" ? "Arc" : a.actorType === "human" ? "You" : "System",
     text: a.title || a.detail,
@@ -112,7 +120,7 @@ export default async function HomePage() {
           {firstName ? `, ${firstName}` : ""}
         </h1>
         <div className="subline">
-          {approvals.length} {approvals.length === 1 ? "package" : "packages"} waiting
+          {approvalCount} {approvalCount === 1 ? "package" : "packages"} waiting
           <span className="dot">·</span>
           {openOppCount} open {openOppCount === 1 ? "opportunity" : "opportunities"}
           <span className="dot">·</span>
@@ -135,7 +143,7 @@ export default async function HomePage() {
                 <span className="val">{focal.confidence}%</span>
               </div>
             </div>
-            <p className="d">{focal.summary}</p>
+            <p className="d">{concise(focal.summary, 320)}</p>
             <div className="fcta">
               <Link className="btn" href={`/opportunities?selected=${encodeURIComponent(focal.id)}`}>Review&nbsp;→</Link>
               <Link
@@ -170,6 +178,11 @@ export default async function HomePage() {
             );
           })
         )}
+        {approvalCount > approvals.length ? (
+          <Link className="more queue-more" href="/campaigns">
+            View all {approvalCount} waiting →
+          </Link>
+        ) : null}
 
         <div className="metrics">
           {metrics.map((m) => {
@@ -204,7 +217,7 @@ export default async function HomePage() {
             {opps.map((o) => (
               <Link key={o.id} href={`/opportunities?selected=${encodeURIComponent(o.id)}`} className="opp">
                 <div className="ot">{o.title}</div>
-                <div className="od">{o.summary}</div>
+                <div className="od">{concise(o.summary, 160)}</div>
                 <div className="miniconf">
                   <b style={{ width: `${o.confidence}%` }} />
                 </div>

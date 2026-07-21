@@ -666,7 +666,8 @@ export type Database = {
           id: string;
           name: string;
           persona: Database["public"]["Enums"]["persona_mapping"];
-          restoration_focus: Database["public"]["Enums"]["restoration_focus"];
+          campaign_theme: string | null;
+          restoration_focus: Database["public"]["Enums"]["restoration_focus"] | null;
           status: Database["public"]["Enums"]["campaign_status"];
           company_id: string | null;
           contact_id: string | null;
@@ -690,7 +691,8 @@ export type Database = {
           id?: string;
           name: string;
           persona: Database["public"]["Enums"]["persona_mapping"];
-          restoration_focus: Database["public"]["Enums"]["restoration_focus"];
+          campaign_theme?: string | null;
+          restoration_focus?: Database["public"]["Enums"]["restoration_focus"] | null;
           status?: Database["public"]["Enums"]["campaign_status"];
           company_id?: string | null;
           contact_id?: string | null;
@@ -714,7 +716,8 @@ export type Database = {
           id?: string;
           name?: string;
           persona?: Database["public"]["Enums"]["persona_mapping"];
-          restoration_focus?: Database["public"]["Enums"]["restoration_focus"];
+          campaign_theme?: string | null;
+          restoration_focus?: Database["public"]["Enums"]["restoration_focus"] | null;
           status?: Database["public"]["Enums"]["campaign_status"];
           company_id?: string | null;
           contact_id?: string | null;

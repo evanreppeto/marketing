@@ -212,8 +212,10 @@ export type CreateCampaignFromOpportunityInput = {
   name: string;
   /** Validated official persona mapping (the DB enum rejects anything else). */
   persona: string;
-  /** Validated `restoration_focus` enum value. */
-  restorationFocus: string;
+  /** Industry-neutral theme for new callers. */
+  campaignTheme?: string;
+  /** Legacy restoration enum retained for older callers during migration. */
+  restorationFocus?: string;
   /** Message angle — carried onto the campaign's `objective`. */
   objective: string;
   audienceSummary?: string | null;
@@ -241,12 +243,15 @@ export async function createCampaignFromOpportunity(
   const client = input.client ?? getSupabaseAdminClient();
   const agentName = input.agentName?.trim() || "Arc";
   const opp = input.opportunity;
+  const campaignTheme = (input.campaignTheme || input.restorationFocus || "Campaign growth").trim();
+  const legacyRestorationFocus = input.restorationFocus?.trim() || null;
 
   const campaignId = await insertOne(client, "campaigns", {
     ...orgTenantFields(input.tenant),
     name: input.name,
     persona: input.persona,
-    restoration_focus: input.restorationFocus,
+    campaign_theme: campaignTheme,
+    restoration_focus: legacyRestorationFocus,
     status: "draft",
     launch_locked: true,
     owner: input.operator,
@@ -294,7 +299,8 @@ export type CreateCampaignShellInput = {
   operator: string;
   name: string;
   persona: string;
-  restorationFocus: string;
+  campaignTheme?: string;
+  restorationFocus?: string;
   /** Configured agent display name, threaded from the caller for the audit-log detail. */
   agentName?: string;
   client?: SupabaseClient;
@@ -306,11 +312,14 @@ export type CreateCampaignShellInput = {
 export async function createCampaignShell(input: CreateCampaignShellInput): Promise<{ campaignId: string }> {
   const client = input.client ?? getSupabaseAdminClient();
   const agentName = input.agentName?.trim() || "Agent";
+  const campaignTheme = (input.campaignTheme || input.restorationFocus || "Campaign growth").trim();
+  const legacyRestorationFocus = input.restorationFocus?.trim() || null;
   const campaignId = await insertOne(client, "campaigns", {
     ...orgTenantFields(input.tenant),
     name: input.name,
     persona: input.persona,
-    restoration_focus: input.restorationFocus,
+    campaign_theme: campaignTheme,
+    restoration_focus: legacyRestorationFocus,
     status: "draft",
     launch_locked: true,
     owner: input.operator,

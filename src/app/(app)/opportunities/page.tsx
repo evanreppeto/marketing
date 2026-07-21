@@ -1,7 +1,10 @@
 import { buildCampaignSeedFromOpportunity } from "@/domain";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { crmRecordHref, listOpenOpportunities, type OpportunityRecord } from "@/lib/opportunities/read-model";
+import { personasForIndustry } from "@/lib/personas/industry-templates";
 import { getOrgPersonaOptions } from "@/lib/personas/read-model";
+import { canonicalIndustryKey } from "@/lib/product-language";
 
 import { classify } from "./classify";
 import { OpportunityInbox, type OpportunityVM } from "./_components/opportunity-inbox";
@@ -73,7 +76,7 @@ function buildRouting(status: string): OpportunityVM["routing"] {
   ];
 }
 
-function toVM(rec: OpportunityRecord): OpportunityVM {
+function toVM(rec: OpportunityRecord, allowedPersonaKeys?: readonly string[]): OpportunityVM {
   const ev = rec.evidence ?? {};
   const persona = humanizePersona(ev.persona ?? "");
   const { icon, typeLabel } = classify(`${rec.title} ${rec.summary}`, rec.subject_type);
@@ -154,7 +157,7 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
     urgency: rec.urgency,
     persona: ev.persona,
     recommendedCampaignType: null,
-  });
+  }, allowedPersonaKeys);
 
   return {
     id: rec.id,
@@ -181,7 +184,7 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
     status: rec.status,
     statusLabel: statusLabel(rec.status),
     campaignHref: rec.campaign_id ? `/campaigns/${rec.campaign_id}` : null,
-    seed: { name: seed.name, persona: seed.persona, restorationFocus: seed.restorationFocus },
+    seed: { name: seed.name, persona: seed.persona, campaignTheme: seed.campaignTheme },
   };
 }
 
@@ -191,12 +194,19 @@ export default async function OpportunitiesPage({
   searchParams: Promise<{ selected?: string }>;
 }) {
   const ctx = await getCurrentWorkspaceContext();
-  const [records, personaOptions, params] = await Promise.all([
+  const [records, storedPersonaOptions, params] = await Promise.all([
     listOpenOpportunities(undefined, ctx.orgId).catch(() => [] as OpportunityRecord[]),
     getOrgPersonaOptions(ctx.orgId).catch(() => []),
     searchParams,
   ]);
-  const opps = records.map(toVM);
+  const demoPersonaOptions = personasForIndustry(canonicalIndustryKey(process.env.ARC_DEMO_INDUSTRY))
+    .map((persona) => ({ key: persona.slug, label: persona.name }));
+  const personaOptions = storedPersonaOptions.length > 0
+    ? storedPersonaOptions
+    : isDemoDataEnabled()
+      ? demoPersonaOptions
+      : [];
+  const opps = records.map((record) => toVM(record, personaOptions.map((persona) => persona.key)));
 
   return <OpportunityInbox opps={opps} personaOptions={personaOptions} selectedId={params.selected} />;
 }

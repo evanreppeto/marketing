@@ -1,21 +1,17 @@
 import { getAnalyticsOverview } from "@/lib/analytics/overview";
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { getBusinessProfile } from "@/lib/brand-kit/persistence";
 import { getCrmMentionSamples, getCrmNavCounts, type CrmObjectKey, type CrmObjectRow } from "@/lib/crm/read-model";
 import { getOrgPersonaOptions } from "@/lib/personas/read-model";
+import { getProductLanguage } from "@/lib/product-language";
+import { getAppSettings } from "@/lib/settings/store";
 
 import { type KpiCell } from "../_components/kpi-strip";
 import { CrmBoard, type CrmObjectVM, type CrmRowVM } from "./_components/crm-board";
 
 export const metadata = { title: "CRM — Arc" };
 
-const OBJECT_META: { key: CrmObjectKey; label: string; noun: string; nameHeader: string; singular: string }[] = [
-  { key: "companies", label: "Companies", noun: "companies", nameHeader: "Company", singular: "company" },
-  { key: "contacts", label: "Contacts", noun: "contacts", nameHeader: "Contact", singular: "contact" },
-  { key: "properties", label: "Properties", noun: "properties", nameHeader: "Property", singular: "property" },
-  { key: "leads", label: "Leads", noun: "leads", nameHeader: "Lead", singular: "lead" },
-  { key: "jobs", label: "Jobs", noun: "jobs", nameHeader: "Job", singular: "job" },
-  { key: "outcomes", label: "Outcomes", noun: "outcomes", nameHeader: "Outcome", singular: "outcome" },
-];
+const OBJECT_KEYS: CrmObjectKey[] = ["companies", "contacts", "properties", "leads", "jobs", "outcomes"];
 
 function initials(name: string): string {
   return (
@@ -125,12 +121,15 @@ function toRow(row: CrmObjectRow): CrmRowVM {
 
 export default async function CrmPage() {
   const orgId = await getCurrentOrgId().catch(() => "");
-  const [samples, navCounts, overview, personaOptions] = await Promise.all([
+  const [samples, navCounts, overview, personaOptions, appSettings, businessProfile] = await Promise.all([
     getCrmMentionSamples().catch(() => ({}) as Partial<Record<CrmObjectKey, CrmObjectRow[]>>),
     getCrmNavCounts().catch(() => ({ status: "unavailable" }) as const),
     orgId ? getAnalyticsOverview(orgId).catch(() => null) : Promise.resolve(null),
     getOrgPersonaOptions(orgId || undefined).catch(() => []),
+    getAppSettings(orgId).catch(() => null),
+    orgId ? getBusinessProfile(orgId).catch(() => null) : Promise.resolve(null),
   ]);
+  const productLanguage = getProductLanguage(appSettings?.industry || businessProfile?.industry);
 
   const counts = navCounts.status === "live" ? navCounts.counts : null;
 
@@ -161,17 +160,18 @@ export default async function CrmPage() {
   }
 
   const rowsByKey: Record<string, CrmRowVM[]> = {};
-  const objects: CrmObjectVM[] = OBJECT_META.map((meta) => {
-    const rows = (samples[meta.key] ?? []).map(toRow);
-    rowsByKey[meta.key] = rows;
+  const objects: CrmObjectVM[] = OBJECT_KEYS.map((key) => {
+    const meta = productLanguage.crmObjects[key];
+    const rows = (samples[key] ?? []).map(toRow);
+    rowsByKey[key] = rows;
     return {
-      key: meta.key,
+      key,
       label: meta.label,
       noun: meta.noun,
       nameHeader: meta.nameHeader,
       addLabel: `Add ${meta.singular}`,
       filterPlaceholder: `Filter ${meta.noun}…`,
-      count: counts ? counts[meta.key] : rows.length,
+      count: counts ? counts[key] : rows.length,
     };
   });
 

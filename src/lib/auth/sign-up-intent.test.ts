@@ -7,6 +7,7 @@ describe("buildSignUpIntent", () => {
     expect(
       buildSignUpIntent({
         fullName: "  Evan Ryan  ",
+        industry: "saas",
         inviteCode: "",
         organizationName: "  Big Shoulders Restoration  ",
         workspaceType: "agency",
@@ -15,6 +16,7 @@ describe("buildSignUpIntent", () => {
     ).toEqual({
       metadata: {
         full_name: "Evan Ryan",
+        pending_industry: "saas",
         pending_organization_name: "Big Shoulders Restoration",
         pending_workspace_intent: "create",
         pending_workspace_type: "agency",
@@ -78,10 +80,27 @@ describe("buildSignUpIntent", () => {
     ).toEqual({
       metadata: {
         full_name: "Evan Ryan",
+        pending_industry: "general",
         pending_organization_name: "Big Shoulders Restoration",
         pending_workspace_intent: "create",
         pending_workspace_type: "company",
       },
+      ok: true,
+    });
+  });
+
+  it("falls back to the general industry pack when signup receives an unknown value", () => {
+    expect(
+      buildSignUpIntent({
+        fullName: "Jordan Demo",
+        industry: "not-real",
+        inviteCode: "",
+        organizationName: "Demo Company",
+        workspaceType: "company",
+        workspaceIntent: "create",
+      }),
+    ).toMatchObject({
+      metadata: { pending_industry: "general" },
       ok: true,
     });
   });

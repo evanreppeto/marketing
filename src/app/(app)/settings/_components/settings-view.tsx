@@ -25,6 +25,8 @@ import type { ConnectorView } from "@/lib/connectors/read-model";
 import type { SettingsConnectorsView } from "@/lib/connectors/settings-connectors";
 import type { EffectiveAgentConnection } from "@/lib/agent/connection";
 import type { SettingsBillingView } from "@/lib/billing/settings-billing";
+import { INDUSTRY_OPTIONS } from "@/lib/personas/industry-templates";
+import { canonicalIndustryKey } from "@/lib/product-language";
 import { IMAGE_MODELS, VIDEO_MODELS, type AppSettings } from "@/lib/settings/store";
 
 import { createBillingPortalAction, createCheckoutSessionAction, updateOrgPlanAction } from "../billing-actions";
@@ -1287,7 +1289,7 @@ function WorkspacesSection({ view }: { view: SettingsWorkspacesView }) {
 function GeneralPanel({ brandName, settings, domain }: { brandName: string; settings: AppSettings; domain: string }) {
   const [name, setName] = useState(brandName);
   const [profile, setProfile] = useState<AppSettings["workspaceProfile"]>(settings.workspaceProfile);
-  const [industry, setIndustry] = useState(settings.industry || "Restoration & home services");
+  const [industry, setIndustry] = useState(canonicalIndustryKey(settings.industry));
   const [email, setEmail] = useState(settings.supportEmail || `support@${domain}`);
   const [status, setStatus] = useState<SaveStatus>(null);
   const [pending, setPending] = useState(false);
@@ -1312,7 +1314,7 @@ function GeneralPanel({ brandName, settings, domain }: { brandName: string; sett
           />
         </Row>
         <Row label="Account type" desc="How Arc frames personas, detectors, and templates."><Seg opts={["Individual", "Company", "Agency"]} value={PROFILE_LABEL[profile]} onChange={(v) => setProfile(v.toLowerCase() as AppSettings["workspaceProfile"])} /></Row>
-        <Row label="Industry" desc="Stored on your workspace profile."><select className="sel" value={industry} onChange={(e) => setIndustry(e.target.value)}><option>Restoration &amp; home services</option><option>Roofing &amp; exteriors</option><option>General contracting</option></select></Row>
+        <Row label="Industry" desc="Tailors starter audiences and workspace language. Existing records stay unchanged."><select className="sel" value={industry} onChange={(e) => setIndustry(canonicalIndustryKey(e.target.value))}>{INDUSTRY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Row>
         <Row label="Support email" desc="Used as reply-to on transactional email."><input className="inp" value={email} onChange={(e) => setEmail(e.target.value)} /></Row>
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 0 4px" }}>
           <button className="btn gold" onClick={save} disabled={pending}>{pending ? "Saving…" : "Save changes"}</button>

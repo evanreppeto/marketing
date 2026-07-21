@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getViewerAvatarUrl, resolveViewerName } from "@/lib/auth/display-name";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getSettingsWorkspacesView } from "@/lib/auth/workspaces-view";
+import { getBusinessProfile } from "@/lib/brand-kit/persistence";
 import { getAppSettings } from "@/lib/settings/store";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getNavBadges } from "@/lib/workspace-summary/read-model";
@@ -40,9 +41,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const workspacesView = await getSettingsWorkspacesView().catch(() => ({ isDemo: false, workspaces: [] }));
   // Branding: workspace logo (org-scoped) + the viewer's profile photo, rendered
   // in the rail in place of the initials monograms when set.
-  const appSettings = await getAppSettings(ctx.orgId).catch(() => null);
+  const [appSettings, businessProfile, avatarUrl] = await Promise.all([
+    getAppSettings(ctx.orgId).catch(() => null),
+    getBusinessProfile(ctx.orgId).catch(() => null),
+    getViewerAvatarUrl(user).catch(() => null),
+  ]);
   const logoUrl = appSettings?.brandLogoUrl?.startsWith("http") ? appSettings.brandLogoUrl : null;
-  const avatarUrl = await getViewerAvatarUrl(user).catch(() => null);
+  const industry = appSettings?.industry || businessProfile?.industry || "general";
 
   return (
     <AppShell
@@ -52,6 +57,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       userEmail={user?.email ?? ""}
       logoUrl={logoUrl}
       avatarUrl={avatarUrl}
+      industry={industry}
       workspaces={workspacesView.workspaces}
       navBadges={navBadges}
     >

@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 
+import { INDUSTRY_OPTIONS } from "@/lib/personas/industry-templates";
+
 import { Modal } from "../../_components/modal";
 
-export type NewWorkspaceValue = { organizationName: string; workspaceName: string; workspaceType: string };
+export type NewWorkspaceValue = { organizationName: string; workspaceName: string; workspaceType: string; industry: string };
 
 const TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: "company", label: "Company" },
   { value: "agency", label: "Agency" },
-  { value: "personal", label: "Personal" },
+  { value: "individual", label: "Individual" },
 ];
 
 export function NewWorkspaceModal({
@@ -24,6 +26,7 @@ export function NewWorkspaceModal({
   const [organizationName, setOrganizationName] = useState("");
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceType, setWorkspaceType] = useState("company");
+  const [industry, setIndustry] = useState("general");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +41,7 @@ export function NewWorkspaceModal({
       organizationName: organizationName.trim() || workspaceName.trim(),
       workspaceName: workspaceName.trim(),
       workspaceType,
+      industry,
     });
     if (result.ok) {
       onClose();
@@ -70,7 +74,7 @@ export function NewWorkspaceModal({
           <input
             value={workspaceName}
             onChange={(e) => setWorkspaceName(e.target.value)}
-            placeholder="Summit Restoration"
+            placeholder="Summit Growth"
             required
           />
         </label>
@@ -97,6 +101,16 @@ export function NewWorkspaceModal({
             </select>
           </label>
         </div>
+
+        <label className="mfield">
+          <span className="mlabel">Industry</span>
+          <select value={industry} onChange={(e) => setIndustry(e.target.value)}>
+            {INDUSTRY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+          <span className="mopt">Starts the workspace with relevant audiences and language.</span>
+        </label>
 
         {error && <div className="mError">{error}</div>}
       </form>

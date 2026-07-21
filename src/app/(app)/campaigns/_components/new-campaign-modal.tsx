@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { OFFICIAL_PERSONA_MAPPINGS } from "@/domain";
+import { DEFAULT_PERSONAS } from "@/lib/personas/default-personas";
 
 import { Modal } from "../../_components/modal";
 import { type NewCampaignInput } from "../actions";
@@ -14,19 +14,6 @@ function personaLabel(key: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// The DB `restoration_focus` enum — these are the only accepted values, so the
-// field is a select (free text would be rejected by Postgres).
-const FOCUS_OPTIONS: { value: string; label: string }[] = [
-  { value: "burst_pipe", label: "Burst pipe" },
-  { value: "water_backup", label: "Water backup" },
-  { value: "standing_water", label: "Standing water" },
-  { value: "flood", label: "Flood" },
-  { value: "storm_surge", label: "Storm surge" },
-  { value: "sewage", label: "Sewage" },
-  { value: "mold", label: "Mold" },
-  { value: "fire", label: "Fire" },
-];
-
 export type PersonaOption = { key: string; label: string };
 
 export function NewCampaignModal({
@@ -36,29 +23,31 @@ export function NewCampaignModal({
   onSubmit,
 }: {
   open: boolean;
-  /** The org's own personas. Falls back to the BSR demo set when not provided. */
+  /** The org's own personas. Falls back to neutral starter personas. */
   personaOptions?: PersonaOption[];
   onClose: () => void;
   /** Returns the outcome so the modal can surface an error and stay open on failure. */
   onSubmit: (value: NewCampaignInput) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const personaChoices =
-    personaOptions?.length ? personaOptions : OFFICIAL_PERSONA_MAPPINGS.map((key) => ({ key, label: personaLabel(key) }));
+    personaOptions?.length
+      ? personaOptions
+      : DEFAULT_PERSONAS.map((persona) => ({ key: persona.slug, label: persona.name || personaLabel(persona.slug) }));
   const [name, setName] = useState("");
   const [persona, setPersona] = useState("");
-  const [focus, setFocus] = useState("");
+  const [theme, setTheme] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // The board remounts this via `key` on each open, so fields start fresh.
-  const canSubmit = name.trim().length > 0 && persona.length > 0 && focus.trim().length > 0 && !pending;
+  const canSubmit = name.trim().length > 0 && persona.length > 0 && theme.trim().length > 0 && !pending;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!canSubmit) return;
     setPending(true);
     setError(null);
-    const result = await onSubmit({ name: name.trim(), persona, restorationFocus: focus.trim() });
+    const result = await onSubmit({ name: name.trim(), persona, campaignTheme: theme.trim() });
     if (result.ok) {
       onClose();
     } else {
@@ -90,7 +79,7 @@ export function NewCampaignModal({
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Spring Water-Damage Reactivation"
+            placeholder="Spring customer reactivation"
             required
           />
         </label>
@@ -110,17 +99,14 @@ export function NewCampaignModal({
             </select>
           </label>
           <label className="mfield">
-            <span className="mlabel">Focus</span>
-            <select value={focus} onChange={(e) => setFocus(e.target.value)} required>
-              <option value="" disabled>
-                Choose a focus…
-              </option>
-              {FOCUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+            <span className="mlabel">Campaign theme</span>
+            <input
+              value={theme}
+              onChange={(e) => setTheme(e.target.value)}
+              placeholder="Win-back, product launch, referral growth…"
+              maxLength={120}
+              required
+            />
           </label>
         </div>
 

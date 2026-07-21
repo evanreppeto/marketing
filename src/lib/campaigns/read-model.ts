@@ -2,10 +2,12 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { campaignDriver, deriveCampaignRollup, type CampaignDriver, type CampaignRollup, type ViralityScore } from "@/domain";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
+import { personasForIndustry } from "@/lib/personas/industry-templates";
+import { canonicalIndustryKey } from "@/lib/product-language";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 export const CAMPAIGN_SELECT =
-  "id,name,persona,restoration_focus,status,company_id,contact_id,lead_id,owner,objective,audience_summary,offer_summary,compliance_notes,launch_locked,source_signal,source_system,reasoning_payload,audit_payload,created_at,updated_at";
+  "id,name,persona,campaign_theme,restoration_focus,status,company_id,contact_id,lead_id,owner,objective,audience_summary,offer_summary,compliance_notes,launch_locked,source_signal,source_system,reasoning_payload,audit_payload,created_at,updated_at";
 export const ASSET_SELECT =
   "id,campaign_id,asset_type,channel,title,status,tool_source,prompt_input,prompt_inputs,draft_body,edited_body,approved_body,dispatch_locked,compliance_notes,reasoning_payload,audit_payload,created_at,updated_at";
 const APPROVAL_SELECT =
@@ -344,7 +346,8 @@ export type CampaignRow = {
   id: string;
   name: string;
   persona: string;
-  restoration_focus: string;
+  campaign_theme: string | null;
+  restoration_focus: string | null;
   status: string;
   company_id: string | null;
   contact_id: string | null;
@@ -766,7 +769,7 @@ function buildDemoListItem(campaign: DemoCampaign): CampaignWorkspaceListItem {
 }
 
 export function buildDemoCampaignWorkspaceList(agentName = "Arc"): CampaignWorkspaceList {
-  const campaigns = DEMO_CAMPAIGNS(agentName).map(buildDemoListItem);
+  const campaigns = demoCampaigns(agentName).map(buildDemoListItem);
   const assets = campaigns.reduce((total, campaign) => total + campaign.assetCount, 0);
   const approvals = campaigns.reduce((total, campaign) => total + campaign.approvalCount, 0);
   const media = campaigns.reduce((total, campaign) => total + campaign.mediaCount, 0);
@@ -1003,7 +1006,177 @@ function buildDemoCampaignWorkspaceDetail(campaign: DemoCampaign, agentName: str
   };
 }
 
-function DEMO_CAMPAIGNS(agentName: string): DemoCampaign[] {
+function genericDemoCampaigns(agentName: string): DemoCampaign[] {
+  const personas = personasForIndustry(canonicalIndustryKey(process.env.ARC_DEMO_INDUSTRY));
+  const persona = (index: number, fallback: string) => personas[index] ?? {
+    slug: `persona-${index + 1}`,
+    name: fallback,
+    segment: "acquisition" as const,
+    stage: "New",
+    angle: "Make the next step clear and useful.",
+    audience: "People who are ready for a relevant next step.",
+    cta: "Take the next step",
+  };
+  const newLead = persona(0, "New lead");
+  const activeCustomer = persona(1, "Active customer");
+  const champion = persona(2, "Champion");
+  const atRisk = persona(3, "At-risk customer");
+
+  const makeCampaign = ({
+    id,
+    name,
+    target,
+    theme,
+    objective,
+    offer,
+    lifecycle,
+    pieceStatus,
+    updatedAt,
+    updatedAtIso,
+  }: {
+    id: string;
+    name: string;
+    target: typeof newLead;
+    theme: string;
+    objective: string;
+    offer: string;
+    lifecycle: DemoCampaign["lifecycle"];
+    pieceStatus: "pending_approval" | "approved";
+    updatedAt: string;
+    updatedAtIso: string;
+  }): DemoCampaign => {
+    const pending = pieceStatus === "pending_approval";
+    const status = pending ? "In Review" : lifecycle === "Live" ? "Live" : "Approved";
+    const statusLabel = pending ? "Pending approval" : "Approved";
+    const action = target.cta || "Take the next step";
+    return {
+      id,
+      name,
+      persona: target.name,
+      restorationFocus: theme,
+      status,
+      lifecycle,
+      launchLocked: lifecycle !== "Live",
+      driver: "agent",
+      owner: agentName,
+      objective,
+      audienceSummary: target.audience,
+      offerSummary: offer,
+      complianceNotes: "Claims and audience rules require human review before launch. Outbound remains locked until approval.",
+      whyBuilt: `${agentName} matched a recent customer signal to the ${target.name} persona and prepared a focused campaign draft.`,
+      recommendedAction: pending
+        ? "Review the draft copy and approve or request changes before anything is sent."
+        : "Review performance and decide whether to extend the campaign.",
+      guardrailFlags: ["Human approval required", "Outbound locked until approved"],
+      toolsUsed: ["Customer signal", "Persona match", "Approved brand context"],
+      channels: ["Email", "LinkedIn"],
+      sourceCount: 2,
+      sources: [
+        {
+          id: `${id}-signal`,
+          label: `${target.name} engagement signal`,
+          detail: "Recent activity matched this audience to a timely next step.",
+          kind: "evidence",
+        },
+        {
+          id: `${id}-audience`,
+          label: `${target.name} persona`,
+          detail: target.audience,
+          kind: "contact",
+          recordHref: "/personas",
+        },
+      ],
+      createdAtIso: "2026-07-14T14:00:00.000Z",
+      updatedAt,
+      updatedAtIso,
+      pieces: [
+        {
+          id: `${id}-email`,
+          title: `${name} — email`,
+          kind: "Email",
+          channel: "Email",
+          status: statusLabel,
+          rawStatus: pieceStatus,
+          needsReview: pending,
+          preview: `${target.angle} ${action}.`,
+          body: `${target.angle}\n\n${offer}\n\n${action} →`,
+          compliance: "Audience, offer, and CTA require human review before dispatch.",
+          media: [{ id: `${id}-hero`, type: "image", title: `${name} campaign creative`, seed: id }],
+        },
+        {
+          id: `${id}-social`,
+          title: `${name} — social post`,
+          kind: "Social Post",
+          channel: "LinkedIn",
+          status: statusLabel,
+          rawStatus: pieceStatus,
+          needsReview: pending,
+          preview: `${target.angle} ${action}.`,
+          compliance: "No automatic publishing. Human approval is required.",
+        },
+      ],
+    };
+  };
+
+  return [
+    makeCampaign({
+      id: "demo-high-intent-follow-up",
+      name: "High-intent follow-up",
+      target: newLead,
+      theme: "Lead conversion",
+      objective: "Turn recent high-intent interest into qualified conversations with a clear, low-friction next step.",
+      offer: "A short consultation tailored to the questions prospects are already researching.",
+      lifecycle: "In review",
+      pieceStatus: "pending_approval",
+      updatedAt: "Jul 21, 2026",
+      updatedAtIso: "2026-07-21T13:20:00.000Z",
+    }),
+    makeCampaign({
+      id: "demo-customer-adoption",
+      name: "Customer next-step adoption",
+      target: activeCustomer,
+      theme: "Customer adoption",
+      objective: "Help active customers discover the next feature, service, or offer most relevant to them.",
+      offer: "A personalized recommendation based on recent customer activity.",
+      lifecycle: "In review",
+      pieceStatus: "pending_approval",
+      updatedAt: "Jul 20, 2026",
+      updatedAtIso: "2026-07-20T16:10:00.000Z",
+    }),
+    makeCampaign({
+      id: "demo-referral-growth",
+      name: "Champion referral growth",
+      target: champion,
+      theme: "Referral growth",
+      objective: "Turn positive customer sentiment into thoughtful referrals and advocacy.",
+      offer: "A simple referral path with a useful benefit for both people.",
+      lifecycle: "Ready",
+      pieceStatus: "approved",
+      updatedAt: "Jul 18, 2026",
+      updatedAtIso: "2026-07-18T11:45:00.000Z",
+    }),
+    makeCampaign({
+      id: "demo-customer-winback",
+      name: "Customer win-back",
+      target: atRisk,
+      theme: "Customer reactivation",
+      objective: "Re-engage customers whose activity has declined with one useful reason to return.",
+      offer: "A relevant reminder and a simple path back into the customer journey.",
+      lifecycle: "Live",
+      pieceStatus: "approved",
+      updatedAt: "Jul 16, 2026",
+      updatedAtIso: "2026-07-16T09:30:00.000Z",
+    }),
+  ];
+}
+
+function demoCampaigns(agentName: string): DemoCampaign[] {
+  return canonicalIndustryKey(process.env.ARC_DEMO_INDUSTRY) === "restoration"
+    ? restorationDemoCampaigns(agentName)
+    : genericDemoCampaigns(agentName);
+}
+
+function restorationDemoCampaigns(agentName: string): DemoCampaign[] {
   return [
     {
       id: "demo-emergency-water-response-2026",
@@ -1533,7 +1706,7 @@ export async function getCampaignWorkspaceDetail(
     // Local preview has no database. Build the same rich review workspace from
     // the demo library so /campaigns/[id] renders the real layout instead of an
     // "unavailable" shell. Nothing here is sendable — demo data only.
-    const demo = DEMO_CAMPAIGNS(agentName).find((campaign) => campaign.id === campaignId);
+    const demo = demoCampaigns(agentName).find((campaign) => campaign.id === campaignId);
     if (demo) return buildDemoCampaignWorkspaceDetail(demo, agentName);
     return { status: "not_found" };
   }
@@ -1627,7 +1800,7 @@ export async function getCampaignWorkspaceDetail(
         id: campaign.id,
         name: cleanCampaignName(campaign.name),
         persona: humanize(campaign.persona),
-        restorationFocus: humanize(campaign.restoration_focus),
+        restorationFocus: campaign.campaign_theme?.trim() || humanize(campaign.restoration_focus ?? ""),
         status: statusLabel(campaign.status),
         objective: campaign.objective ?? "No objective captured yet.",
         audienceSummary: campaign.audience_summary ?? "Audience has not been summarized yet.",
