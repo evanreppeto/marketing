@@ -8,7 +8,7 @@ import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { updateCrmRecordFields } from "@/lib/crm/create";
 import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { type CrmObjectKey } from "@/lib/crm/read-model";
-import { insertNote, insertTask, updateTaskStatus } from "@/lib/interactions/persistence";
+import { insertNote, insertTask, setNotePinned, updateTaskStatus } from "@/lib/interactions/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
@@ -110,6 +110,26 @@ export async function completeRecordTask(objectKey: string, recordId: string, ta
 
   const actor = await getOperatorActor();
   const result = await updateTaskStatus(taskId, "completed", { kind: "human", name: actor }, await currentScope());
+  if (!result.ok) return { ok: false, error: result.error };
+  revalidatePath(`/crm/${objectKey}/${recordId}`);
+  return { ok: true, persisted: true };
+}
+
+/** Pin or unpin a record note (internal; never outbound). The notes list already
+ *  renders a pinned indicator — this is the missing write half. Org-scoped. */
+export async function setRecordNotePinned(
+  objectKey: string,
+  recordId: string,
+  noteId: string,
+  isPinned: boolean,
+): Promise<WriteResult> {
+  await requireOperator();
+  if (!VALID_KEYS.has(objectKey)) return { ok: false, error: "Unknown record type." };
+  if (!noteId) return { ok: false, error: "Missing note." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const result = await setNotePinned(noteId, isPinned, await currentScope());
   if (!result.ok) return { ok: false, error: result.error };
   revalidatePath(`/crm/${objectKey}/${recordId}`);
   return { ok: true, persisted: true };

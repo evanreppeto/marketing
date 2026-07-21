@@ -6,7 +6,7 @@ import { useState, useTransition } from "react";
 import { type CrmRecordData, type CrmRecordGraphNode, type CrmRecordRelationship } from "@/lib/crm/read-model";
 import { type NoteEntry, type TaskEntry, type TimelineEntry } from "@/lib/interactions/read-model";
 
-import { addRecordNote, addRecordTask, completeRecordTask, updateCrmRecord } from "../actions";
+import { addRecordNote, addRecordTask, completeRecordTask, setRecordNotePinned, updateCrmRecord } from "../actions";
 import { EditRecordModal } from "./edit-record-modal";
 
 export type RecordActivity = {
@@ -285,6 +285,24 @@ export function RecordView({
     });
   }
 
+  function togglePin(note: NoteEntry) {
+    if (pending) return;
+    setErr(null);
+    const next = !note.isPinned;
+    // Optimistic: flip pinned now; pinned notes float to the top of the list.
+    setNotes((ns) => {
+      const updated = ns.map((n) => (n.id === note.id ? { ...n, isPinned: next } : n));
+      return [...updated].sort((a, b) => Number(b.isPinned) - Number(a.isPinned));
+    });
+    startTransition(async () => {
+      const res = await setRecordNotePinned(record.key, record.id, note.id, next);
+      if (!res.ok) {
+        setNotes((ns) => ns.map((n) => (n.id === note.id ? { ...n, isPinned: note.isPinned } : n)));
+        setErr(res.error);
+      }
+    });
+  }
+
   const tabCount: Record<string, number> = { activity: timeline.length, related: relCount };
 
   // Group related records by kind for the Related tab.
@@ -502,7 +520,7 @@ export function RecordView({
                     <p className="empty-note">No notes yet.</p>
                   ) : (
                     notes.map((n) => (
-                      <div className="trow" key={n.id}>
+                      <div className={`trow${n.isPinned ? " is-pinned" : ""}`} key={n.id}>
                         <span className="tcheck" style={{ border: "none", background: n.isPinned ? "var(--accent-soft)" : "var(--inset)" }}>
                           <svg viewBox="0 0 24 24" style={{ opacity: 1, stroke: n.isPinned ? "var(--accent)" : "var(--muted)" }} dangerouslySetInnerHTML={{ __html: NOTE_IC }} />
                         </span>
@@ -515,6 +533,16 @@ export function RecordView({
                             {n.actorLabel} · {fmtDate(n.createdAt)}
                           </div>
                         </div>
+                        <button
+                          type="button"
+                          className="npin"
+                          aria-pressed={n.isPinned}
+                          title={n.isPinned ? "Unpin note" : "Pin note"}
+                          onClick={() => togglePin(n)}
+                          disabled={pending}
+                        >
+                          {svg('<path d="M9 3h6l-1 6 3 3v2h-4v6l-1 1-1-1v-6H6v-2l3-3z"/>')}
+                        </button>
                       </div>
                     ))
                   )}

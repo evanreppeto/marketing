@@ -151,6 +151,14 @@
 .arc-record .trow .tx { font-size: 12.5px; color: var(--text); }
 .arc-record .trow.done .tx { color: var(--muted); text-decoration: line-through; }
 .arc-record .trow .tm { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 3px; display: flex; gap: 8px; align-items: center; }
+/* pin toggle on a note row — visible on hover, or always when the note is pinned */
+.arc-record .trow .npin { flex-shrink: 0; width: 24px; height: 24px; border-radius: 6px; border: none; background: transparent; color: var(--muted); cursor: pointer; display: grid; place-items: center; opacity: 0; transition: opacity 0.14s, color 0.14s, background 0.14s; }
+.arc-record .trow:hover .npin, .arc-record .trow .npin:focus-visible { opacity: 1; }
+.arc-record .trow .npin:hover { background: var(--inset); color: var(--text-2); }
+.arc-record .trow .npin svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-record .trow .npin[aria-pressed="true"] { opacity: 1; color: var(--accent); }
+.arc-record .trow .npin[aria-pressed="true"] svg { fill: var(--accent-soft); }
+.arc-record .trow .npin:disabled { cursor: default; }
 .arc-record .prio { font-size: 9px; font-weight: 700; border-radius: 4px; padding: 1px 5px; }
 .arc-record .prio.high { color: var(--warn-text); background: var(--warn-soft); }
 .arc-record .prio.normal { color: var(--text-2); background: var(--inset); }
