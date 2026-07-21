@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { getCampaignAudiencePreview } from "@/lib/audience/campaign-audience";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { listAttachableMedia, type AttachableMediaItem } from "@/lib/campaigns/attach-media";
 import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
 import { getCampaignPerformancePanel } from "@/lib/performance/campaign-panel";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -11,6 +12,15 @@ import { CampaignDetailView } from "./_components/campaign-detail-view";
 import "./campaign.css";
 
 export const metadata = { title: "Campaign — Arc" };
+
+// Offline preview only: a small set of "approved Library media" so the attach
+// picker has something to show without a backend. Live mode reads the real library.
+const DEMO_ATTACHABLE_MEDIA: AttachableMediaItem[] = [
+  { id: "demo-lib-1", fileName: "storm-job-after.jpg", url: "/brand/login-background-v2.png", kind: "image", dimensions: "1600 × 1067" },
+  { id: "demo-lib-2", fileName: "crew-on-site.jpg", url: "/brand/login-background-v2.png", kind: "image", dimensions: "1600 × 1067" },
+  { id: "demo-lib-3", fileName: "before-after-roof.jpg", url: "/brand/login-background-v2.png", kind: "image", dimensions: "1200 × 800" },
+  { id: "demo-lib-4", fileName: "bsr-logo-mark.png", url: "/brand/login-background-v2.png", kind: "logo", dimensions: "512 × 512" },
+];
 
 export default async function CampaignDetailPage({ params }: { params: Promise<{ campaignId: string }> }) {
   const { campaignId } = await params;
@@ -39,5 +49,14 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       ? await getCampaignAudiencePreview({ campaignId: decodeURIComponent(campaignId), orgId }).catch(() => null)
       : null;
 
-  return <CampaignDetailView detail={detail} performance={performance} audience={audience} />;
+  // Approved Library media the operator can attach to a deliverable. Live reads the
+  // real workspace library; the offline preview shows a demo set.
+  const attachableMedia =
+    orgId && isSupabaseAdminConfigured()
+      ? await listAttachableMedia(orgId).catch(() => [])
+      : DEMO_ATTACHABLE_MEDIA;
+
+  return (
+    <CampaignDetailView detail={detail} performance={performance} audience={audience} attachableMedia={attachableMedia} />
+  );
 }

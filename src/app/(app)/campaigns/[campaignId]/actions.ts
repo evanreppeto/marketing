@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { validateRevisionInstruction } from "@/domain";
 import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
+import { attachMediaToCampaignAsset } from "@/lib/campaigns/attach-media";
 import { decideAsset, type ApprovalDecision } from "@/lib/campaigns/decisions";
 import { editDraftAsset } from "@/lib/campaigns/draft-editing";
 import { launchCampaign } from "@/lib/campaigns/launch";
@@ -96,6 +97,35 @@ export async function editCampaignDraftAction(input: {
     return { ok: true, persisted: true, status: "edited" };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not save your edit." };
+  }
+}
+
+/**
+ * Attach an approved Library media asset to an existing campaign deliverable.
+ * Wraps `attachMediaToCampaignAsset`, which appends to the asset's
+ * `audit_payload.media_assets` (with provenance) and is idempotent — it leaves
+ * status + dispatch lock untouched, so outbound stays locked. Lets the operator
+ * put real approved media on a deliverable so campaign cards aren't empty. Gated
+ * by requireOperator() and org-scoped via the tenant fields.
+ */
+export async function attachCampaignMediaAction(input: {
+  campaignId: string;
+  assetId: string;
+  libraryAssetId: string;
+}): Promise<CampaignActionResult> {
+  await requireOperator();
+  if (!input.assetId || !input.libraryAssetId) return { ok: false, error: "Missing asset or media." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  try {
+    const operator = await getOperatorActor();
+    const tenant = await getCurrentAgentTaskTenantFields();
+    await attachMediaToCampaignAsset({ assetId: input.assetId, libraryAssetId: input.libraryAssetId, operator, tenant });
+    revalidatePath(`/campaigns/${input.campaignId}`);
+    return { ok: true, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not attach the media." };
   }
 }
 
