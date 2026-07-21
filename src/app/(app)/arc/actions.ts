@@ -41,7 +41,8 @@ import {
   type ArcAttachment,
   type ArcMessage,
 } from "@/lib/arc-chat/persistence";
-import { saveItem } from "@/lib/arc-chat/saved";
+import { listSavedItems, removeSavedItem, saveItem, type SavedItem, type SavedKind } from "@/lib/arc-chat/saved";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { assertConversationAccess } from "@/lib/arc-chat/sharing";
 import { ALL_ARC_SKILLS, ARC_SKILL_LIBRARY, skillIdForArcCommand } from "@/lib/arc-skills/catalog";
 import { instructionForWorkspaceSkill, parseWorkspaceArcSkills, type WorkspaceArcSkill } from "@/lib/arc-skills/custom";
@@ -616,5 +617,74 @@ export async function saveArcMessageAction(messageId: string): Promise<ArcIntera
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Couldn't save that response." };
+  }
+}
+
+/**
+ * Saved Arc items — the read side of the "Save" button on Arc responses. The
+ * write path (saveArcMessageAction -> saveItem) has shipped for a while with no
+ * UI to see it back; this surfaces them in the drawer. Operator- AND org-scoped
+ * (the read now filters on org, closing a cross-workspace leak). Offline preview
+ * shows a demo set.
+ */
+export type SavedArcItemVM = {
+  id: string;
+  kind: SavedKind;
+  title: string;
+  preview: string | null;
+  note: string | null;
+  mediaUrl: string | null;
+  conversationHref: string | null;
+  createdAt: string;
+};
+
+function toSavedVM(item: SavedItem): SavedArcItemVM {
+  const firstLine = item.body?.split("\n").find((line) => line.trim())?.trim() ?? null;
+  return {
+    id: item.id,
+    kind: item.kind,
+    title: item.title?.trim() || firstLine?.slice(0, 90) || "Saved response",
+    preview: item.caption?.trim() || (item.body ? item.body.replace(/\s+/g, " ").trim().slice(0, 160) : null),
+    note: item.note,
+    mediaUrl: item.mediaUrl,
+    conversationHref: item.sourceConversationId ? `/arc?c=${encodeURIComponent(item.sourceConversationId)}` : null,
+    createdAt: item.createdAt,
+  };
+}
+
+function buildDemoSavedItems(): SavedArcItemVM[] {
+  return [
+    { id: "demo-saved-1", kind: "angle", title: "142 homes took the heaviest hail", preview: "Inspection-first outreach beat discount-led — lead with the free, no-pressure inspection angle for the fresh-damage segment.", note: "Saved from Arc chat", mediaUrl: null, conversationHref: "/arc?c=storm", createdAt: "2026-07-20T09:38:00Z" },
+    { id: "demo-saved-2", kind: "draft", title: "Inspection follow-up email", preview: "Hi {first_name}, the recent Naperville hailstorm hit your block harder than most. We’re offering a free, no-pressure inspection this week.", note: "Saved from Arc chat", mediaUrl: null, conversationHref: "/arc?c=storm", createdAt: "2026-07-19T14:05:00Z" },
+    { id: "demo-saved-3", kind: "angle", title: "Insured segment books fastest", preview: "For insured, fresh-damage homes an inspection-first message converts fastest — worth reusing next storm.", note: "Saved from Arc chat", mediaUrl: null, conversationHref: null, createdAt: "2026-07-18T11:20:00Z" },
+  ];
+}
+
+export async function listSavedArcItemsAction(): Promise<{ ok: true; items: SavedArcItemVM[] } | { ok: false; error: string }> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) {
+    return { ok: true, items: isDemoDataEnabled() ? buildDemoSavedItems() : [] };
+  }
+  try {
+    const operator = await getOperatorActor();
+    const ctx = await getCurrentWorkspaceContext();
+    const items = await listSavedItems(operator, getSupabaseAdminClient(), { orgId: ctx.orgId });
+    return { ok: true, items: items.map(toSavedVM) };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't load your saved items." };
+  }
+}
+
+export async function removeSavedArcItemAction(id: string): Promise<ArcInteractionResult> {
+  await requireOperator();
+  if (!id) return { ok: false, error: "Missing item." };
+  if (!isSupabaseAdminConfigured()) return { ok: true };
+  try {
+    const operator = await getOperatorActor();
+    const ctx = await getCurrentWorkspaceContext();
+    await removeSavedItem(id, operator, getSupabaseAdminClient(), { orgId: ctx.orgId });
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't remove that item." };
   }
 }

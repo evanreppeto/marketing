@@ -17,6 +17,7 @@ import {
   ArrowRight,
   ArrowUp,
   AtSign,
+  Bookmark,
   Binoculars,
   Blocks,
   Check,
@@ -105,11 +106,14 @@ import {
   regenerateArcReplyAction,
   renameArcConversationAction,
   installArcGithubSkillAction,
+  listSavedArcItemsAction,
   previewArcGithubSkillAction,
   removeArcGithubSkillAction,
+  removeSavedArcItemAction,
   sendArcMessageAction,
   setArcSkillInstalledAction,
   uploadArcAttachmentAction,
+  type SavedArcItemVM,
 } from "../actions";
 import {
   getChatSharingStateAction,
@@ -388,7 +392,11 @@ function ThreadDrawer({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [view, setView] = useState<"conversations" | "skills" | "connectors">("conversations");
+  const [view, setView] = useState<"conversations" | "skills" | "connectors" | "saved">("conversations");
+  // Saved items are loaded lazily the first time the Saved tab opens.
+  const [savedItems, setSavedItems] = useState<SavedArcItemVM[] | null>(null);
+  const [savedLoading, setSavedLoading] = useState(false);
+  const [savedError, setSavedError] = useState<string | null>(null);
   const [skillsMode, setSkillsMode] = useState<"installed" | "library">("installed");
   const [skillSearch, setSkillSearch] = useState("");
   const [query, setQuery] = useState("");
@@ -401,6 +409,27 @@ function ThreadDrawer({
   const [githubBusy, setGithubBusy] = useState(false);
   const [demoGroups, setDemoGroups] = useState<ArcThreadGroupVM[]>(DEMO_THREADS);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  const openSaved = () => {
+    setView("saved");
+    if (savedItems === null && !savedLoading) {
+      setSavedLoading(true);
+      setSavedError(null);
+      listSavedArcItemsAction().then((res) => {
+        setSavedLoading(false);
+        if (res.ok) setSavedItems(res.items);
+        else setSavedError(res.error);
+      });
+    }
+  };
+  const removeSaved = (id: string) => {
+    const prev = savedItems;
+    setSavedItems((cur) => (cur ? cur.filter((s) => s.id !== id) : cur));
+    removeSavedArcItemAction(id).then((res) => {
+      if (!res.ok) { setSavedItems(prev); setSavedError(res.error); }
+    });
+  };
+
   const sourceGroups = live ? groups : demoGroups;
   const availableCampaigns: ArcMention[] = campaignItems.length > 0 ? campaignItems : [
     { type: "campaign", id: "demo-camp", label: "Storm Rapid Response", href: "/campaigns" },
@@ -566,6 +595,7 @@ function ThreadDrawer({
         <button type="button" className={view === "conversations" ? "is-active" : ""} aria-current={view === "conversations" ? "page" : undefined} onClick={() => setView("conversations")}><MessageSquareText size={14} />Conversations</button>
         <button type="button" className={`is-skills${view === "skills" ? " is-active" : ""}`} aria-current={view === "skills" ? "page" : undefined} onClick={() => { setView("skills"); setSkillsMode("installed"); }}><Blocks size={14} />Skills</button>
         <button type="button" className={view === "connectors" ? "is-active" : ""} aria-current={view === "connectors" ? "page" : undefined} onClick={() => setView("connectors")}><Link2 size={14} />Connectors</button>
+        <button type="button" className={view === "saved" ? "is-active" : ""} aria-current={view === "saved" ? "page" : undefined} onClick={openSaved}><Bookmark size={14} />Saved</button>
       </nav>
 
       {view === "conversations" ? <section className="arc-drawer-view" aria-labelledby="arc-conversations-title">
@@ -682,6 +712,33 @@ function ThreadDrawer({
           {connectorItems.length === 0 ? <div className="arc-connector-empty"><Link2 size={17} /><b>No connectors found</b><span>Open Settings to refresh the workspace catalog.</span></div> : null}
         </div>
         <p className="arc-drawer-footnote"><ShieldCheck size={13} /> Connections are workspace-scoped and controlled in Settings.</p>
+      </section> : null}
+
+      {view === "saved" ? <section className="arc-drawer-view arc-drawer-saved" aria-labelledby="arc-saved-title">
+        <header className="arc-drawer-view-head"><h2 id="arc-saved-title">Saved</h2><p>Responses and drafts you saved from Arc — kept for reuse.</p></header>
+        {savedError ? <p className="arc-saved-error" role="alert">{savedError}</p> : null}
+        {savedLoading ? (
+          <div className="arc-saved-empty"><LoaderCircle size={16} className="is-spinning" /> Loading your saved items…</div>
+        ) : savedItems && savedItems.length > 0 ? (
+          <div className="arc-saved-list">
+            {savedItems.map((item) => (
+              <div className="arc-saved-item" key={item.id}>
+                <div className="arc-saved-main">
+                  <span className={`arc-saved-kind is-${item.kind}`}>{item.kind === "draft" ? "Draft" : item.kind === "media" ? "Media" : "Angle"}</span>
+                  <b className="arc-saved-title">{item.title}</b>
+                  {item.preview ? <p className="arc-saved-preview">{item.preview}</p> : null}
+                  {item.conversationHref ? <Link href={item.conversationHref} className="arc-saved-open" onClick={onClose}>Open source chat <ArrowRight size={12} /></Link> : null}
+                </div>
+                <button type="button" className="arc-saved-remove" onClick={() => removeSaved(item.id)} aria-label={`Remove saved item: ${item.title}`} title="Remove"><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="arc-saved-empty">
+            <Bookmark size={18} />
+            <div><b>Nothing saved yet.</b><span>Use the bookmark on any Arc response to keep it here for reuse.</span></div>
+          </div>
+        )}
       </section> : null}
     </motion.aside>
   );
