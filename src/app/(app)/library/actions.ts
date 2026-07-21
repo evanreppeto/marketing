@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { removeMediaRecordFromBrain, syncMediaRecordToBrain } from "@/lib/brain-ingestion/sync";
-import { createFolder, deleteAsset, insertAssetWithUrl, setAvailableToArc } from "@/lib/media-library/persistence";
+import { createFolder, deleteAsset, insertAssetWithUrl, renameAsset, setAssetTags, setAvailableToArc } from "@/lib/media-library/persistence";
 import { MAX_UPLOAD_BYTES, acceptUpload, kindForContentType } from "@/lib/media-library/upload-policy";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -149,6 +149,47 @@ export async function setLibraryAssetArcAvailability(
     return { ok: true, persisted: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not update the asset." };
+  }
+}
+
+export type EditAssetResult = { ok: true; persisted: boolean } | { ok: false; error: string };
+
+/**
+ * Rename a Library asset's display name. Org-scoped through the service-role
+ * client (renameAsset returns false when the id isn't this workspace's row).
+ * Display-only — the storage path/URL are untouched, nothing outbound.
+ */
+export async function renameLibraryAsset(assetId: string, name: string): Promise<EditAssetResult> {
+  await requireOperator();
+  const trimmed = name?.trim();
+  if (!assetId?.trim()) return { ok: false, error: "An asset id is required." };
+  if (!trimmed) return { ok: false, error: "A name is required." };
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+  try {
+    const orgId = await getCurrentOrgId();
+    const matched = await renameAsset(assetId, trimmed, orgId);
+    if (!matched) return { ok: false, error: "That asset isn't in this workspace." };
+    revalidatePath("/library");
+    return { ok: true, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not rename the asset." };
+  }
+}
+
+/** Replace a Library asset's tags (tags already drive the search/filter). Org-scoped. */
+export async function setLibraryAssetTags(assetId: string, tags: string[]): Promise<EditAssetResult> {
+  await requireOperator();
+  if (!assetId?.trim()) return { ok: false, error: "An asset id is required." };
+  const clean = [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))].slice(0, 24);
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+  try {
+    const orgId = await getCurrentOrgId();
+    const matched = await setAssetTags(assetId, clean, orgId);
+    if (!matched) return { ok: false, error: "That asset isn't in this workspace." };
+    revalidatePath("/library");
+    return { ok: true, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not update the tags." };
   }
 }
 

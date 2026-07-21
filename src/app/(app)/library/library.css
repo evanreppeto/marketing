@@ -179,7 +179,16 @@
 .arc-library .ihero .iclose svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
 .arc-library .ihero .ipv { position: absolute; bottom: 10px; left: 12px; font-size: 9.5px; font-weight: 600; padding: 2px 8px; border-radius: 6px; backdrop-filter: blur(3px); }
 .arc-library .ibody { padding: 16px 18px 30px; }
-.arc-library .iname { font-family: var(--serif); font-weight: 500; font-size: 17px; letter-spacing: -0.01em; line-height: 1.25; }
+.arc-library .iname { display: flex; align-items: flex-start; gap: 7px; width: 100%; text-align: left; border: none; background: transparent; cursor: pointer; padding: 3px 0; font-family: var(--serif); font-weight: 500; font-size: 17px; letter-spacing: -0.01em; line-height: 1.25; color: var(--text); }
+.arc-library .iname svg { flex: none; width: 14px; height: 14px; stroke: var(--muted); fill: none; stroke-width: 1.7; margin-top: 4px; opacity: 0; transition: opacity 0.14s; }
+.arc-library .iname:hover svg, .arc-library .iname:focus-visible svg { opacity: 1; }
+.arc-library .iname:hover { color: var(--accent-contrast); }
+.arc-library .iname-edit { width: 100%; margin: 2px 0; padding: 5px 9px; border: 1px solid var(--accent-border); border-radius: 8px; background: var(--inset); color: var(--text); font-family: var(--serif); font-weight: 500; font-size: 16px; outline: none; }
+.arc-library .irow .itag-view { display: inline-flex; align-items: center; gap: 6px; border: none; background: transparent; cursor: pointer; color: var(--text-2); font-weight: 500; font-family: var(--mono); font-size: 11px; text-align: right; padding: 0; }
+.arc-library .irow .itag-view svg { width: 12px; height: 12px; stroke: var(--muted); fill: none; stroke-width: 1.7; opacity: 0; transition: opacity 0.14s; }
+.arc-library .irow .itag-view:hover { color: var(--text); }
+.arc-library .irow .itag-view:hover svg, .arc-library .irow .itag-view:focus-visible svg { opacity: 1; }
+.arc-library .itag-edit { flex: 1; min-width: 0; padding: 4px 8px; border: 1px solid var(--accent-border); border-radius: 7px; background: var(--inset); color: var(--text); font-family: var(--mono); font-size: 11px; outline: none; }
 .arc-library .irow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
 .arc-library .irow:first-of-type { border-top: 1px solid var(--line); margin-top: 13px; }
 .arc-library .irow .il { color: var(--muted); }

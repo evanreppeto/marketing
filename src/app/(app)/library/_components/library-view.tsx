@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 
 import { formatByteSize } from "@/domain";
 
-import { createLibraryFolder, deleteLibraryAsset, setLibraryAssetArcAvailability, uploadLibraryAsset } from "../actions";
+import { createLibraryFolder, deleteLibraryAsset, renameLibraryAsset, setLibraryAssetArcAvailability, setLibraryAssetTags, uploadLibraryAsset } from "../actions";
 import { ImportUrlModal } from "./import-url-modal";
 import { NewFolderModal } from "./new-folder-modal";
 
@@ -192,6 +192,10 @@ export function LibraryView({
   const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // In-session name/tag edits, overlaid on the immutable base assets.
+  const [edits, setEdits] = useState<Record<number, { nm?: string; tags?: string[] }>>({});
+  const [renaming, setRenaming] = useState(false);
+  const [tagEditing, setTagEditing] = useState(false);
   const [suggDismissed, setSuggDismissed] = useState(false);
   // Folders + uploads created this session. Folders persist via createLibraryFolder;
   // uploads are held client-side (real media-store persistence lands with the
@@ -205,7 +209,12 @@ export function LibraryView({
   const uidRef = useRef(-1);
 
   const baseAssets = assets ?? ALL_ASSETS;
-  const allAssets = useMemo(() => [...uploaded, ...baseAssets].filter((a) => !deletedIds.has(a.id)), [uploaded, baseAssets, deletedIds]);
+  const allAssets = useMemo(
+    () => [...uploaded, ...baseAssets]
+      .filter((a) => !deletedIds.has(a.id))
+      .map((a) => (edits[a.id] ? { ...a, ...(edits[a.id].nm !== undefined ? { nm: edits[a.id].nm! } : {}), ...(edits[a.id].tags !== undefined ? { tags: edits[a.id].tags! } : {}) } : a)),
+    [uploaded, baseAssets, deletedIds, edits],
+  );
 
   // Folder counts over the live asset set (base assets + this session's uploads).
   const rcountLive = (f: string): number => {
@@ -365,7 +374,29 @@ export function LibraryView({
   const sortLabel = sortBy === "recent" ? "Recent" : sortBy === "name" ? "Name" : "Most used";
   const cycleSort = () => setSortBy((s) => (s === "recent" ? "name" : s === "name" ? "used" : "recent"));
 
-  const openDetail = (a: Asset) => { setConfirmDelete(false); setDetail(a); };
+  const openDetail = (a: Asset) => { setConfirmDelete(false); setRenaming(false); setTagEditing(false); setDetail(a); };
+
+  // Apply a name/tag edit to the overlay (for the grid) and the open inspector.
+  const applyEdit = (id: number, patch: { nm?: string; tags?: string[] }) => {
+    setEdits((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+    setDetail((cur) => (cur && cur.id === id ? { ...cur, ...patch } : cur));
+  };
+  const saveRename = (a: Asset, value: string) => {
+    setRenaming(false);
+    const name = value.trim();
+    if (!name || name === a.nm) return;
+    const prev = a.nm;
+    applyEdit(a.id, { nm: name });
+    if (a.rid) renameLibraryAsset(a.rid, name).then((res) => { if (!res.ok) { applyEdit(a.id, { nm: prev }); setNotice(res.error); } });
+  };
+  const saveTags = (a: Asset, value: string) => {
+    setTagEditing(false);
+    const tags = [...new Set(value.split(",").map((tag) => tag.trim()).filter(Boolean))];
+    if (tags.join("|") === a.tags.join("|")) return;
+    const prev = a.tags;
+    applyEdit(a.id, { tags });
+    if (a.rid) setLibraryAssetTags(a.rid, tags).then((res) => { if (!res.ok) { applyEdit(a.id, { tags: prev }); setNotice(res.error); } });
+  };
 
   // Delete a Library asset: optimistically drop it from the grid + close the
   // inspector, then persist (real DB rows only). Restore on failure. Campaigns
@@ -618,12 +649,43 @@ export function LibraryView({
                 <span className={`ipv pvc-${detail.pv}`} style={{ background: "rgba(16,16,19,.7)" }}>{PVL[detail.pv]} media</span>
               </div>
               <div className="ibody">
-                <div className="iname">{detail.nm}</div>
+                {renaming ? (
+                  <input
+                    className="iname-edit"
+                    autoFocus
+                    defaultValue={detail.nm}
+                    aria-label="Asset name"
+                    onKeyDown={(e) => { if (e.key === "Enter") saveRename(detail, e.currentTarget.value); if (e.key === "Escape") setRenaming(false); }}
+                    onBlur={(e) => saveRename(detail, e.currentTarget.value)}
+                  />
+                ) : (
+                  <button type="button" className="iname" onClick={() => setRenaming(true)} title="Click to rename">
+                    <span>{detail.nm}</span>
+                    <Ico d='<path d="M4 20h4L18.5 9.5a2.1 2.1 0 00-3-3L5 17v3z"/>' />
+                  </button>
+                )}
                 <div className="irow"><span className="il">Kind · size</span><span className="iv">{detail.kind} · {detail.size}</span></div>
                 <div className="irow"><span className="il">Dimensions</span><span className="iv">{detail.dim}</span></div>
                 <div className="irow"><span className="il">Source</span><span className="iv" style={{ color: "var(--text-2)" }}>{detail.src}</span></div>
                 <div className="irow"><span className="il">Added</span><span className="iv" style={{ color: "var(--text-2)" }}>{detail.by} · {detail.added}</span></div>
-                <div className="irow"><span className="il">Tags</span><span className="iv" style={{ color: "var(--text-2)" }}>{detail.tags.join(", ")}</span></div>
+                <div className="irow"><span className="il">Tags</span>
+                  {tagEditing ? (
+                    <input
+                      className="itag-edit"
+                      autoFocus
+                      defaultValue={detail.tags.join(", ")}
+                      placeholder="tag, tag, tag"
+                      aria-label="Asset tags (comma-separated)"
+                      onKeyDown={(e) => { if (e.key === "Enter") saveTags(detail, e.currentTarget.value); if (e.key === "Escape") setTagEditing(false); }}
+                      onBlur={(e) => saveTags(detail, e.currentTarget.value)}
+                    />
+                  ) : (
+                    <button type="button" className="iv itag-view" onClick={() => setTagEditing(true)} title="Click to edit tags">
+                      <span>{detail.tags.length ? detail.tags.join(", ") : "Add tags"}</span>
+                      <Ico d='<path d="M4 20h4L18.5 9.5a2.1 2.1 0 00-3-3L5 17v3z"/>' />
+                    </button>
+                  )}
+                </div>
                 <div className="arctoggle">
                   <div><div className="at">Available to Arc</div><div className="ad">Arc may reuse this in drafts</div></div>
                   <span className={`toggle${isArc(detail) ? " on" : ""}`} onClick={() => toggleArc(detail)}><span className="sw" /></span>
