@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
@@ -15,6 +16,11 @@ export type OutboxCardVM = {
   channel: OutboxChannel;
   title: string;
   campaign: string;
+  recipient: string | null;
+  sender: string | null;
+  subject: string | null;
+  bodyPreview: string | null;
+  sendTiming: string | null;
   note: string | null;
   noteTone: "" | "warn" | "red";
   href: string;
@@ -103,6 +109,7 @@ export function OutboxBoard({
   // over the send/cancel state without being re-created as components each render.
   const renderCard = (card: OutboxCardVM) => {
     const delivered = card.status === "delivered";
+    const senderMissing = card.channel === "email" && !card.sender;
     return (
       <div className={`card${card.status === "failed" ? " is-failed" : ""}`} key={card.id}>
         <a className="clink" href={card.href}>
@@ -119,18 +126,29 @@ export function OutboxBoard({
             )}
           </div>
           {card.meta && <div className="cmeta">{card.meta}</div>}
+          {card.recipient && <div className="caudience"><span>To</span>{card.recipient}</div>}
           {card.note && <div className={`cnote${card.noteTone ? ` ${card.noteTone}` : ""}`}>{card.note}</div>}
         </a>
         {failed?.id === card.id && <div className="cnote red">{failed.message}</div>}
         {card.actionKind === "send" && confirmId === card.id ? (
           <div className="caconfirm">
+            <div className="send-preview" role="group" aria-label={`Review ${card.title} before sending`}>
+              <dl>
+                <div><dt>From</dt><dd className={card.sender ? "" : "missing"}>{card.sender || "Sender not configured"}</dd></div>
+                <div><dt>To</dt><dd>{card.recipient || "Audience resolves in the channel connector"}</dd></div>
+                {card.channel === "email" && <div><dt>Subject</dt><dd>{card.subject || card.title}</dd></div>}
+                <div><dt>When</dt><dd>{card.sendTiming || "Immediately after confirmation"}</dd></div>
+              </dl>
+              {card.bodyPreview ? <p>{card.bodyPreview}</p> : <p className="missing">Open the campaign to review the full approved content.</p>}
+              <Link href={card.href}>Open approved campaign content →</Link>
+            </div>
             <span className="cctext">Send this {card.channel === "sms" ? "text" : "email"} for real — there’s no undo.</span>
             <div className="ccbtns">
               <button type="button" className="cccancel" onClick={() => setConfirmId(null)} disabled={busyId !== null}>
                 Keep in queue
               </button>
-              <button type="button" className="caction danger" onClick={() => run(card, "send", card.actionTo)} disabled={busyId !== null}>
-                {busyId === card.id ? "Sending…" : "Send for real"}
+              <button type="button" className="caction danger" onClick={() => run(card, "send", card.actionTo)} disabled={busyId !== null || senderMissing}>
+                {busyId === card.id ? "Sending…" : senderMissing ? "Configure sender first" : "Send for real"}
               </button>
             </div>
           </div>

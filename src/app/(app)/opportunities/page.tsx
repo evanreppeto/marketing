@@ -185,13 +185,18 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
   };
 }
 
-export default async function OpportunitiesPage() {
+export default async function OpportunitiesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ selected?: string }>;
+}) {
   const ctx = await getCurrentWorkspaceContext();
-  const [records, personaOptions] = await Promise.all([
+  const [records, personaOptions, params] = await Promise.all([
     listOpenOpportunities(undefined, ctx.orgId).catch(() => [] as OpportunityRecord[]),
     getOrgPersonaOptions(ctx.orgId).catch(() => []),
+    searchParams,
   ]);
   const opps = records.map(toVM);
 
-  return <OpportunityInbox opps={opps} personaOptions={personaOptions} />;
+  return <OpportunityInbox opps={opps} personaOptions={personaOptions} selectedId={params.selected} />;
 }

@@ -6,7 +6,7 @@ function view(id: string, status: DispatchView["status"]): DispatchView {
   return {
     id, campaignId: "c1", campaignName: "Spring push", assetId: "a1",
     deliverable: "Welcome email", channel: "Email", status,
-    scheduledFor: null, dispatchedAt: null, recipientSummary: "12 leads",
+    scheduledFor: null, dispatchedAt: null, recipientSummary: "12 leads", preview: null,
     audienceCount: 12, resultNote: null, updatedAt: "Jun 5",
   };
 }
