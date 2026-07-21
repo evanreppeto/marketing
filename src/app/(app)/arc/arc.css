@@ -137,6 +137,10 @@
   margin: 0 auto;
   padding: 24px 0 32px;
 }
+.arc-chat[data-new-conversation="true"] .arc-conversation-column {
+  padding-top: 0;
+  padding-bottom: 14px;
+}
 .arc-day {
   display: flex;
   align-items: center;
@@ -972,8 +976,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
+  justify-content: safe center;
   text-align: center;
-  padding: 30px 24px 44px;
+  padding: clamp(20px, 3.4vh, 36px) 24px;
 }
 .arc-launcher h2 { margin: 0; font-family: var(--serif); font-size: clamp(26px, 3vw, 32px); font-weight: 540; letter-spacing: -.02em; color: var(--text); }
 .arc-launcher > p { max-width: 54ch; margin: 11px 0 0; color: var(--muted); font-size: 13px; line-height: 1.62; }
@@ -1068,6 +1073,21 @@
 .arc-launcher-grid small { min-width: 0; color: var(--muted); font-size: 10.5px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 @media (max-width: 640px) {
   .arc-launcher-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-height: 760px) and (min-width: 761px) {
+  .arc-chat[data-new-conversation="true"] .arc-conversation-column { padding-bottom: 8px; }
+  .arc-launcher { padding: 14px 24px 12px; }
+  .arc-launcher h2 { font-size: 26px; }
+  .arc-launcher > p { margin-top: 6px; line-height: 1.45; }
+  .arc-launcher-waiting { gap: 6px; margin-top: 10px; }
+  .arc-launcher-nudges { gap: 4px; }
+  .arc-launcher-nudge { padding: 7px 11px; }
+  .arc-launcher-grid { gap: 7px; margin-top: 11px; }
+  .arc-launcher-grid button { padding: 8px 11px; }
+  .arc-launcher-icon { width: 30px; height: 30px; }
+  .arc-chat[data-new-conversation="true"] .arc-composer { padding-top: 9px; }
+  .arc-chat[data-new-conversation="true"] .arc-composer textarea { min-height: 42px; padding-bottom: 8px; }
 }
 
 /* ── Composer ───────────────────────────────────────────────────────────── */
@@ -1707,8 +1727,11 @@
   text-decoration: none;
   cursor: pointer;
   font-size: 12px;
+  font-weight: 600;
+  transition: color var(--arc-fast), border-color var(--arc-fast), background var(--arc-fast), transform var(--arc-fast);
 }
 .arc-new-chat:hover { color: var(--text); border-color: var(--accent-border); background: var(--accent-soft); }
+.arc-new-chat:active { transform: translateY(1px); }
 .arc-history-search {
   height: 36px;
   display: grid;
