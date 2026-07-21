@@ -9,6 +9,7 @@ import { getSettingsConnectorsView } from "@/lib/connectors/settings-connectors"
 import { getEmailConnection } from "@/lib/connections/read-model";
 import { getConnectorSpendView } from "@/lib/connectors/spend-summary";
 import { isLiveSendEnabled } from "@/lib/dispatch/live-send";
+import { getOrgPersonaOptions } from "@/lib/personas/read-model";
 import { getAppSettings } from "@/lib/settings/store";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 
@@ -32,6 +33,8 @@ export default async function SettingsPage() {
     getEmailConnection().catch(() => null),
     resolveAgentConnection().catch(() => null),
   ]);
+  // The workspace's own personas, for the connector "Default persona" picker.
+  const personaOptions = await getOrgPersonaOptions(ctx?.orgId ?? undefined).catch(() => []);
   const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
   const email = user?.email || "owner@bsr.test";
   const avatarUrl = await getViewerAvatarUrl(user);
@@ -39,5 +42,5 @@ export default async function SettingsPage() {
   // email card can tell the truth: an enabled Resend connection still sends
   // nothing while this is dark.
   const liveSendEnabled = isLiveSendEnabled();
-  return <SettingsView brandName={brandName} email={email} avatarUrl={avatarUrl} team={team} usage={usage} connectorSpend={connectorSpend} billing={billing} settings={settings} connectors={connectors} workspaces={workspaces} emailConnection={emailConnection} liveSendEnabled={liveSendEnabled} agentConnection={agentConnection} />;
+  return <SettingsView brandName={brandName} email={email} avatarUrl={avatarUrl} team={team} usage={usage} connectorSpend={connectorSpend} billing={billing} settings={settings} connectors={connectors} workspaces={workspaces} emailConnection={emailConnection} liveSendEnabled={liveSendEnabled} agentConnection={agentConnection} personaOptions={personaOptions} />;
 }
