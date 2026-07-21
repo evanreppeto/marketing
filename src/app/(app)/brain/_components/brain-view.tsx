@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 
-import { decideBrainNode, rebuildBrainMemoryAction } from "../actions";
+import { archiveBrainNode, decideBrainNode, rebuildBrainMemoryAction } from "../actions";
 import { KnowledgeGraph, type GraphEdge, type GraphNode } from "./knowledge-graph";
 
 export type FactVM = {
@@ -79,6 +79,8 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
   // drop out immediately; a real write revalidates, offline it stays session-only.
   const [review, setReview] = useState(data.review);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // Facts archived this session — hidden optimistically before the refetch.
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   const kinds = useMemo(() => {
@@ -87,8 +89,9 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
     return [...seen.entries()].map(([k, v]) => ({ key: k, ...v }));
   }, [data.facts]);
 
-  const visibleFacts = kind === "all" ? data.facts : data.facts.filter((f) => f.kind === kind);
-  const counts: Record<string, number> = { facts: data.facts.length, review: review.length, learned: data.learned.length };
+  const liveFacts = data.facts.filter((f) => !archivedIds.has(f.id));
+  const visibleFacts = kind === "all" ? liveFacts : liveFacts.filter((f) => f.kind === kind);
+  const counts: Record<string, number> = { facts: liveFacts.length, review: review.length, learned: data.learned.length };
 
   async function decide(nodeId: string, decision: "approve" | "reject") {
     setError(null);
@@ -99,6 +102,19 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
     setPendingId(null);
     if (!res.ok) {
       setReview(previous);
+      setError(res.error);
+    }
+  }
+
+  async function archive(nodeId: string) {
+    setError(null);
+    setPendingId(nodeId);
+    // Optimistically hide the fact; restore it if the write fails.
+    setArchivedIds((prev) => new Set(prev).add(nodeId));
+    const res = await archiveBrainNode(nodeId);
+    setPendingId(null);
+    if (!res.ok) {
+      setArchivedIds((prev) => { const next = new Set(prev); next.delete(nodeId); return next; });
       setError(res.error);
     }
   }
@@ -177,7 +193,7 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
                   <div className="ftwrap">
                     <table className="ft">
                       <thead>
-                        <tr><th>Kind</th><th>Fact</th><th>Trust</th><th>Confidence</th><th>Source</th></tr>
+                        <tr><th>Kind</th><th>Fact</th><th>Trust</th><th>Confidence</th><th>Source</th><th aria-label="Actions" /></tr>
                       </thead>
                       <tbody>
                         {visibleFacts.map((f) => (
@@ -190,6 +206,18 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
                             <td><span className={`tier ${tierClass(f.trustTier)}`}><span className="td" />{f.trustTier}</span></td>
                             <td><Confidence value={f.confidence} /></td>
                             <td><span className="src">{f.source || "—"}</span></td>
+                            <td className="factact">
+                              <button
+                                type="button"
+                                className="farch"
+                                disabled={pendingId === f.id}
+                                onClick={() => archive(f.id)}
+                                title="Archive this fact"
+                                aria-label={`Archive: ${f.label}`}
+                              >
+                                <svg viewBox="0 0 24 24"><path d="M4 7h16v3H4zM6 10h12v9H6zM10 13h4" /></svg>
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
