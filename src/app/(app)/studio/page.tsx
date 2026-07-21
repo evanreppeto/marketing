@@ -26,7 +26,7 @@ function toStudioItem(v: MediaAssetView): Item {
 
 export default async function StudioPage() {
   const ctx = await getCurrentWorkspaceContext().catch(() => null);
-  const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
+  const brandName = ctx?.orgName?.trim() || "Your workspace";
 
   // Real media_assets → the "Approved media" source, so Studio composes over the
   // workspace's actual backgrounds. Undefined/empty offline → the built-in samples.

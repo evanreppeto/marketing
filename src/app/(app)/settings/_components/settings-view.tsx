@@ -483,7 +483,6 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
   const [modelSel, setModelSel] = useState<RosterModel | null>(null);
   const [sub, setSub] = useState<Record<string, string>>({});
   const [connSel, setConnSel] = useState<string | null>(null);
-  const domain = "bigshouldersrestoration.com";
 
   // Deep-linkable navigation: the section + sub-tab live in the URL (?s=…&t=…),
   // so Back/Forward step through sub-pages and a shared link lands on the exact
@@ -620,7 +619,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
       <>
         <Head t="General" d="Your workspace identity and how Arc is named — both apply across the app and Arc’s outbound from-name." />
         {subBar}
-        {activeSub === "Agent" ? <AgentIdentityPanel settings={settings} /> : <GeneralPanel brandName={brandName} settings={settings} domain={domain} />}
+        {activeSub === "Agent" ? <AgentIdentityPanel settings={settings} /> : <GeneralPanel brandName={brandName} settings={settings} />}
       </>
     ),
     appearance: (
@@ -1295,11 +1294,11 @@ function WorkspacesSection({ view }: { view: SettingsWorkspacesView }) {
 // Workspace name renames the org + workspace identity (owner/admin gated);
 // account type, industry, and support email persist to app_settings. Offline the
 // action returns persisted:false and Status says so honestly.
-function GeneralPanel({ brandName, settings, domain }: { brandName: string; settings: AppSettings; domain: string }) {
+function GeneralPanel({ brandName, settings }: { brandName: string; settings: AppSettings }) {
   const [name, setName] = useState(brandName);
   const [profile, setProfile] = useState<AppSettings["workspaceProfile"]>(settings.workspaceProfile);
   const [industry, setIndustry] = useState(canonicalIndustryKey(settings.industry));
-  const [email, setEmail] = useState(settings.supportEmail || `support@${domain}`);
+  const [email, setEmail] = useState(settings.supportEmail ?? "");
   const [status, setStatus] = useState<SaveStatus>(null);
   const [pending, setPending] = useState(false);
 
@@ -1324,7 +1323,7 @@ function GeneralPanel({ brandName, settings, domain }: { brandName: string; sett
         </Row>
         <Row label="Account type" desc="How Arc frames personas, detectors, and templates."><Seg opts={["Individual", "Company", "Agency"]} value={PROFILE_LABEL[profile]} onChange={(v) => setProfile(v.toLowerCase() as AppSettings["workspaceProfile"])} /></Row>
         <Row label="Industry" desc="Tailors starter audiences and workspace language. Existing records stay unchanged."><select className="sel" value={industry} onChange={(e) => setIndustry(canonicalIndustryKey(e.target.value))}>{INDUSTRY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Row>
-        <Row label="Support email" desc="Used as reply-to on transactional email."><input className="inp" value={email} onChange={(e) => setEmail(e.target.value)} /></Row>
+        <Row label="Support email" desc="Used as reply-to on transactional email."><input className="inp" value={email} placeholder="support@yourcompany.com" onChange={(e) => setEmail(e.target.value)} /></Row>
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 0 4px" }}>
           <button className="btn gold" onClick={save} disabled={pending}>{pending ? "Saving…" : "Save changes"}</button>
           <Status status={status} />

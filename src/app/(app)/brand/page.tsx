@@ -8,7 +8,7 @@ export const metadata = { title: "Brand — Arc" };
 
 export default async function BrandPage() {
   const ctx = await getCurrentWorkspaceContext().catch(() => null);
-  const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
+  const brandName = ctx?.orgName?.trim() || "Your workspace";
   const view = await getBrandProfileView(ctx?.orgId ?? "", brandName);
   return <BrandView view={view} />;
 }

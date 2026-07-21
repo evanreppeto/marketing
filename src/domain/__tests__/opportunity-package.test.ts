@@ -46,6 +46,35 @@ describe("buildOpportunityPackageDrafts", () => {
     expect(all).not.toMatch(/insurance|coverage|claim|covered|deductible|guarantee/);
   });
 
+  it("names no business and no vertical when given no context (tenant-neutral)", () => {
+    const blob = buildOpportunityPackageDrafts(BRIEF).map((d) => d.body).join("\n");
+    expect(blob).not.toMatch(/Big Shoulders Restoration/i);
+    expect(blob).not.toMatch(/Chicagoland|IICRC|restoration technician/i);
+    // Degrades to a pronoun + generic sign-off.
+    const email = buildOpportunityPackageDrafts(BRIEF).find((d) => d.assetType === "email")!;
+    expect(email.body).toContain("we help");
+    expect(email.body).toContain("— The team");
+  });
+
+  it("weaves the workspace's own business name + proof points into the copy", () => {
+    const drafts = buildOpportunityPackageDrafts(BRIEF, {
+      businessName: "Lakeside Events Co.",
+      proofPoints: ["Booked 200+ weddings", "Same-week quotes"],
+    });
+    const blob = drafts.map((d) => d.body).join("\n");
+    expect(blob).toContain("Lakeside Events Co.");
+    expect(blob).toContain("Booked 200+ weddings");
+    const email = drafts.find((d) => d.assetType === "email")!;
+    expect(email.body).toContain("Lakeside Events Co. helps");
+    expect(email.body).toContain("— The Lakeside Events Co. team");
+  });
+
+  it("treats getBusinessContext's empty-name fallback ('the business') as unnamed", () => {
+    const email = buildOpportunityPackageDrafts(BRIEF, { businessName: "the business" }).find((d) => d.assetType === "email")!;
+    expect(email.body).toContain("we help");
+    expect(email.body).not.toMatch(/the business helps/i);
+  });
+
   it("degrades gracefully with an empty persona/focus/angle", () => {
     const drafts = buildOpportunityPackageDrafts({
       title: "Untitled opportunity",
