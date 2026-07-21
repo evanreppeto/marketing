@@ -1045,6 +1045,14 @@
 .arc-app .arc-brain .ft tbody td { padding: 11px 12px; border-bottom: 1px solid var(--line); color: var(--text-2); vertical-align: middle; }
 .arc-app .arc-brain .ft tbody tr:last-child td { border-bottom: none; }
 .arc-app .arc-brain .ft tbody tr:hover { background: rgba(255, 255, 255, .025); }
+/* per-fact archive control — revealed on row hover, sits in a trailing cell */
+.arc-app .arc-brain .ft td.factact { width: 34px; text-align: right; padding-left: 0; }
+.arc-app .arc-brain .ft .farch { width: 26px; height: 26px; border-radius: 7px; border: 1px solid transparent; background: transparent; color: var(--muted); cursor: pointer; display: grid; place-items: center; opacity: 0; transition: opacity 0.14s, color 0.14s, border-color 0.14s; }
+.arc-app .arc-brain .ft tbody tr:hover .farch { opacity: 1; }
+.arc-app .arc-brain .ft .farch:hover { color: var(--text); border-color: var(--line-2); background: var(--inset); }
+.arc-app .arc-brain .ft .farch:focus-visible { opacity: 1; }
+.arc-app .arc-brain .ft .farch:disabled { opacity: 0.4; cursor: default; }
+.arc-app .arc-brain .ft .farch svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.7; }
 .arc-app .arc-brain .fact-label { color: var(--text); font-weight: 500; }
 .arc-app .arc-brain .fact-sum { color: var(--muted); font-size: 11px; margin-top: 2px; max-width: 52ch; }
 .arc-app .arc-brain .kindchip { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
