@@ -101,9 +101,11 @@ function makeSink() {
  * build their own ctx/prompt/tools, then hand off the same machinery here.
  */
 /** Min gap between live partial-body posts, so streaming doesn't hammer the app
- *  endpoint. ~180ms reads as continuous typing once the client typewriter
- *  smooths between chunks. */
-const STREAM_THROTTLE_MS = 180;
+ *  endpoint. Kept just under the app's active poll (~120ms) so a chunk is usually
+ *  waiting when the poll fires, rather than landing a full poll-interval late; the
+ *  posts are awaited serially, so an app round-trip slower than this is the real
+ *  floor. The client typewriter smooths between chunks either way. */
+const STREAM_THROTTLE_MS = 90;
 
 /** The model input for a turn: a plain string, or content blocks for multimodal. */
 type TurnContent = Awaited<ReturnType<typeof buildTurnContentAsync>>;

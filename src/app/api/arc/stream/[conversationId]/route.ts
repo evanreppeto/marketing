@@ -21,7 +21,13 @@ export const dynamic = "force-dynamic";
 // and the browser's EventSource transparently reconnects to resume.
 export const maxDuration = 60;
 
-const POLL_MS = 400;
+// Adaptive poll cadence. While a reply is actively growing we poll fast so a
+// freshly-written token surfaces within ~ACTIVE_POLL_MS (was a flat 400ms); after
+// a few unchanged polls we relax to IDLE_POLL_MS so a run that's mid-tool-call or
+// otherwise quiet doesn't hammer the DB. Any change snaps back to the fast rate.
+const ACTIVE_POLL_MS = 120;
+const IDLE_POLL_MS = 500;
+const BACKOFF_AFTER_MISSES = 3; // ~360ms of no change → back off to the idle rate
 const MAX_STREAM_MS = 45_000;
 const HEARTBEAT_MS = 15_000;
 
@@ -69,6 +75,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ conv
       send(": connected\n\n");
       let lastFingerprint: string | null = null;
       let lastActivity = Date.now();
+      // Consecutive successful polls that saw no change — drives the adaptive
+      // cadence. A transient read error is NOT counted as a miss (it isn't
+      // evidence the reply went quiet), so a blip can't prematurely slow the poll.
+      let misses = 0;
 
       try {
         while (!closed && Date.now() - startedAt < MAX_STREAM_MS) {
@@ -87,9 +97,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ conv
             break;
           }
 
+          let changed = false;
           if (pending) {
             const fp = fingerprint(pending);
             if (fp !== lastFingerprint) {
+              changed = true;
               lastFingerprint = fp;
               lastActivity = Date.now();
               send(
@@ -103,13 +115,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ conv
               );
             }
           }
+          if (pending !== undefined) misses = changed ? 0 : misses + 1;
 
           if (Date.now() - lastActivity >= HEARTBEAT_MS) {
             lastActivity = Date.now();
             send(": ping\n\n"); // keep idle connections alive through proxies
           }
 
-          await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+          const delay = misses >= BACKOFF_AFTER_MISSES ? IDLE_POLL_MS : ACTIVE_POLL_MS;
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       } finally {
         request.signal.removeEventListener("abort", abort);
