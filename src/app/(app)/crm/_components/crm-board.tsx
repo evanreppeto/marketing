@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { type CrmObjectKey } from "@/lib/crm/read-model";
@@ -145,6 +146,22 @@ export type CrmRowVM = {
   routing: string;
   tasks: string;
 };
+
+/** RFC-4180 cell: quote when it contains a comma, quote, or newline; double inner quotes. */
+function csvCell(value: string | number | null | undefined): string {
+  const s = value == null ? "" : String(value);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** The current view (already filtered + sorted) as CSV text. Exports what the
+ *  operator sees — a generic, object-agnostic column set. */
+function rowsToCsv(rows: CrmRowVM[]): string {
+  const header = ["Name", "Company", "Persona", "Status", "Owner", "Last activity", "Score", "Tasks"];
+  const body = rows.map((r) =>
+    [r.name, r.company, r.persona, r.statusLabel, r.owner, r.updatedRel, r.score ?? "", r.tasks].map(csvCell).join(","),
+  );
+  return [header.join(","), ...body].join("\n");
+}
 
 // Per-object columns, verbatim from build-crm.html's COLS config.
 type Col = { k: string; t?: string };
@@ -385,7 +402,7 @@ export function CrmBoard({
   const anyFilter = !!(personaF || statusF || ownerF);
   const clearFilters = () => { setPersonaF(""); setStatusF(""); setOwnerF(""); };
 
-  const visible = useMemo(() => {
+  const filteredAll = useMemo(() => {
     const needle = q.trim().toLowerCase();
     let filtered = allActiveRows.filter((r) => {
       // Soft-deleted records stay out of the default list; Status → Archived opts in.
@@ -398,8 +415,24 @@ export function CrmBoard({
     });
     if (sortBy === "name") filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
     else if (sortBy === "score") filtered = [...filtered].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
-    return filtered.slice(0, 100);
+    return filtered;
   }, [allActiveRows, q, personaF, statusF, ownerF, sortBy]);
+  // Display caps at 100 rows for perf; Export writes the WHOLE filtered set (never
+  // a silent 100-row slice).
+  const visible = useMemo(() => filteredAll.slice(0, 100), [filteredAll]);
+
+  const exportCsv = () => {
+    if (filteredAll.length === 0) return;
+    const blob = new Blob([rowsToCsv(filteredAll)], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${active.key}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   // Add a record: show it instantly, then persist. Offline/demo returns
   // persisted:false and the optimistic row stays (session-only). A real write
@@ -457,14 +490,14 @@ export function CrmBoard({
           </div>
         </div>
         <div className="sp">
-          <span className="gbtn" data-soon="CSV import is coming soon">
+          <Link className="gbtn" href="/settings?s=connections&c=csv-import" title="Import contacts from a CSV">
             <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>
             Import
-          </span>
-          <span className="gbtn" data-soon="Export is coming soon">
+          </Link>
+          <button type="button" className="gbtn" onClick={exportCsv} disabled={filteredAll.length === 0} title={`Download ${filteredAll.length} ${active.noun} as CSV`}>
             <svg viewBox="0 0 24 24"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3M8 9l4 4 4-4M12 13V3" /></svg>
             Export
-          </span>
+          </button>
           <button type="button" className="gbtn gold" onClick={() => setAddOpen(true)}>
             <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
             {active.addLabel}
