@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { buildOpportunityPackageDrafts, type OpportunityPackageBrief } from "@/domain";
+import { getBusinessContext } from "@/lib/brand-kit/read-model";
 import { promoteAssetToCampaign } from "@/lib/campaigns/create";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -110,7 +111,14 @@ export async function executeOpportunityDraftTask(opts: {
     if (!brief) throw new Error("Draft task has no brief to draft from.");
 
     const tenant = { org_id: task.org_id, workspace_id: task.workspace_id };
-    const drafts = buildOpportunityPackageDrafts(brief);
+    // Draft copy is written in the WORKSPACE's own voice: its business name and
+    // brand proof points, not a hardcoded one. Best-effort — the builder degrades
+    // to a neutral, unnamed copy if the context can't be read.
+    const business = await getBusinessContext(task.org_id).catch(() => null);
+    const drafts = buildOpportunityPackageDrafts(brief, {
+      businessName: business?.businessName,
+      proofPoints: business?.proofPoints.map((p) => p.label),
+    });
 
     const assetIds: string[] = [];
     for (const draft of drafts) {

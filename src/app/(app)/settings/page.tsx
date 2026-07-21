@@ -35,7 +35,7 @@ export default async function SettingsPage() {
   ]);
   // The workspace's own personas, for the connector "Default persona" picker.
   const personaOptions = await getOrgPersonaOptions(ctx?.orgId ?? undefined).catch(() => []);
-  const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
+  const brandName = ctx?.orgName?.trim() || "Your workspace";
   const email = user?.email || "owner@bsr.test";
   const avatarUrl = await getViewerAvatarUrl(user);
   // The deployment-level send kill-switch. Read here (server-side env) so the

@@ -8,9 +8,12 @@
  * copy quality is a later ticket). Nothing here sends; the copy is a draft the
  * operator reviews and approves.
  *
- * Guardrail (BSR do-not-say): coverage-neutral. Never promise or imply insurance
- * coverage, claim approval, or "we'll get it covered" — restoration + response
- * language only.
+ * Guardrail: coverage-neutral. Never promise or imply insurance coverage, claim
+ * approval, or "we'll get it covered." (Originated as a BSR do-not-say rule; it's a
+ * safe default for any workspace.)
+ *
+ * Tenant-neutral: the business name + proof points are supplied by the caller from
+ * the workspace's own brand context — nothing here names a company or a vertical.
  */
 
 /** campaign_assets.asset_type values this package uses (subset of the enum). */
@@ -39,14 +42,21 @@ export type PackageAssetDraft = {
   body: string;
 };
 
-// Coverage-neutral BSR proof points — restoration capability + responsiveness,
-// no coverage/claims language.
-const PROOF_POINTS = [
-  "24/7 emergency response — crews on-site fast",
-  "IICRC-certified restoration technicians",
-  "Full photo documentation of every step for your records",
-  "Trusted by property owners across Chicagoland",
+// Industry-agnostic fallback proof points, used when the workspace hasn't set its
+// own in the Brand Kit. Deliberately generic — no vertical, no geography, no claims.
+const NEUTRAL_PROOF_POINTS = [
+  "Fast, responsive service when it matters",
+  "An experienced, professional team",
+  "Clear communication and documentation at every step",
 ];
+
+export type OpportunityPackageContext = {
+  /** The workspace's business name, woven into the copy. Absent → the copy uses a
+   *  pronoun ("we") rather than naming anyone. */
+  businessName?: string;
+  /** The workspace's own brand proof points; falls back to NEUTRAL_PROOF_POINTS. */
+  proofPoints?: string[];
+};
 
 function audience(personaLabel: string): string {
   const p = personaLabel.trim();
@@ -61,7 +71,7 @@ function focusPhrase(focusLabel: string): string {
 /** A clean, sentence-cased angle without a trailing period (we add our own). */
 function cleanAngle(angle: string): string {
   const a = angle.replace(/\s+/g, " ").trim().replace(/[.!]+$/, "");
-  return a || "Re-engage this account with a timely restoration offer";
+  return a || "Re-engage this account with a timely, relevant offer";
 }
 
 function urgencyOpener(urgency: OpportunityPackageBrief["urgency"], focusLabel: string): string {
@@ -76,11 +86,20 @@ function urgencyOpener(urgency: OpportunityPackageBrief["urgency"], focusLabel: 
  * the same brief always yields the same copy. Each piece is a draft the operator
  * reviews — nothing outbound.
  */
-export function buildOpportunityPackageDrafts(brief: OpportunityPackageBrief): PackageAssetDraft[] {
+export function buildOpportunityPackageDrafts(
+  brief: OpportunityPackageBrief,
+  context: OpportunityPackageContext = {},
+): PackageAssetDraft[] {
   const angle = cleanAngle(brief.angle);
   const aud = audience(brief.personaLabel);
   const opener = urgencyOpener(brief.urgency, brief.focusLabel);
-  const proofTop3 = PROOF_POINTS.slice(0, 3);
+  // "the business" is getBusinessContext's own empty-name fallback — treat it as
+  // absent so the copy degrades to a pronoun rather than printing a placeholder.
+  const rawName = context.businessName?.trim();
+  const name = rawName && rawName.toLowerCase() !== "the business" ? rawName : "";
+  const proofSource = (context.proofPoints ?? []).map((p) => p.trim()).filter(Boolean);
+  const proofPoints = proofSource.length ? proofSource : NEUTRAL_PROOF_POINTS;
+  const proofTop3 = proofPoints.slice(0, 3);
 
   const email: PackageAssetDraft = {
     assetType: "email",
@@ -91,14 +110,14 @@ export function buildOpportunityPackageDrafts(brief: OpportunityPackageBrief): P
       "",
       `Hi there,`,
       "",
-      `${opener} ${angle} — that's exactly where Big Shoulders Restoration helps ${aud} like you.`,
+      `${opener} ${angle} — that's exactly where ${name ? `${name} helps` : "we help"} ${aud} like you.`,
       "",
       "Why teams call us first:",
       ...proofTop3.map((p) => `• ${p}`),
       "",
       "Reply to this email or call us and we'll schedule a no-obligation assessment at your convenience.",
       "",
-      "— The Big Shoulders Restoration team",
+      name ? `— The ${name} team` : "— The team",
     ].join("\n"),
   };
 
@@ -107,7 +126,7 @@ export function buildOpportunityPackageDrafts(brief: OpportunityPackageBrief): P
     channel: "SMS",
     title: `SMS — ${brief.title}`,
     // Kept short for a single segment; coverage-neutral.
-    body: `Big Shoulders Restoration: ${angle}. We respond 24/7 with certified crews. Reply YES to book a quick assessment — no obligation.`,
+    body: `${name ? `${name}: ` : ""}${angle}. ${proofTop3[0]}. Reply YES to book a quick assessment — no obligation.`,
   };
 
   const socialAd: PackageAssetDraft = {
@@ -119,7 +138,7 @@ export function buildOpportunityPackageDrafts(brief: OpportunityPackageBrief): P
       "",
       `${angle}. ${proofTop3[0]}.`,
       "",
-      "Big Shoulders Restoration — book a fast, no-obligation assessment.",
+      name ? `${name} — book a fast, no-obligation assessment.` : "Book a fast, no-obligation assessment.",
     ].join("\n"),
   };
 
@@ -129,12 +148,12 @@ export function buildOpportunityPackageDrafts(brief: OpportunityPackageBrief): P
     title: `Landing page — ${brief.title}`,
     body: [
       `# ${brief.title}`,
-      `## ${angle} — with a crew ${aud} trust.`,
+      `## ${angle} — with a team ${aud} trust.`,
       "",
       opener,
       "",
       "What you get:",
-      ...PROOF_POINTS.map((p) => `• ${p}`),
+      ...proofPoints.map((p) => `• ${p}`),
       "",
       "[ Book a no-obligation assessment ]",
     ].join("\n"),
