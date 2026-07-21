@@ -381,7 +381,7 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       kind: "text",
       label: "Default persona",
       placeholder: "persona_homeowner_emergency",
-      hint: "Official persona key assigned to imported contacts (there is no auto-classifier). A per-record override is set with the personaProperty config key.",
+      hint: "A persona key from your workspace (see the Personas page) assigned to imported contacts — there is no auto-classifier. A per-record override is set with the personaProperty config key.",
     },
   ],
   "csv-import": [
@@ -390,7 +390,7 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       kind: "text",
       label: "Default persona",
       placeholder: "persona_homeowner_emergency",
-      hint: "Official persona key for imported leads (they carry a required persona). A `persona` column in your CSV overrides it per row. Set this, then paste your CSV below.",
+      hint: "A persona key from your workspace (see the Personas page) for imported leads — they carry a required persona. A `persona` column in your CSV overrides it per row. Set this, then paste your CSV below.",
     },
   ],
   "mailchimp-import": [
@@ -406,7 +406,7 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       kind: "text",
       label: "Default persona",
       placeholder: "persona_homeowner_emergency",
-      hint: "Official persona key assigned to every imported member (they carry a required persona).",
+      hint: "A persona key from your workspace (see the Personas page) assigned to every imported member — they carry a required persona.",
     },
   ],
   "lead-enrichment": [

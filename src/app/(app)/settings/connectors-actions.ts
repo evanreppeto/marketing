@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { connectorIsAvailable, findConnector, isWeatherServiceAreaConfigured, parseWeatherServiceArea } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config";
 import { readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
 import { listWorkspaceConnectors, resolveConnectorCredentialRef } from "@/lib/connectors/read-model";
@@ -311,7 +312,11 @@ export async function runConnectorImport(input: { connectorKey: string }): Promi
     // Dispatch to the right import runner by connector — each fetches from its own
     // source but shares the ImportRunResult shape and the same downstream engine.
     const runImport = connector.key === MAILCHIMP_IMPORT_CONNECTOR_KEY ? runMailchimpImport : runCrmImport;
-    const outcome = await runImport({ workspaceId: ctx.workspaceId, orgId: ctx.orgId });
+    const outcome = await runImport({
+      workspaceId: ctx.workspaceId,
+      orgId: ctx.orgId,
+      allowedPersonaKeys: await getOrgPersonaKeys(ctx.orgId),
+    });
     if (!outcome.ok) return { ok: false, error: importErrorMessage(outcome.error) };
     revalidatePath("/settings");
     const r = outcome.result;
@@ -381,7 +386,12 @@ export async function runCsvImportAction(input: { csvText: string }): Promise<Se
   if (!ctx.workspaceId || !ctx.orgId) return { ok: false, error: "No active workspace." };
 
   try {
-    const outcome = await runCsvImport({ workspaceId: ctx.workspaceId, orgId: ctx.orgId, csvText: input.csvText });
+    const outcome = await runCsvImport({
+      workspaceId: ctx.workspaceId,
+      orgId: ctx.orgId,
+      csvText: input.csvText,
+      allowedPersonaKeys: await getOrgPersonaKeys(ctx.orgId),
+    });
     if (!outcome.ok) return { ok: false, error: importErrorMessage(outcome.error) };
     revalidatePath("/settings");
     const r = outcome.result;

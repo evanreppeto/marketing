@@ -14,7 +14,7 @@
  */
 
 import { type LeadIngestionInput } from "./lead-ingestion";
-import { isOfficialPersonaMapping, type OfficialPersonaMapping } from "./personas";
+import { isAllowedPersona, isOfficialPersonaMapping } from "./personas";
 
 export type HubspotContact = {
   /** HubSpot object id — the external id we key the idempotent upsert on. */
@@ -24,10 +24,15 @@ export type HubspotContact = {
 };
 
 export type HubspotImportOptions = {
-  /** Official persona assigned to imported contacts (operator-configured per connector). */
-  defaultPersona: OfficialPersonaMapping;
-  /** Optional HubSpot property whose value (when a valid official persona key) overrides the default. */
+  /** Persona assigned to imported contacts (operator-configured per connector). A
+   *  key from the workspace's own taxonomy — validated by the caller. */
+  defaultPersona: string;
+  /** Optional HubSpot property whose value (when a persona the workspace allows)
+   *  overrides the default. */
   personaProperty?: string;
+  /** The workspace's allowed persona keys. When set, a mapped override is accepted
+   *  if it's one of these; when omitted, the official set is used (back-compat). */
+  allowedPersonaKeys?: readonly string[];
   /** Value written to the lead's `source`. */
   source?: string;
 };
@@ -37,13 +42,19 @@ function str(value: unknown): string | undefined {
 }
 
 /**
- * Resolve the official persona for an imported contact: a mapped property value
- * (when it's a valid official persona) wins, else the configured default.
+ * Resolve the persona for an imported contact: a mapped property value (when it's
+ * a persona the workspace allows) wins, else the configured default. The override
+ * is checked against the workspace's own taxonomy (`allowedPersonaKeys`) so a
+ * non-restoration org's persona in the mapped column is honored, not silently
+ * dropped; absent that list it falls back to the official set (back-compat).
  */
-export function resolveHubspotPersona(contact: HubspotContact, opts: HubspotImportOptions): OfficialPersonaMapping {
+export function resolveHubspotPersona(contact: HubspotContact, opts: HubspotImportOptions): string {
   if (opts.personaProperty) {
     const raw = contact.properties?.[opts.personaProperty];
-    if (isOfficialPersonaMapping(raw)) return raw;
+    const allowed = opts.allowedPersonaKeys
+      ? isAllowedPersona(raw, opts.allowedPersonaKeys)
+      : isOfficialPersonaMapping(raw);
+    if (allowed) return raw as string;
   }
   return opts.defaultPersona;
 }

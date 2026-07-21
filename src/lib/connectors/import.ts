@@ -4,7 +4,7 @@ import { type EnrichmentFields, CSV_PERSONA_PROPERTY, parseCsvContacts, type Csv
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import {
-  asOfficialPersona,
+  asAllowedPersona,
   importContactsFromSource,
   type ImportRunResult,
 } from "@/lib/integrations/crm/import-run";
@@ -123,7 +123,7 @@ export async function runCrmImport(input: RunCrmImportInput): Promise<RunCrmImpo
   if (!token) return { ok: false, error: "missing_credential" };
 
   const config = await getConnectorConfig(client, input.workspaceId, HUBSPOT_IMPORT_CONNECTOR_KEY);
-  const defaultPersona = asOfficialPersona(config.defaultPersona);
+  const defaultPersona = asAllowedPersona(config.defaultPersona, input.allowedPersonaKeys);
   if (!defaultPersona) return { ok: false, error: "missing_default_persona" };
 
   const source = hubspotCrmImportSource(token, {
@@ -172,7 +172,7 @@ export async function runMailchimpImport(input: RunCrmImportInput): Promise<RunC
   const config = await getConnectorConfig(client, input.workspaceId, MAILCHIMP_IMPORT_CONNECTOR_KEY);
   const audienceId = typeof config.audienceId === "string" && config.audienceId.trim() ? config.audienceId.trim() : null;
   if (!audienceId) return { ok: false, error: "missing_audience" };
-  const defaultPersona = asOfficialPersona(config.defaultPersona);
+  const defaultPersona = asAllowedPersona(config.defaultPersona, input.allowedPersonaKeys);
   if (!defaultPersona) return { ok: false, error: "missing_default_persona" };
 
   const result = await importContactsFromSource({
@@ -221,7 +221,7 @@ export async function runCsvImport(input: RunCsvImportInput): Promise<RunCsvImpo
   if (!view || view.status !== "connected") return { ok: false, error: "csv_import_not_connected" };
 
   const config = await getConnectorConfig(client, input.workspaceId, CSV_IMPORT_CONNECTOR_KEY);
-  const defaultPersona = asOfficialPersona(config.defaultPersona);
+  const defaultPersona = asAllowedPersona(config.defaultPersona, input.allowedPersonaKeys);
   if (!defaultPersona) return { ok: false, error: "missing_default_persona" };
 
   const { contacts, ...parse } = parseCsvContacts(input.csvText);
