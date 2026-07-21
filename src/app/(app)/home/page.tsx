@@ -3,6 +3,7 @@ import Link from "next/link";
 import { resolveViewerName } from "@/lib/auth/display-name";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getAnalyticsOverview, type OverviewKpi, type TrendKey } from "@/lib/analytics/overview";
+import { promptForOpportunity } from "@/lib/arc-chat/waiting-opps";
 import { type OpportunityEvidence } from "@/lib/opportunities/read-model";
 
 import { Sparkline } from "../_components/sparkline";
@@ -74,6 +75,7 @@ export default async function HomePage() {
   // Right column: source-backed signals (top opportunities) + Arc activity feed.
   const signalLabel: Record<string, string> = { high: "Urgent · watched by Arc", medium: "Watched by Arc", low: "Background signal" };
   const signals = opps.slice(0, 3).map((o) => ({
+    id: o.id,
     title: o.title,
     source: signalLabel[o.urgency] ?? "Source-backed signal",
     time: relativeTime(o.evidence?.lastActivityAt ?? ""),
@@ -135,8 +137,13 @@ export default async function HomePage() {
             </div>
             <p className="d">{focal.summary}</p>
             <div className="fcta">
-              <Link className="btn" href="/opportunities">Review&nbsp;→</Link>
-              <Link className="btn ghost" href="/arc">Ask Arc to draft it</Link>
+              <Link className="btn" href={`/opportunities?selected=${encodeURIComponent(focal.id)}`}>Review&nbsp;→</Link>
+              <Link
+                className="btn ghost"
+                href={{ pathname: "/arc", query: { new: "1", prompt: promptForOpportunity(focal) } }}
+              >
+                Ask Arc to draft it
+              </Link>
             </div>
           </div>
         )}
@@ -152,7 +159,7 @@ export default async function HomePage() {
           approvals.map((a) => {
             const tone = pillTone(a);
             return (
-              <Link key={a.id} href="/campaigns" className="task">
+              <Link key={a.id} href={a.campaign.id ? `/campaigns/${a.campaign.id}` : "/campaigns"} className="task">
                 <span className={`pill ${tone}`}>{PILL_LABEL[tone]}</span>
                 <span className="tt">{a.title}</span>
                 <span className="meta">
@@ -195,7 +202,7 @@ export default async function HomePage() {
         ) : (
           <div className="opps">
             {opps.map((o) => (
-              <Link key={o.id} href="/opportunities" className="opp">
+              <Link key={o.id} href={`/opportunities?selected=${encodeURIComponent(o.id)}`} className="opp">
                 <div className="ot">{o.title}</div>
                 <div className="od">{o.summary}</div>
                 <div className="miniconf">
@@ -228,7 +235,7 @@ export default async function HomePage() {
               <span>Status</span>
             </div>
             {campaigns.map((camp) => (
-              <Link key={camp.id} href="/campaigns" className="cr">
+              <Link key={camp.id} href={`/campaigns/${camp.id}`} className="cr">
                 <div>
                   <div className="cn">{camp.name}</div>
                   {camp.pendingCount > 0 && <div className="csub">{camp.pendingCount} to approve</div>}
@@ -249,7 +256,7 @@ export default async function HomePage() {
             <p className="empty-note">No signals yet. Arc surfaces source-backed ones here.</p>
           ) : (
             signals.map((s, i) => (
-              <div className="sig" key={i}>
+              <Link className="sig" href={`/opportunities?selected=${encodeURIComponent(s.id)}`} key={s.id}>
                 <div className="st">{s.title}</div>
                 <div className="sm">
                   <span className="src">
@@ -257,7 +264,7 @@ export default async function HomePage() {
                   </span>
                   <span className="sa">{s.time}</span>
                 </div>
-              </div>
+              </Link>
             ))
           )}
         </div>

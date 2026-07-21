@@ -21,6 +21,11 @@ export function buildDemoDispatches(): DispatchView[] {
       audienceCount: 64,
       resultNote: null,
       updatedAt: "Today 9:42 AM",
+      preview: {
+        to: "64-person insured homeowner segment",
+        subject: "Your roof may have hidden hail damage",
+        text: "Hi {{first_name}}, the recent Naperville hailstorm hit your block harder than most. We’re offering a free, no-pressure inspection this week.",
+      },
     },
     {
       id: "demo-dispatch-sms-queued",
@@ -36,6 +41,11 @@ export function buildDemoDispatches(): DispatchView[] {
       audienceCount: 142,
       resultNote: null,
       updatedAt: "Today 9:41 AM",
+      preview: {
+        to: "142-home priority segment",
+        subject: null,
+        text: "Storm damage can hide for weeks. Reply INSPECT and we’ll help arrange a no-pressure assessment.",
+      },
     },
     {
       id: "demo-dispatch-email-scheduled",
@@ -51,6 +61,11 @@ export function buildDemoDispatches(): DispatchView[] {
       audienceCount: 318,
       resultNote: null,
       updatedAt: "Today 8:05 AM",
+      preview: {
+        to: "past customers · 12+ months",
+        subject: "A quick seasonal roof check",
+        text: "A short seasonal inspection can catch small roof and drainage issues before the next storm.",
+      },
     },
     {
       id: "demo-dispatch-email-sent",
@@ -66,6 +81,7 @@ export function buildDemoDispatches(): DispatchView[] {
       audienceCount: 41,
       resultNote: "Sent via Resend",
       updatedAt: "Today 7:30 AM",
+      preview: null,
     },
     {
       id: "demo-dispatch-email-delivered",
@@ -81,6 +97,7 @@ export function buildDemoDispatches(): DispatchView[] {
       audienceCount: 206,
       resultNote: "204 delivered · 2 bounced",
       updatedAt: "Yesterday 4:20 PM",
+      preview: null,
     },
     {
       id: "demo-dispatch-email-failed",
@@ -96,6 +113,11 @@ export function buildDemoDispatches(): DispatchView[] {
       audienceCount: 9,
       resultNote: "Provider rejected: sender domain not verified",
       updatedAt: "Yesterday 2:03 PM",
+      preview: {
+        to: "open-claim contacts",
+        subject: "Claim coordination update",
+        text: "Here is the latest coordination update for your open claim.",
+      },
     },
   ];
 }

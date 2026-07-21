@@ -17,10 +17,11 @@ export type DispatchRow = {
   audience_count: number | null;
   result_note: string | null;
   updated_at: string;
+  payload: Record<string, unknown> | null;
 };
 
 const SELECT =
-  "id,campaign_id,campaign_asset_id,channel,status,scheduled_for,dispatched_at,recipient_summary,audience_count,result_note,updated_at";
+  "id,campaign_id,campaign_asset_id,channel,status,scheduled_for,dispatched_at,recipient_summary,audience_count,result_note,updated_at,payload";
 
 function humanizeChannel(channel: string | null): string {
   if (!channel) return "Unknown channel";
@@ -30,6 +31,11 @@ function humanizeChannel(channel: string | null): string {
 function formatDate(value: string | null): string | null {
   if (!value) return null;
   return value.slice(0, 10);
+}
+
+function previewValue(payload: Record<string, unknown> | null, key: "to" | "subject" | "text"): string | null {
+  const value = payload?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 /** Pure: map a dispatch row + resolved names into a display view. */
@@ -51,6 +57,13 @@ export function rowToDispatchView(
     audienceCount: row.audience_count,
     resultNote: row.result_note,
     updatedAt: formatDate(row.updated_at) ?? "—",
+    preview: row.payload
+      ? {
+          to: previewValue(row.payload, "to"),
+          subject: previewValue(row.payload, "subject"),
+          text: previewValue(row.payload, "text"),
+        }
+      : null,
   };
 }
 

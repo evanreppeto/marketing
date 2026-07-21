@@ -7,6 +7,7 @@ const row: DispatchRow = {
   status: "queued", scheduled_for: null, dispatched_at: null,
   recipient_summary: "Atlas + 11 leads", audience_count: 12, result_note: null,
   updated_at: "2026-06-05T12:00:00Z",
+  payload: { to: "atlas@example.com", subject: "Welcome", text: "Hello Atlas" },
 };
 
 describe("rowToDispatchView", () => {
@@ -16,6 +17,7 @@ describe("rowToDispatchView", () => {
       id: "d1", campaignId: "c1", campaignName: "Spring push",
       deliverable: "Welcome email", channel: "Email", status: "queued",
       recipientSummary: "Atlas + 11 leads", audienceCount: 12,
+      preview: { to: "atlas@example.com", subject: "Welcome", text: "Hello Atlas" },
     });
   });
 

@@ -12,7 +12,7 @@ export type ArcWaitingOpp = {
 
 const URGENCY_RANK: Record<ArcWaitingOpp["urgency"], number> = { high: 3, medium: 2, low: 1 };
 
-function promptFor(opp: OpportunityRecord): string {
+export function promptForOpportunity(opp: OpportunityRecord): string {
   // Next-iteration opportunities carry a ready-to-send draft prompt; use it verbatim.
   const arcPrompt = opp.evidence?.arcPrompt;
   if (typeof arcPrompt === "string" && arcPrompt.trim()) return arcPrompt.trim();
@@ -31,5 +31,5 @@ export function buildArcWaitingOpportunities(opps: OpportunityRecord[], limit = 
   return [...opps]
     .sort((a, b) => URGENCY_RANK[b.urgency] - URGENCY_RANK[a.urgency] || b.confidence - a.confidence)
     .slice(0, limit)
-    .map((opp) => ({ id: opp.id, title: opp.title, urgency: opp.urgency, prompt: promptFor(opp) }));
+    .map((opp) => ({ id: opp.id, title: opp.title, urgency: opp.urgency, prompt: promptForOpportunity(opp) }));
 }

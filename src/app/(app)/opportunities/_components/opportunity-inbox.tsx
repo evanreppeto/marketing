@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
@@ -116,12 +117,18 @@ function ScanButton({ subtle }: { subtle?: boolean }) {
 export function OpportunityInbox({
   opps,
   personaOptions,
+  selectedId,
 }: {
   opps: OpportunityVM[];
   /** The org's own personas for the draft-campaign picker. */
   personaOptions?: { key: string; label: string }[];
+  /** Opportunity selected by a contextual deep link from Home or Arc. */
+  selectedId?: string;
 }) {
-  const [cur, setCur] = useState(0);
+  const [cur, setCur] = useState(() => {
+    const selectedIndex = selectedId ? opps.findIndex((op) => op.id === selectedId) : -1;
+    return selectedIndex >= 0 ? selectedIndex : 0;
+  });
   const [draftOpen, setDraftOpen] = useState(false);
   const [mode, setMode] = useState<DraftMode>("operator");
   const [notice, setNotice] = useState<string | null>(null);
@@ -247,6 +254,46 @@ export function OpportunityInbox({
           </div>
           <h1 className="dttl">{o.title}</h1>
 
+          <div className="opp-quick-actions" aria-label="Opportunity actions">
+            {o.campaignHref ? (
+              <Link className="btn gold" href={o.campaignHref}>Open campaign →</Link>
+            ) : o.status === "drafting" ? (
+              <button type="button" className="btn gold" disabled aria-disabled="true">
+                Drafting…
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn gold"
+                  onClick={() => {
+                    setMode("operator");
+                    setDraftOpen(true);
+                  }}
+                >
+                  Create campaign
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => {
+                    setMode("arc");
+                    setDraftOpen(true);
+                  }}
+                >
+                  Ask Arc to draft
+                </button>
+              </>
+            )}
+            {o.recordHref && <Link className="btn ghost" href={o.recordHref}>{o.recordLabel} →</Link>}
+          </div>
+          {notice && (
+            <div className="opp-notice" role="status">
+              <i />
+              {notice}
+            </div>
+          )}
+
           <div className="dgrid">
             <div className="mainc">
               <div className="lab">Why Arc surfaced this</div>
@@ -279,50 +326,6 @@ export function OpportunityInbox({
                       ))}
                     </div>
                   </>
-                )}
-                <div className="racts">
-                  {o.campaignHref ? (
-                    // Already converted — link to the draft instead of offering to
-                    // create another. The idempotency guard (PR #380) also blocks a
-                    // duplicate server-side; this keeps the UI from inviting one.
-                    <a className="btn gold" href={o.campaignHref}>Open campaign →</a>
-                  ) : o.status === "drafting" ? (
-                    <button type="button" className="btn gold" disabled aria-disabled="true">
-                      Drafting…
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className="btn gold"
-                        onClick={() => {
-                          setMode("operator");
-                          setDraftOpen(true);
-                        }}
-                      >
-                        Create campaign
-                      </button>
-                      <button
-                        type="button"
-                        className="btn ghost"
-                        onClick={() => {
-                          setMode("arc");
-                          setDraftOpen(true);
-                        }}
-                      >
-                        Ask Arc to draft
-                      </button>
-                    </>
-                  )}
-                  {o.recordHref && (
-                    <a className="btn ghost" href={o.recordHref}>{o.recordLabel} →</a>
-                  )}
-                </div>
-                {notice && (
-                  <div className="opp-notice" role="status">
-                    <i />
-                    {notice}
-                  </div>
                 )}
               </div>
 

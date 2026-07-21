@@ -426,6 +426,9 @@
 .arc-app .arc-grid .emptyrow td { text-align: center; color: var(--muted); padding: 34px 14px; cursor: default; }
 .arc-app .arc-grid .emptyrow:hover { background: transparent; }
 .arc-app .arc-grid .pcell { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.arc-app .arc-grid .campaign-link { color: inherit; text-decoration: none; border-radius: 7px; }
+.arc-app .arc-grid .campaign-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.arc-app .arc-campaigns .dt tbody tr { cursor: default; }
 .arc-app .arc-grid .pav { width: 32px; height: 32px; border-radius: 8px; background: var(--inset); border: 1px solid var(--line-2); display: grid; place-items: center; color: var(--accent); flex-shrink: 0; font-family: var(--serif); font-weight: 600; font-size: 12.5px; }
 .arc-app .arc-grid .pav svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.7; }
 .arc-app .arc-grid .pav.co { font-size: 11px; color: var(--text-2); }
@@ -593,6 +596,8 @@
 .arc-app .arc-outbox .card .cdel { font-size: 12.5px; font-weight: 600; letter-spacing: -.01em; min-width: 0; line-height: 1.25; color: var(--text); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .arc-app .arc-outbox .card .ccamp { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
 .arc-app .arc-outbox .card .cmeta { display: flex; align-items: center; gap: 7px; margin-top: 9px; font-size: 10.5px; color: var(--text-2); flex-wrap: wrap; }
+.arc-app .arc-outbox .card .caudience { margin-top: 7px; font-size: 10.5px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arc-app .arc-outbox .card .caudience span { margin-right: 6px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
 .arc-app .arc-outbox .card .cmeta .mi { display: inline-flex; align-items: center; gap: 4px; }
 .arc-app .arc-outbox .card .cnote { font-size: 10.5px; margin-top: 8px; padding: 6px 8px; border-radius: 7px; background: var(--inset); color: var(--text-2); line-height: 1.4; }
 .arc-app .arc-outbox .card .cnote.warn { background: var(--warn-soft); color: var(--warn-text); }
@@ -605,6 +610,15 @@
 .arc-app .arc-outbox .card button.caction.danger { border-color: #a5321f; background: linear-gradient(180deg, #d0503a, #b83b26 55%, #9c2f1d); color: #fff; }
 .arc-app .arc-outbox .card .caconfirm { margin-top: 10px; display: flex; flex-direction: column; gap: 7px; }
 .arc-app .arc-outbox .card .caconfirm .cctext { font-size: 11px; line-height: 1.35; color: #a6624f; font-weight: 600; }
+.arc-app .arc-outbox .card .send-preview { border: 1px solid var(--line-2); border-radius: 9px; background: var(--inset); padding: 10px; }
+.arc-app .arc-outbox .card .send-preview dl { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.arc-app .arc-outbox .card .send-preview dl div { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 8px; font-size: 10.5px; line-height: 1.35; }
+.arc-app .arc-outbox .card .send-preview dt { color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.arc-app .arc-outbox .card .send-preview dd { margin: 0; color: var(--text-2); overflow-wrap: anywhere; }
+.arc-app .arc-outbox .card .send-preview .missing { color: var(--warn-text); }
+.arc-app .arc-outbox .card .send-preview p { margin: 9px 0 0; padding-top: 9px; border-top: 1px solid var(--line); color: var(--text-2); font-size: 10.5px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.arc-app .arc-outbox .card .send-preview a { display: inline-block; margin-top: 8px; color: var(--accent-contrast); font-size: 10.5px; font-weight: 600; text-decoration: none; }
+.arc-app .arc-outbox .card .send-preview a:hover { text-decoration: underline; }
 .arc-app .arc-outbox .card .caconfirm .ccbtns { display: flex; gap: 7px; }
 .arc-app .arc-outbox .card .caconfirm .ccbtns .caction { margin-top: 0; flex: 1; }
 .arc-app .arc-outbox .card button.cccancel { height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line, #d8d4cb); background: transparent; color: var(--muted, #6b6b74); font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit; flex-shrink: 0; }
@@ -1160,9 +1174,10 @@
 }
 
 /* Home right-column: Signals + Arc activity feed (ported verbatim from build-home.html). */
-.arc-app .sig { padding: 12px 8px; margin: 0 -8px; border-top: 1px solid var(--line); border-radius: 8px; transition: background 0.15s var(--ease); }
+.arc-app .sig { display: block; padding: 12px 8px; margin: 0 -8px; border-top: 1px solid var(--line); border-radius: 8px; color: inherit; text-decoration: none; transition: background 0.15s var(--ease); }
 .arc-app .sig:first-of-type { border-top: 0; }
 .arc-app .sig:hover { background: rgba(255, 255, 255, 0.025); }
+.arc-app .sig:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .arc-app .sig .st { font-size: 12.5px; font-weight: 500; line-height: 1.4; }
 .arc-app .sig .sm { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
 .arc-app .sig .src { font-size: 10.5px; color: var(--text-2); }
@@ -1279,6 +1294,7 @@
 .arc-app .arc-opps .upill.info { color: #a9cdea; background: rgba(136, 182, 216, .13); border: 1px solid rgba(136, 182, 216, .4); }
 .arc-app .arc-opps .sstat { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 6px; font-size: 10.5px; font-weight: 600; color: var(--accent-contrast); background: var(--accent-soft); border: 1px solid var(--accent-border); }
 .arc-app .arc-opps .dttl { font-family: var(--serif); font-weight: 500; font-size: clamp(1.5rem, 2.5vw, 2.05rem); line-height: 1.1; letter-spacing: -.018em; margin: 0; }
+.arc-app .arc-opps .opp-quick-actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .arc-app .arc-opps .dgrid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 30px; margin-top: 24px; align-items: start; }
 @media (max-width: 1080px) { .arc-app .arc-opps .dgrid { grid-template-columns: 1fr; } }
 .arc-app .arc-opps .lab { font-size: 10px; font-weight: 700; letter-spacing: .13em; color: var(--muted); text-transform: uppercase; margin-bottom: 11px; }
