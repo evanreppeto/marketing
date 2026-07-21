@@ -13,7 +13,11 @@ import {
 } from "@/lib/brain-ingestion/sync";
 import { probeEmbedding } from "@/lib/embeddings/gemini-embeddings";
 import { archiveNode, decideNode } from "@/lib/knowledge-graph/persistence";
+import { listNodes, sanitizeBrainSearch } from "@/lib/knowledge-graph/read-model";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+
+import { toFact } from "./_data/fact-vm";
+import { type FactVM } from "./_components/brain-view";
 
 /**
  * The Brain trust gate: approve or reject a proposed knowledge node. Approving
@@ -56,6 +60,29 @@ export async function archiveBrainNode(nodeId: string): Promise<BrainDecisionRes
 
   revalidatePath("/brain");
   return { ok: true, persisted: true };
+}
+
+/**
+ * Search Arc's whole memory — not just the recency-capped page the Brain screen
+ * loads. `listNodes` already searches label/body/summary server-side (live SQL +
+ * demo fallback); this is its front door. Without it the facts table could only
+ * filter the newest 200 nodes by kind, so a fact updated longer ago was
+ * unreachable from the UI even though the tiles counted it.
+ *
+ * Read-only + operator-gated; `capped` tells the UI the match set itself hit the
+ * 200-row ceiling so it can say so rather than imply the results are exhaustive.
+ */
+export type BrainSearchResult =
+  | { ok: true; facts: FactVM[]; capped: boolean }
+  | { ok: false; error: string };
+
+export async function searchBrainFacts(query: string): Promise<BrainSearchResult> {
+  await requireOperator();
+  const term = sanitizeBrainSearch(query ?? "");
+  if (!term) return { ok: true, facts: [], capped: false };
+  const result = await listNodes({ search: term });
+  if (result.status !== "live") return { ok: false, error: result.message };
+  return { ok: true, facts: result.nodes.map(toFact), capped: result.nodes.length >= 200 };
 }
 
 export type RebuildBrainResult = { ok: boolean; synced: number; embedded: number; message: string };
