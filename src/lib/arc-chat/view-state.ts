@@ -10,6 +10,20 @@ export function shouldShowDemoLauncher({
   return selectedDemoId === "new" && turnCount === 0 && !pending;
 }
 
+export function getArcConversationScrollTarget({
+  live,
+  activeConversationId,
+  selectedDemoId,
+}: {
+  live: boolean;
+  activeConversationId: string | null;
+  selectedDemoId: string;
+}): "start" | "end" {
+  return (live && !activeConversationId) || (!live && selectedDemoId === "new")
+    ? "start"
+    : "end";
+}
+
 export function getArcConversationHeader({
   live,
   activeTitle,

@@ -6,11 +6,11 @@
 // renders these.
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { ArrowRight, ClipboardCheck, MessageSquareText, ShieldCheck, Target, Zap } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
-import type { ArcActionCard, ArcAssetStatus } from "@/domain";
+import type { ArcActionCard, ArcAssetStatus, ArcMode, ArcRoute } from "@/domain";
 import type { ArcMessage, ArcStep } from "@/lib/arc-chat/persistence";
 import { buildArcRunContract, type ArcRunContract } from "@/lib/arc-chat/run-contract";
 import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
@@ -44,9 +44,34 @@ import type { ArcWaiting, DemoTurn } from "./arc-view.types";
 export const LAUNCHER_SHORTCUTS: Array<{ icon: typeof Target; label: string; prompt: string }> = [
   { icon: Target, label: "Find priority leads", prompt: "Which homeowners should we reach first right now, and why?" },
   { icon: MessageSquareText, label: "Draft a campaign", prompt: "Draft a multi-channel campaign for our highest-priority segment." },
-  { icon: Zap, label: "Check today's signals", prompt: "What new signals or opportunities should I know about today?" },
   { icon: ShieldCheck, label: "Review approvals", prompt: "What's waiting for my approval right now?" },
 ];
+
+const DEFAULT_FEATURED_WORK = {
+  id: "check-signals",
+  title: "Check today’s strongest signals",
+  urgency: "medium" as const,
+  prompt: "What new signals or opportunities should I know about today?",
+};
+
+export type OptimisticArcTurn = {
+  body: string;
+  mode: ArcMode;
+  route: ArcRoute;
+  contextScopes: string[];
+};
+
+function ReviewableWork({ children }: { children: ReactNode }) {
+  return (
+    <section className="arc-response-output" aria-label="Reviewable work">
+      <div className="arc-response-output-label">
+        <span><ClipboardCheck size={13} />Created by Arc</span>
+        <b>Ready for review</b>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 /** The new-conversation "work launcher": a time-of-day greeting and tappable
  *  workflow starters that prefill the composer, so a blank chat proposes work
@@ -72,47 +97,40 @@ export function ArcLauncher({ greetName, waiting, onPick }: { greetName: string;
       }
     });
   };
+  const featuredWork = waiting?.items?.[0] ?? DEFAULT_FEATURED_WORK;
+  const hasWaitingStatus = Boolean(waiting && (waiting.approvals > 0 || waiting.opportunities > 0));
 
   return (
     <div className="arc-launcher">
       <h2>{greeting}, {greetName}</h2>
-      <p>Ask me to find an audience, draft a campaign, or check a signal. I’ll show the work and keep every draft ready for your review.</p>
-      {waiting && (waiting.approvals > 0 || waiting.opportunities > 0) ? (
-        <div className="arc-launcher-waiting">
-          <span className="arc-launcher-waiting-label">Waiting on you</span>
-          <div className="arc-launcher-waiting-row">
+      <p>Start with the work Arc recommends, or choose a focused task below.</p>
+      {hasWaitingStatus && waiting ? (
+        <div className="arc-launcher-status" aria-label="Workspace status">
+          <span>Today</span>
+          <div>
             {waiting.approvals > 0 ? (
-              <Link href="/campaigns" className="arc-launcher-waiting-item is-warn">
+              <Link href="/campaigns" className="arc-launcher-status-item is-warn">
                 <ClipboardCheck size={14} />
                 <b>{waiting.approvals}</b> {waiting.approvals === 1 ? "approval" : "approvals"}
-                <ArrowRight size={13} />
               </Link>
             ) : null}
-            <Link href="/opportunities" className="arc-launcher-waiting-item">
-              <Zap size={14} />
-              <b>{waiting.opportunities}</b> {waiting.opportunities === 1 ? "opportunity" : "opportunities"}
-              <ArrowRight size={13} />
-            </Link>
+            {waiting.opportunities > 0 ? (
+              <Link href="/opportunities" className="arc-launcher-status-item">
+                <Zap size={14} />
+                <b>{waiting.opportunities}</b> {waiting.opportunities === 1 ? "opportunity" : "opportunities"}
+              </Link>
+            ) : null}
           </div>
-          {waiting.items && waiting.items.length > 0 ? (
-            <div className="arc-launcher-nudges">
-              {waiting.items.map((item) => (
-                <button
-                  type="button"
-                  key={item.id}
-                  className="arc-launcher-nudge"
-                  onClick={() => pick(item.prompt)}
-                  title={item.prompt}
-                >
-                  <span className={`arc-nudge-dot is-${item.urgency}`} aria-hidden />
-                  <span className="arc-nudge-title">{item.title}</span>
-                  <ArrowRight size={13} className="arc-nudge-go" />
-                </button>
-              ))}
-            </div>
-          ) : null}
         </div>
       ) : null}
+      <div className="arc-launcher-focus">
+        <span>Recommended next</span>
+        <button type="button" onClick={() => pick(featuredWork.prompt)} title={featuredWork.prompt}>
+          <i className={`arc-nudge-dot is-${featuredWork.urgency}`} aria-hidden />
+          <span><b>{featuredWork.title}</b><small>{featuredWork.prompt}</small></span>
+          <ArrowRight size={15} aria-hidden />
+        </button>
+      </div>
       <div className="arc-launcher-grid">
         {LAUNCHER_SHORTCUTS.map((shortcut) => {
           const Icon = shortcut.icon;
@@ -131,6 +149,7 @@ export function ArcLauncher({ greetName, waiting, onPick }: { greetName: string;
 
 export function LiveConversation({
   messages,
+  optimisticTurn,
   operatorName,
   waiting,
   assetStatuses,
@@ -142,6 +161,7 @@ export function LiveConversation({
   stoppingTaskId,
 }: {
   messages: ArcMessage[];
+  optimisticTurn?: OptimisticArcTurn | null;
   operatorName: string;
   waiting?: ArcWaiting | null;
   assetStatuses: Record<string, ArcAssetStatus>;
@@ -152,12 +172,12 @@ export function LiveConversation({
   onCancelRun: (taskId: string, conversationId: string) => void;
   stoppingTaskId: string | null;
 }) {
-  if (messages.length === 0) {
+  if (messages.length === 0 && !optimisticTurn) {
     return <ArcLauncher greetName={operatorName} waiting={waiting} onPick={onSuggestion} />;
   }
 
   // While a reply is in flight, hide edit/regenerate — the turn is already running.
-  const awaitingReply = messages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim()));
+  const awaitingReply = Boolean(optimisticTurn) || messages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim()));
   const lastIndex = messages.length - 1;
 
   return (
@@ -181,16 +201,24 @@ export function LiveConversation({
           <AssistantMessage key={message.id} timeIso={message.createdAt} active={pending}>
             <RunTrace pending={pending} liveText={pending ? message.body : null} reasoning={message.reasoning} steps={message.steps} toolCalls={message.toolCalls} contract={contract} thoughtSeconds={thoughtSeconds} onStop={pending && message.agentTaskId ? () => onCancelRun(message.agentTaskId as string, message.conversationId) : undefined} stopping={stoppingTaskId === message.agentTaskId} outcome={message.status === "failed" ? (message.body.startsWith("Stopped by you") ? "canceled" : "failed") : "complete"} />
             {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div> : null}
-            {!pending && message.mentions.length ? <SourcesRow mentions={message.mentions} /> : null}
-            {!pending && message.recall?.length ? <RecallRow recall={message.recall} /> : null}
+            {!pending && (message.mentions.length || message.recall?.length) ? (
+              <div className="arc-response-evidence">
+                {message.mentions.length ? <SourcesRow mentions={message.mentions} /> : null}
+                {message.recall?.length ? <RecallRow recall={message.recall} /> : null}
+              </div>
+            ) : null}
             {!pending && message.actions.length ? (() => {
               const approvalCards = message.actions.filter((card) => card.approval);
               const otherCards = message.actions.filter((card) => !card.approval);
               return (
                 <>
                   {otherCards.length ? <div className="arc-action-list">{otherCards.map((card, index) => <ArcDraftCard card={card} key={`${card.title}-${index}`} />)}</div> : null}
-                  {approvalCards.length === 1 ? <DraftReceiptCard card={approvalCards[0]!} status={assetStatuses[approvalCards[0]!.approval?.assetId ?? ""] ?? approvalCards[0]!.status ?? null} onReview={() => onReview(approvalCards)} /> : null}
-                  {approvalCards.length >= 2 ? <DraftPackageCard cards={approvalCards} statuses={assetStatuses} onReview={() => onReview(approvalCards)} /> : null}
+                  {approvalCards.length ? (
+                    <ReviewableWork>
+                      {approvalCards.length === 1 ? <DraftReceiptCard card={approvalCards[0]!} status={assetStatuses[approvalCards[0]!.approval?.assetId ?? ""] ?? approvalCards[0]!.status ?? null} onReview={() => onReview(approvalCards)} /> : null}
+                      {approvalCards.length >= 2 ? <DraftPackageCard cards={approvalCards} statuses={assetStatuses} onReview={() => onReview(approvalCards)} /> : null}
+                    </ReviewableWork>
+                  ) : null}
                 </>
               );
             })() : null}
@@ -199,6 +227,21 @@ export function LiveConversation({
           </AssistantMessage>
         );
       })}
+      {optimisticTurn ? (
+        <>
+          <OperatorMessage body={optimisticTurn.body} />
+          <AssistantMessage active>
+            <RunTrace
+              pending
+              contract={buildArcRunContract({
+                mode: optimisticTurn.mode,
+                route: optimisticTurn.route,
+                contextScopes: optimisticTurn.contextScopes,
+              })}
+            />
+          </AssistantMessage>
+        </>
+      ) : null}
     </>
   );
 }
@@ -239,21 +282,23 @@ export function DemoConversation({
               <p>That’s 23% of the storm zone and about $1.4M in estimated restoration work. The clearest urgency signals across them:</p>
               <ul><li>Sit in the <b>worst-hit hail swath</b>, with no inspection on file — <b>3.1× more likely</b> to have hidden damage</li><li>No inspection booked in the six days since the storm</li><li>Roof age 8+ years or prior claim history</li></ul>
             </div>
-            <RunTrace pending={false} thoughtSeconds={8} reasoning="I combined the storm footprint with property condition and recent CRM activity, then favored an inspection-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "ask", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
-            <SourcesRow mentions={DEMO_SOURCES} />
-            <RecallRow recall={DEMO_RECALL} />
+            <RunTrace pending={false} thoughtSeconds={8} reasoning="I combined the storm footprint with property condition and recent CRM activity, then favored an inspection-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "act", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
+            <div className="arc-response-evidence">
+              <SourcesRow mentions={DEMO_SOURCES} />
+              <RecallRow recall={DEMO_RECALL} />
+            </div>
           </AssistantMessage>
           <AssistantMessage time="9:40 AM">
             <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{DEMO_BREAKDOWN_MD}</ReactMarkdown></div>
           </AssistantMessage>
           <AssistantMessage time="9:42 AM">
             <div className="arc-answer"><p>I built the Storm Rapid Response package for the 142 highest-urgency homes.</p></div>
-            <DraftPackageCard cards={DEMO_PACKAGE_CARDS} statuses={packageStatuses} onReview={() => onReview(DEMO_PACKAGE_CARDS)} />
+            <ReviewableWork><DraftPackageCard cards={DEMO_PACKAGE_CARDS} statuses={packageStatuses} onReview={() => onReview(DEMO_PACKAGE_CARDS)} /></ReviewableWork>
           </AssistantMessage>
           <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." onEdit={editable} />
           <AssistantMessage time="9:45 AM">
             <div className="arc-answer"><p>The inspection email for the 64 insured, fresh-damage homes is ready for review.</p></div>
-            <DraftReceiptCard card={DEMO_DRAFT_CARD} status={packageStatuses[DEMO_DRAFT_CARD.approval?.assetId ?? ""] ?? DEMO_DRAFT_CARD.status ?? null} onReview={() => onReview([DEMO_DRAFT_CARD])} />
+            <ReviewableWork><DraftReceiptCard card={DEMO_DRAFT_CARD} status={packageStatuses[DEMO_DRAFT_CARD.approval?.assetId ?? ""] ?? DEMO_DRAFT_CARD.status ?? null} onReview={() => onReview([DEMO_DRAFT_CARD])} /></ReviewableWork>
           </AssistantMessage>
         </>
       ) : null}

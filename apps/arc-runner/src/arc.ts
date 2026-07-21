@@ -243,9 +243,16 @@ async function runArcQuery(opts: {
 export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcClient): Promise<ArcTurnResult> {
   const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
 
-  const business = await resolveBusinessContext(client);
-  const memory = await resolveRecallMemory(client, buildRecallQuery(payload.history, payload.message));
   const skill = resolveArcSkill(payload.skillId);
+  const contextStartedAt = Date.now();
+  // These reads are independent. Running them serially made every turn pay the
+  // sum of three network round trips before the model could emit a first token.
+  const [business, memory, memoryCtx] = await Promise.all([
+    resolveBusinessContext(client),
+    resolveRecallMemory(client, buildRecallQuery(payload.history, payload.message)),
+    fetchConversationContext(client, payload.conversationId, payload.messageId),
+  ]);
+  console.log(`[arc-runner] context ready for task ${payload.agentTaskId} in ${Date.now() - contextStartedAt}ms`);
   const ctx: ArcTurnContext = {
     business,
     mode: payload.mode,
@@ -266,7 +273,6 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
   // Compaction-aware memory: the rolling summary of earlier turns + the recent
   // turns verbatim, fetched per turn (the live wake doesn't carry history). This is
   // what gives Arc chat memory; `overflow` is the older turns to compact after.
-  const memoryCtx = await fetchConversationContext(client, payload.conversationId, payload.messageId);
   const preamble = formatHistory(memoryCtx.history, memoryCtx.summary);
   const text = preamble ? `${preamble}\n\nCurrent message:\n${payload.message}` : payload.message;
   const content = await buildTurnContentAsync(text, payload.attachments);
