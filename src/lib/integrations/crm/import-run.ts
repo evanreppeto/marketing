@@ -92,7 +92,12 @@ async function importOneContact(
   result: ImportRunResult,
 ): Promise<void> {
   const externalId = contact.id;
-  let lead: LeadIngestionInput | null = mapHubspotContactToLead(contact, input.options);
+  // Thread the workspace's allowed personas into the per-record resolution so a
+  // mapped override in the org's own taxonomy is honored (not just official ones).
+  let lead: LeadIngestionInput | null = mapHubspotContactToLead(contact, {
+    ...input.options,
+    allowedPersonaKeys: input.options.allowedPersonaKeys ?? input.allowedPersonaKeys,
+  });
   if (!lead) {
     result.skipped += 1;
     result.errors.push({ externalId, message: "no usable name/email/phone" });
@@ -172,4 +177,16 @@ export function asOfficialPersona(value: unknown): OfficialPersonaMapping | null
   return typeof value === "string" && (OFFICIAL_PERSONA_MAPPINGS as readonly string[]).includes(value)
     ? (value as OfficialPersonaMapping)
     : null;
+}
+
+/**
+ * Validate a config-supplied default persona against the workspace's own taxonomy
+ * (`allowedKeys`), or the official set when no taxonomy is provided (back-compat /
+ * offline). Returns the key when allowed, else null so the caller can report a
+ * clean "missing/invalid default persona" rather than a late ingest rejection.
+ */
+export function asAllowedPersona(value: unknown, allowedKeys?: readonly string[]): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  if (allowedKeys && allowedKeys.length > 0) return allowedKeys.includes(value) ? value : null;
+  return asOfficialPersona(value);
 }

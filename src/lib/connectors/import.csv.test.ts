@@ -13,7 +13,7 @@ const config = vi.hoisted(() => ({ getConnectorConfig: vi.fn() }));
 vi.mock("./config", () => config);
 
 const engine = vi.hoisted(() => ({ importContactsFromSource: vi.fn(async () => ({ imported: 2, updated: 0, skipped: 0, failed: 0, enriched: 0, pages: 1, errors: [] })) }));
-// Keep asOfficialPersona real; stub only the engine call.
+// Keep asAllowedPersona (the config default-persona gate) real; stub only the engine call.
 vi.mock("@/lib/integrations/crm/import-run", async (orig) => ({ ...(await orig<object>()), importContactsFromSource: engine.importContactsFromSource }));
 
 vi.mock("@/lib/supabase/server", () => ({ isSupabaseAdminConfigured: () => true, getSupabaseAdminClient: () => ({}) }));
@@ -44,6 +44,23 @@ describe("runCsvImport", () => {
 
   it("refuses an empty / header-only CSV before touching the engine", async () => {
     expect(await runCsvImport({ workspaceId: "ws", orgId: "org", csvText: "name,email" })).toEqual({ ok: false, error: "no_rows" });
+    expect(engine.importContactsFromSource).not.toHaveBeenCalled();
+  });
+
+  it("accepts a non-official default persona in the workspace's taxonomy, threading the keys", async () => {
+    config.getConnectorConfig.mockResolvedValue({ defaultPersona: "wedding_lead" });
+    const res = await runCsvImport({ workspaceId: "ws", orgId: "org", csvText: CSV, allowedPersonaKeys: ["wedding_lead", "corporate_client"] });
+    expect(res.ok).toBe(true);
+    const call = (engine.importContactsFromSource.mock.calls as unknown as Array<[Record<string, unknown>]>)[0][0];
+    expect((call.options as Record<string, unknown>).defaultPersona).toBe("wedding_lead");
+    expect(call.allowedPersonaKeys).toEqual(["wedding_lead", "corporate_client"]);
+  });
+
+  it("refuses a default persona outside the workspace taxonomy", async () => {
+    config.getConnectorConfig.mockResolvedValue({ defaultPersona: "not_a_persona" });
+    expect(
+      await runCsvImport({ workspaceId: "ws", orgId: "org", csvText: CSV, allowedPersonaKeys: ["wedding_lead"] }),
+    ).toEqual({ ok: false, error: "missing_default_persona" });
     expect(engine.importContactsFromSource).not.toHaveBeenCalled();
   });
 
