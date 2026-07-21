@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 
-import { askArcToDraftFromOpportunityAction, draftCampaignFromOpportunityAction, scanForOpportunitiesAction } from "../actions";
+import {
+  askArcToDraftFromOpportunityAction,
+  dismissOpportunityAction,
+  draftCampaignFromOpportunityAction,
+  scanForOpportunitiesAction,
+  snoozeOpportunityAction,
+} from "../actions";
 import { DraftCampaignModal, type DraftMode } from "./draft-campaign-modal";
 
 export type OppSignal = { label: string; value: string };
@@ -119,9 +125,16 @@ export function OpportunityInbox({
   const [draftOpen, setDraftOpen] = useState(false);
   const [mode, setMode] = useState<DraftMode>("operator");
   const [notice, setNotice] = useState<string | null>(null);
+  // Opportunities triaged away this session (dismissed/snoozed) — hidden
+  // optimistically so the card leaves the inbox instantly, before the refetch.
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+  const [snoozeOpen, setSnoozeOpen] = useState(false);
+  const [triaging, setTriaging] = useState(false);
   const router = useRouter();
 
-  if (opps.length === 0) {
+  const visible = opps.filter((op) => !removed.has(op.id));
+
+  if (visible.length === 0) {
     return (
       <div className="arc-opps" style={{ display: "block" }}>
         <div className="empty" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
@@ -134,7 +147,28 @@ export function OpportunityInbox({
     );
   }
 
-  const o = opps[Math.min(cur, opps.length - 1)];
+  const o = visible[Math.min(cur, visible.length - 1)];
+
+  // Triage the focused opportunity out of the inbox. Optimistic: hide it now
+  // (which advances to the next via the clamp above), then persist + refetch. On
+  // failure, restore it and surface the error. Never sends or contacts anything.
+  const triage = (kind: "dismiss" | "snooze", days?: number) => {
+    if (triaging) return;
+    const id = o.id;
+    setTriaging(true);
+    setSnoozeOpen(false);
+    setNotice(null);
+    setRemoved((prev) => new Set(prev).add(id));
+    (kind === "dismiss" ? dismissOpportunityAction(id) : snoozeOpportunityAction(id, days ?? 7)).then((res) => {
+      setTriaging(false);
+      if (!res.ok) {
+        setRemoved((prev) => { const next = new Set(prev); next.delete(id); return next; });
+        setNotice(res.error);
+        return;
+      }
+      if (res.persisted) router.refresh();
+    });
+  };
 
   // Convert this opportunity into an approval-gated campaign draft. When it
   // persists, jump into the new draft's detail page; offline it confirms the
@@ -160,8 +194,8 @@ export function OpportunityInbox({
 
   // Real header stats for the inbox — how many need fast action and the average
   // confidence of the queue, from the opportunities already loaded.
-  const highCount = opps.filter((o) => o.urgencyTone === "red").length;
-  const avgConf = opps.length ? Math.round(opps.reduce((s, o) => s + o.confidence, 0) / opps.length) : 0;
+  const highCount = visible.filter((o) => o.urgencyTone === "red").length;
+  const avgConf = visible.length ? Math.round(visible.reduce((s, o) => s + o.confidence, 0) / visible.length) : 0;
 
   return (
     <div className="arc-opps">
@@ -169,14 +203,14 @@ export function OpportunityInbox({
         <div className="olisthd">
           <span className="h">OPEN OPPORTUNITIES</span>
           <span className="c">
-            {opps.length} open{highCount > 0 ? ` · ${highCount} high` : ""} · {avgConf}% avg
+            {visible.length} open{highCount > 0 ? ` · ${highCount} high` : ""} · {avgConf}% avg
           </span>
         </div>
         <form action={scanForOpportunitiesAction} style={{ padding: "2px 4px 12px" }}>
           <ScanButton />
         </form>
         <div>
-          {opps.map((it, i) => (
+          {visible.map((it, i) => (
             <button
               key={it.id}
               type="button"
@@ -291,6 +325,37 @@ export function OpportunityInbox({
                   </div>
                 )}
               </div>
+
+              {o.status !== "drafting" && (
+                <div className="triage">
+                  <span className="triage-q">Not relevant right now?</span>
+                  <button type="button" className="triage-btn" onClick={() => triage("dismiss")} disabled={triaging}>
+                    Dismiss
+                  </button>
+                  <div className="triage-snooze">
+                    <button
+                      type="button"
+                      className="triage-btn"
+                      aria-haspopup="menu"
+                      aria-expanded={snoozeOpen}
+                      onClick={() => setSnoozeOpen((v) => !v)}
+                      disabled={triaging}
+                    >
+                      Snooze ▾
+                    </button>
+                    {snoozeOpen && (
+                      <>
+                        <div className="triage-scrim" onClick={() => setSnoozeOpen(false)} />
+                        <div className="triage-menu" role="menu" aria-label="Snooze for">
+                          <button type="button" role="menuitem" onClick={() => triage("snooze", 1)}>1 day</button>
+                          <button type="button" role="menuitem" onClick={() => triage("snooze", 3)}>3 days</button>
+                          <button type="button" role="menuitem" onClick={() => triage("snooze", 7)}>1 week</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="side">

@@ -15,7 +15,7 @@ import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { runDeterministicOpportunityScan } from "@/lib/opportunities/scan";
 import { executeOpportunityDraftTask } from "@/lib/opportunities/draft-package";
 import { enqueueArcOpportunityTask } from "@/lib/opportunities/enqueue";
-import { markOpportunityDrafted, markOpportunityDrafting } from "@/lib/opportunities/persistence";
+import { dismissOpportunity, markOpportunityDrafted, markOpportunityDrafting, snoozeOpportunity } from "@/lib/opportunities/persistence";
 import { getOpportunityForCampaign } from "@/lib/opportunities/read-model";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -37,6 +37,45 @@ export async function scanForOpportunitiesAction(): Promise<void> {
   // manual scan and the daily scan can never surface different opportunities.
   await runDeterministicOpportunityScan();
   revalidatePath("/opportunities");
+}
+
+export type OpportunityTriageResult = { ok: true; persisted: boolean } | { ok: false; error: string };
+
+/**
+ * Triage an opportunity out of the open inbox. Both wrap already-built persistence
+ * (`dismissOpportunity` / `snoozeOpportunity`) that flips status to dismissed/snoozed
+ * — which the read-model's open-status filter drops from the list. Read-only to the
+ * outside world: triage records a decision, never sends or contacts anything. Gated
+ * by requireOperator() and org-scoped. `persisted: false` is the honest offline signal.
+ */
+export async function dismissOpportunityAction(opportunityId: string): Promise<OpportunityTriageResult> {
+  await requireOperator();
+  if (!opportunityId) return { ok: false, error: "Missing opportunity." };
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+  try {
+    const ctx = await getCurrentWorkspaceContext();
+    await dismissOpportunity(opportunityId, undefined, { orgId: ctx.orgId });
+    revalidatePath("/opportunities");
+    return { ok: true, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not dismiss the opportunity." };
+  }
+}
+
+export async function snoozeOpportunityAction(opportunityId: string, days: number): Promise<OpportunityTriageResult> {
+  await requireOperator();
+  if (!opportunityId) return { ok: false, error: "Missing opportunity." };
+  const span = Number.isFinite(days) && days > 0 ? Math.min(days, 90) : 7;
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+  try {
+    const ctx = await getCurrentWorkspaceContext();
+    const until = new Date(Date.now() + span * 86_400_000).toISOString();
+    await snoozeOpportunity(opportunityId, until, undefined, { orgId: ctx.orgId });
+    revalidatePath("/opportunities");
+    return { ok: true, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not snooze the opportunity." };
+  }
 }
 
 export type DraftCampaignFromOpportunityInput = {
