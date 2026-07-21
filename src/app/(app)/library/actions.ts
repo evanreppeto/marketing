@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { removeMediaRecordFromBrain, syncMediaRecordToBrain } from "@/lib/brain-ingestion/sync";
-import { createFolder, insertAssetWithUrl, setAvailableToArc } from "@/lib/media-library/persistence";
+import { createFolder, deleteAsset, insertAssetWithUrl, setAvailableToArc } from "@/lib/media-library/persistence";
 import { MAX_UPLOAD_BYTES, acceptUpload, kindForContentType } from "@/lib/media-library/upload-policy";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -149,5 +149,35 @@ export async function setLibraryAssetArcAvailability(
     return { ok: true, persisted: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not update the asset." };
+  }
+}
+
+export type DeleteAssetResult = { ok: true; persisted: boolean } | { ok: false; error: string };
+
+/**
+ * Delete a Library asset — removes the storage object + the row, and drops any
+ * Brain mirror so recall can't keep surfacing deleted media. Org-scoped through
+ * the RLS-bypassing service-role client (deleteAsset returns false when the id
+ * isn't this workspace's row). Never outbound. Campaigns that already embedded the
+ * media keep their own snapshot (the reference lives in their audit_payload), so
+ * deleting here only removes it from the Library.
+ */
+export async function deleteLibraryAsset(assetId: string): Promise<DeleteAssetResult> {
+  await requireOperator();
+
+  if (!assetId?.trim()) return { ok: false, error: "An asset id is required." };
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  try {
+    const orgId = await getCurrentOrgId();
+    const deleted = await deleteAsset(assetId, orgId);
+    if (!deleted) return { ok: false, error: "That asset isn't in this workspace." };
+
+    await removeMediaRecordFromBrain(assetId, { orgId }).catch(() => undefined);
+
+    revalidatePath("/library");
+    return { ok: true, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not delete the asset." };
   }
 }
