@@ -1176,7 +1176,7 @@
   width: 32px;
   padding: 0;
   border-radius: 50%;
-  cursor: help;
+  cursor: pointer;
 }
 .arc-context-meter::before {
   content: "";
