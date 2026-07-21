@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 
 import { formatByteSize } from "@/domain";
 
-import { createLibraryFolder, setLibraryAssetArcAvailability, uploadLibraryAsset } from "../actions";
+import { createLibraryFolder, deleteLibraryAsset, setLibraryAssetArcAvailability, uploadLibraryAsset } from "../actions";
 import { ImportUrlModal } from "./import-url-modal";
 import { NewFolderModal } from "./new-folder-modal";
 
@@ -188,6 +188,10 @@ export function LibraryView({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ brand: true, real: true });
   const [detail, setDetail] = useState<Asset | null>(null);
   const [arcState, setArcState] = useState<Record<number, boolean>>({});
+  // Assets deleted this session — hidden optimistically before the refetch.
+  const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [suggDismissed, setSuggDismissed] = useState(false);
   // Folders + uploads created this session. Folders persist via createLibraryFolder;
   // uploads are held client-side (real media-store persistence lands with the
@@ -201,7 +205,7 @@ export function LibraryView({
   const uidRef = useRef(-1);
 
   const baseAssets = assets ?? ALL_ASSETS;
-  const allAssets = useMemo(() => [...uploaded, ...baseAssets], [uploaded, baseAssets]);
+  const allAssets = useMemo(() => [...uploaded, ...baseAssets].filter((a) => !deletedIds.has(a.id)), [uploaded, baseAssets, deletedIds]);
 
   // Folder counts over the live asset set (base assets + this session's uploads).
   const rcountLive = (f: string): number => {
@@ -361,7 +365,30 @@ export function LibraryView({
   const sortLabel = sortBy === "recent" ? "Recent" : sortBy === "name" ? "Name" : "Most used";
   const cycleSort = () => setSortBy((s) => (s === "recent" ? "name" : s === "name" ? "used" : "recent"));
 
-  const openDetail = (a: Asset) => setDetail(a);
+  const openDetail = (a: Asset) => { setConfirmDelete(false); setDetail(a); };
+
+  // Delete a Library asset: optimistically drop it from the grid + close the
+  // inspector, then persist (real DB rows only). Restore on failure. Campaigns
+  // that already embedded it keep their own copy, so this only clears the Library.
+  const handleDelete = (a: Asset) => {
+    if (deleting) return;
+    setDeleting(true);
+    setNotice(null);
+    const id = a.id;
+    setDeletedIds((prev) => new Set(prev).add(id));
+    setConfirmDelete(false);
+    setDetail(null);
+    setSel((prev) => { const next = new Set(prev); next.delete(id); return next; });
+    const finish = (ok: boolean, error?: string) => {
+      setDeleting(false);
+      if (!ok) {
+        setDeletedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+        setNotice(error ?? "Could not delete the asset.");
+      }
+    };
+    if (a.rid) deleteLibraryAsset(a.rid).then((res) => finish(res.ok, res.ok ? undefined : res.error));
+    else finish(true);
+  };
 
   /**
    * Persist the operator's "may Arc reuse this?" decision. Optimistic so the grid
@@ -626,6 +653,23 @@ export function LibraryView({
                   <a className="gbtn" href={STUDIO}><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z" /><path d="M4 14l5-4 4 3 3-2 4 3" /></svg>Edit in Studio</a>
                   <a className="gbtn" href={NEW_CAMPAIGN}><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>Add to campaign</a>
                   <span className="gbtn full"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>Download</span>
+                  {confirmDelete ? (
+                    <div className="idelconfirm">
+                      <span className="idelwarn">
+                        {detail.used.length > 0
+                          ? `Used in ${detail.used.length} campaign${detail.used.length === 1 ? "" : "s"} — those keep their copy, but it leaves the Library. Delete?`
+                          : "Remove this from the Library? This can’t be undone."}
+                      </span>
+                      <div className="idelbtns">
+                        <button type="button" className="gbtn" onClick={() => setConfirmDelete(false)} disabled={deleting}>Cancel</button>
+                        <button type="button" className="gbtn danger" onClick={() => handleDelete(detail)} disabled={deleting}>{deleting ? "Deleting…" : "Delete"}</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button type="button" className="gbtn danger full" onClick={() => setConfirmDelete(true)}>
+                      <svg viewBox="0 0 24 24"><path d="M4 7h16M6 7l1 13h10l1-13M10 7V4h4v3" /></svg>Delete from Library
+                    </button>
+                  )}
                 </div>
               </div>
             </>

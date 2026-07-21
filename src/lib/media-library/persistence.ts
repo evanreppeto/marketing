@@ -30,11 +30,6 @@ async function updateRow(
   if (error) throw new Error(`${table} update failed: ${error.message}`);
 }
 
-async function deleteRow(client: SupabaseClient, table: string, id: string): Promise<void> {
-  const { error } = await client.from(table).delete().eq("id", id);
-  if (error) throw new Error(`${table} delete failed: ${error.message}`);
-}
-
 export function sanitizeFileName(name: string): string {
   const base = name.split(/[\\/]/).pop() ?? "file";
   const dot = base.lastIndexOf(".");
@@ -96,12 +91,20 @@ export async function seedDefaultMediaFolders(
   return rows.length;
 }
 
-export async function renameFolder(id: string, name: string, client: SupabaseClient = getSupabaseAdminClient()) {
-  await updateRow(client, "media_folders", { name }, id);
+// These media-library writes run through the RLS-bypassing service-role client,
+// so the org_id filter is the ONLY thing between an operator and another tenant's
+// row (same posture as setAvailableToArc). Each is org-scoped and returns whether
+// a row actually matched, so the caller can report "not in this workspace".
+export async function renameFolder(id: string, name: string, orgId: string, client: SupabaseClient = getSupabaseAdminClient()): Promise<boolean> {
+  const { data, error } = await client.from("media_folders").update({ name }).eq("id", id).eq("org_id", orgId).select("id");
+  if (error) throw new Error(`media_folders update failed: ${error.message}`);
+  return (data ?? []).length > 0;
 }
 
-export async function deleteFolder(id: string, client: SupabaseClient = getSupabaseAdminClient()) {
-  await deleteRow(client, "media_folders", id);
+export async function deleteFolder(id: string, orgId: string, client: SupabaseClient = getSupabaseAdminClient()): Promise<boolean> {
+  const { data, error } = await client.from("media_folders").delete().eq("id", id).eq("org_id", orgId).select("id");
+  if (error) throw new Error(`media_folders delete failed: ${error.message}`);
+  return (data ?? []).length > 0;
 }
 
 export type InsertAssetInput = {
@@ -162,8 +165,10 @@ export async function insertAsset(input: InsertAssetInput): Promise<string> {
   return result.id;
 }
 
-export async function renameAsset(id: string, fileName: string, client: SupabaseClient = getSupabaseAdminClient()) {
-  await updateRow(client, "media_assets", { file_name: fileName }, id);
+export async function renameAsset(id: string, fileName: string, orgId: string, client: SupabaseClient = getSupabaseAdminClient()): Promise<boolean> {
+  const { data, error } = await client.from("media_assets" as string).update({ file_name: fileName }).eq("id", id).eq("org_id", orgId).select("id");
+  if (error) throw new Error(`media_assets update failed: ${error.message}`);
+  return ((data ?? []) as unknown[]).length > 0;
 }
 
 export type AssetForLearning = {
@@ -224,8 +229,10 @@ export async function moveAsset(id: string, folderId: string | null, client: Sup
   await updateRow(client, "media_assets", { folder_id: folderId }, id);
 }
 
-export async function setAssetTags(id: string, tags: string[], client: SupabaseClient = getSupabaseAdminClient()) {
-  await updateRow(client, "media_assets", { tags }, id);
+export async function setAssetTags(id: string, tags: string[], orgId: string, client: SupabaseClient = getSupabaseAdminClient()): Promise<boolean> {
+  const { data, error } = await client.from("media_assets" as string).update({ tags }).eq("id", id).eq("org_id", orgId).select("id");
+  if (error) throw new Error(`media_assets update failed: ${error.message}`);
+  return ((data ?? []) as unknown[]).length > 0;
 }
 
 /** Mark whether Arc may reuse this asset. Org-scoped on purpose: this runs through the
@@ -247,10 +254,17 @@ export async function setAvailableToArc(
   return (data ?? []).length > 0;
 }
 
-export async function deleteAsset(id: string, client: SupabaseClient = getSupabaseAdminClient()) {
-  const { data, error } = await client.from("media_assets" as string).select("storage_path").eq("id", id).maybeSingle();
+export async function deleteAsset(id: string, orgId: string, client: SupabaseClient = getSupabaseAdminClient()): Promise<boolean> {
+  // Org-scoped lookup: if it isn't this workspace's row, do nothing and report it.
+  const { data, error } = await client
+    .from("media_assets" as string)
+    .select("storage_path")
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .maybeSingle();
   if (error) throw new Error(`delete lookup failed: ${error.message}`);
-  const path = (data as { storage_path?: string } | null)?.storage_path;
+  if (!data) return false;
+  const path = (data as { storage_path?: string }).storage_path;
   // Skip the "pending" placeholder left by a failed upload — there's no object to remove.
   if (path && path !== "pending") {
     const { error: removeError } = await client.storage.from(BUCKET).remove([path]);
@@ -260,5 +274,12 @@ export async function deleteAsset(id: string, client: SupabaseClient = getSupaba
       throw new Error(`storage remove failed: ${removeError.message}`);
     }
   }
-  await deleteRow(client, "media_assets", id);
+  const { data: deleted, error: deleteError } = await client
+    .from("media_assets" as string)
+    .delete()
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select("id");
+  if (deleteError) throw new Error(`media_assets delete failed: ${deleteError.message}`);
+  return ((deleted ?? []) as unknown[]).length > 0;
 }
