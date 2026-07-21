@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 
 import { formatByteSize } from "@/domain";
 
-import { createLibraryFolder, deleteLibraryAsset, renameLibraryAsset, setLibraryAssetArcAvailability, setLibraryAssetTags, uploadLibraryAsset } from "../actions";
+import { createLibraryFolder, deleteLibraryAsset, deleteLibraryFolder, renameLibraryAsset, renameLibraryFolder, setLibraryAssetArcAvailability, setLibraryAssetTags, uploadLibraryAsset } from "../actions";
 import { ImportUrlModal } from "./import-url-modal";
 import { NewFolderModal } from "./new-folder-modal";
 
@@ -196,6 +196,9 @@ export function LibraryView({
   const [edits, setEdits] = useState<Record<number, { nm?: string; tags?: string[] }>>({});
   const [renaming, setRenaming] = useState(false);
   const [tagEditing, setTagEditing] = useState(false);
+  // Folder management: which folder is being renamed / pending a delete confirm.
+  const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
+  const [folderConfirmDelete, setFolderConfirmDelete] = useState<string | null>(null);
   const [suggDismissed, setSuggDismissed] = useState(false);
   // Folders + uploads created this session. Folders persist via createLibraryFolder;
   // uploads are held client-side (real media-store persistence lands with the
@@ -455,6 +458,33 @@ export function LibraryView({
 
   const CHECK = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><path d="M5 12l4 4 10-10" /></svg>;
 
+  // Pure tree ops for optimistic folder rename/delete (folders live in `tree`).
+  const renameInTree = (nodes: Folder[], id: string, name: string): Folder[] =>
+    nodes.map((n) => (n.f === id ? { ...n, name } : n.children ? { ...n, children: renameInTree(n.children, id, name) } : n));
+  const removeFromTree = (nodes: Folder[], id: string): Folder[] =>
+    nodes.filter((n) => n.f !== id).map((n) => (n.children ? { ...n, children: removeFromTree(n.children, id) } : n));
+  const folderName = (nodes: Folder[], id: string): string | undefined => {
+    for (const n of nodes) { if (n.f === id) return n.name; if (n.children) { const r = folderName(n.children, id); if (r) return r; } }
+    return undefined;
+  };
+
+  const saveFolderRename = (id: string, value: string) => {
+    setRenamingFolder(null);
+    const name = value.trim();
+    const current = folderName(tree, id);
+    if (!name || name === current) return;
+    setTree((t) => renameInTree(t, id, name));
+    renameLibraryFolder(id, name).then((res) => { if (!res.ok) { setTree((t) => renameInTree(t, id, current ?? name)); setNotice(res.error); } });
+  };
+  const handleFolderDelete = (id: string) => {
+    setFolderConfirmDelete(null);
+    const snapshot = tree;
+    // Assets fall back to "All assets" (FK ON DELETE SET NULL); remove the node here.
+    setTree((t) => removeFromTree(t, id));
+    if (curFolder === id) setCurFolder("all");
+    deleteLibraryFolder(id).then((res) => { if (!res.ok) { setTree(snapshot); setNotice(res.error); } });
+  };
+
   const renderFolder = (F: Folder, sub = false) => {
     const hasKids = !!F.children?.length;
     const open = !!expanded[F.f];
@@ -469,8 +499,41 @@ export function LibraryView({
         <span className="ficon" style={{ background: `${F.color}22`, border: `1px solid ${F.color}55`, color: F.color }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} dangerouslySetInnerHTML={{ __html: ICONS[F.icon] }} />
         </span>
-        <span className="fn">{F.name}</span>
+        {renamingFolder === F.f ? (
+          <input
+            className="fn-edit"
+            autoFocus
+            defaultValue={F.name}
+            aria-label="Folder name"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") saveFolderRename(F.f, e.currentTarget.value); if (e.key === "Escape") setRenamingFolder(null); }}
+            onBlur={(e) => saveFolderRename(F.f, e.currentTarget.value)}
+          />
+        ) : (
+          <span className="fn">{F.name}</span>
+        )}
         <span className="fc">{rcountLive(F.f)}</span>
+        {F.f !== "all" && renamingFolder !== F.f && (
+          folderConfirmDelete === F.f ? (
+            <span className="fmanage" onClick={(e) => e.stopPropagation()}>
+              <button type="button" className="ficonbtn danger" title="Delete — assets move to All assets" onClick={() => handleFolderDelete(F.f)}>
+                <svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 6" /></svg>
+              </button>
+              <button type="button" className="ficonbtn" title="Cancel" onClick={() => setFolderConfirmDelete(null)}>
+                <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+              </button>
+            </span>
+          ) : (
+            <span className="fmanage" onClick={(e) => e.stopPropagation()}>
+              <button type="button" className="ficonbtn" title="Rename folder" onClick={() => { setRenamingFolder(F.f); setFolderConfirmDelete(null); }}>
+                <svg viewBox="0 0 24 24"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 00-3-3L5 17v3z" /></svg>
+              </button>
+              <button type="button" className="ficonbtn" title="Delete folder" onClick={() => setFolderConfirmDelete(F.f)}>
+                <svg viewBox="0 0 24 24"><path d="M4 7h16M6 7l1 13h10l1-13M10 7V4h4v3" /></svg>
+              </button>
+            </span>
+          )
+        )}
       </div>,
     ];
     if (hasKids && open) rows.push(<div key={`${F.f}-kids`} className="tchildren">{F.children!.map((c) => renderFolder(c, true))}</div>);
