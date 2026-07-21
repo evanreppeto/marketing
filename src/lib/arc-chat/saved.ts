@@ -110,12 +110,13 @@ export async function saveItem(
 export async function listSavedItems(
   operator: string,
   client: SupabaseClient = getSupabaseAdminClient(),
+  opts: { orgId?: string | null } = {},
 ): Promise<SavedItem[]> {
-  const { data, error } = await client
-    .from("arc_saved_items")
-    .select(COLUMNS)
-    .eq("operator", operator)
-    .order("created_at", { ascending: false });
+  let query = client.from("arc_saved_items").select(COLUMNS).eq("operator", operator);
+  // Rows are stamped with org_id on save; scope the read to the current workspace
+  // so an operator who belongs to more than one org never sees another's saves.
+  if (opts.orgId) query = query.eq("org_id", opts.orgId);
+  const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw new Error(`arc_saved_items list: ${error.message}`);
   return ((data ?? []) as SavedRow[]).map(toSaved);
 }
@@ -124,8 +125,11 @@ export async function removeSavedItem(
   id: string,
   operator: string,
   client: SupabaseClient = getSupabaseAdminClient(),
+  opts: { orgId?: string | null } = {},
 ): Promise<void> {
-  const { error } = await client.from("arc_saved_items").delete().eq("id", id).eq("operator", operator);
+  let query = client.from("arc_saved_items").delete().eq("id", id).eq("operator", operator);
+  if (opts.orgId) query = query.eq("org_id", opts.orgId);
+  const { error } = await query;
   if (error) throw new Error(`arc_saved_items delete: ${error.message}`);
 }
 
