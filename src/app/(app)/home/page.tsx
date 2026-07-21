@@ -6,6 +6,7 @@ import { getAnalyticsOverview, type OverviewKpi, type TrendKey } from "@/lib/ana
 import { promptForOpportunity } from "@/lib/arc-chat/waiting-opps";
 import { type OpportunityEvidence } from "@/lib/opportunities/read-model";
 
+import { QuickActions } from "./_components/quick-actions";
 import { Sparkline } from "../_components/sparkline";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getWorkspaceSummary } from "@/lib/workspace-summary/read-model";
@@ -304,23 +305,7 @@ export default async function HomePage() {
         <div className="rsec">
           <h3 className="rh">Quick actions</h3>
           <div className="rsub">Start something with Arc</div>
-          <div className="qa">
-            <Link className="qbtn" href="/campaigns">
-              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-              New campaign
-              <span className="kk">C</span>
-            </Link>
-            <Link className="qbtn" href="/crm">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2" /><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" /></svg>
-              Add a lead
-              <span className="kk">L</span>
-            </Link>
-            <Link className="qbtn" href="/arc">
-              <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3.2-6.9L21 4v5h-5" /></svg>
-              Ask Arc
-              <span className="kk">⌘K</span>
-            </Link>
-          </div>
+          <QuickActions />
         </div>
       </aside>
     </div>
