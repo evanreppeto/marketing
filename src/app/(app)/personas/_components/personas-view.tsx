@@ -220,7 +220,12 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
     });
   }, [allPersonas, segment, q]);
 
-  const selected = allPersonas.find((p) => p.slug === slug) ?? filtered[0] ?? allPersonas[0] ?? null;
+  // Resolve the detail from the FILTERED set, not the whole roster: if the active
+  // filter/segment hides the selected persona, the detail follows the visible list
+  // (top match) instead of showing a persona that isn't in the roster. Null when
+  // nothing matches, which drives the empty state below.
+  const selected = filtered.find((p) => p.slug === slug) ?? filtered[0] ?? null;
+  const activeSegmentLabel = SEGMENTS.find((s) => s.key === segment)?.label ?? "";
 
   const grouped = useMemo(() => {
     const order = ["acquisition", "engagement", "retention"];
@@ -310,7 +315,18 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
       </div>
 
       <div className={`pbody${view === "compare" ? " cmp" : ""}`}>
-        {view === "roster" ? (
+        {filtered.length === 0 ? (
+          <div className="empty pfilter-empty">
+            <p>
+              No personas match
+              {q.trim() ? <> &ldquo;{q.trim()}&rdquo;</> : null}
+              {segment !== "all" ? ` in ${activeSegmentLabel}` : ""}.
+            </p>
+            <button type="button" className="gbtn ghost" onClick={() => { setQ(""); setSegment("all"); }} style={{ marginTop: 12 }}>
+              Clear filters
+            </button>
+          </div>
+        ) : view === "roster" ? (
           <>
             <aside className="roster">
               {grouped.map((g) => (
