@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 
 import { type AudienceResolution } from "@/domain";
+import { type AttachableMediaItem } from "@/lib/campaigns/attach-media";
 import {
   type CampaignMediaAsset,
   type CampaignWorkspaceAsset,
@@ -15,7 +16,7 @@ import { LOCKED_CLAIMS, MEASUREMENT_PLAN } from "@/lib/performance/measurement-c
 import { buildPerformanceLearning, type CampaignPerformancePanel, type PerformanceTrendPoint } from "@/lib/performance/campaign-panel";
 
 import { ShareDialog } from "../../../_components/share-dialog";
-import { decideCampaignAsset, editCampaignDraftAction, launchCampaignAction, requestCampaignRevision } from "../actions";
+import { attachCampaignMediaAction, decideCampaignAsset, editCampaignDraftAction, launchCampaignAction, reopenCampaignAsset, requestCampaignRevision } from "../actions";
 import {
   getCampaignSharingStateAction,
   setCampaignSharingAction,
@@ -352,7 +353,7 @@ function provTone(source: string): string {
   return "stock";
 }
 
-export function CampaignDetailView({ detail, performance, audience }: { detail: LiveCampaignWorkspace; performance: CampaignPerformancePanel; audience?: AudienceResolution | null }) {
+export function CampaignDetailView({ detail, performance, audience, attachableMedia = [] }: { detail: LiveCampaignWorkspace; performance: CampaignPerformancePanel; audience?: AudienceResolution | null; attachableMedia?: AttachableMediaItem[] }) {
   const { campaign, launchState, executiveOverview, reasoning, sources, approvalHistory, media } = detail;
   const [assets, setAssets] = useState<CampaignWorkspaceAsset[]>(detail.assets);
   const [tab, setTab] = useState("deliverables");
@@ -362,6 +363,8 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
   const [editFor, setEditFor] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
+  // Media attach: which asset's picker is open.
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [confirmLaunch, setConfirmLaunch] = useState(false);
@@ -431,6 +434,51 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
       const res = await editCampaignDraftAction({ campaignId: campaign.id, assetId: asset.id, title, body });
       if (!res.ok) {
         setAssets((as) => as.map((a) => (a.id === asset.id ? { ...a, title: prev.title, preview: prev.preview } : a)));
+        setErr(res.error);
+      }
+    });
+  }
+
+  function reopen(asset: CampaignWorkspaceAsset) {
+    if (pending) return;
+    setErr(null);
+    const prev = asset.status;
+    // Optimistically flip back to review so the decision controls reappear; the
+    // action re-locks dispatch server-side. Revert on failure.
+    setAssetStatus(asset.id, "pending_approval");
+    startTransition(async () => {
+      const res = await reopenCampaignAsset(campaign.id, asset.id);
+      if (!res.ok) {
+        setAssetStatus(asset.id, prev);
+        setErr(res.error);
+      }
+    });
+  }
+
+  function attachMedia(asset: CampaignWorkspaceAsset, item: AttachableMediaItem) {
+    if (pending) return;
+    setErr(null);
+    setPickerFor(null);
+    // Optimistic tile (origin "attached" renders like real, non-AI media). The
+    // read path reflects the real attachment on the next refresh.
+    const tile: CampaignMediaAsset = {
+      id: `attach-${item.id}`,
+      type: item.kind === "video" ? "video" : "image",
+      origin: "attached",
+      title: item.fileName,
+      url: item.url,
+      thumbnailUrl: item.url,
+      mimeType: null,
+      description: null,
+      source: "library",
+      virality: null,
+    };
+    if (asset.media.some((m) => m.id === tile.id)) return; // already attached this session
+    setAssets((as) => as.map((a) => (a.id === asset.id ? { ...a, media: [...a.media, tile] } : a)));
+    startTransition(async () => {
+      const res = await attachCampaignMediaAction({ campaignId: campaign.id, assetId: asset.id, libraryAssetId: item.id });
+      if (!res.ok) {
+        setAssets((as) => as.map((a) => (a.id === asset.id ? { ...a, media: a.media.filter((m) => m.id !== tile.id) } : a)));
         setErr(res.error);
       }
     });
@@ -567,6 +615,38 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
                             ))}
                           </div>
                         )}
+                        {actionable && attachableMedia.length > 0 && (
+                          pickerFor === asset.id ? (
+                            <div className="mediapicker">
+                              <div className="mphead">
+                                <b>Attach approved media</b>
+                                <button type="button" className="mpclose" onClick={() => setPickerFor(null)} aria-label="Close media picker">
+                                  {svg('<path d="M6 6l12 12M18 6L6 18"/>')}
+                                </button>
+                              </div>
+                              <div className="mpgrid">
+                                {attachableMedia.map((item) => (
+                                  <button
+                                    type="button"
+                                    key={item.id}
+                                    className="mpitem"
+                                    onClick={() => attachMedia(asset, item)}
+                                    disabled={pending}
+                                    title={item.fileName}
+                                  >
+                                    <span className="mpthumb" style={{ backgroundImage: `url(${item.url})` }} />
+                                    <span className="mpname">{item.fileName}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <button type="button" className="addmedia" onClick={() => setPickerFor(asset.id)} disabled={pending}>
+                              {svg('<path d="M12 5v14M5 12h14"/>')}
+                              Add media
+                            </button>
+                          )
+                        )}
                         {asset.revision && <RevisionDiff revision={asset.revision} />}
                         {asset.blockedPhrases.length > 0 && (
                           <div className="dblocked">
@@ -684,8 +764,16 @@ export function CampaignDetailView({ detail, performance, audience }: { detail: 
                           </div>
                         ) : (
                           <div className="ddecided">
-                            {meta.label}
-                            {asset.dispatchLocked && " · outbound stays locked until launch"}
+                            <span>
+                              {meta.label}
+                              {asset.dispatchLocked && " · outbound stays locked until launch"}
+                            </span>
+                            {/^(approved|archived)/i.test(asset.status) && (
+                              <button type="button" className="cbtn ghost dreopen" onClick={() => reopen(asset)} disabled={pending} title="Send this deliverable back to review">
+                                {svg('<path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 10a8 8 0 00-14-3M4 14a8 8 0 0014 3"/>')}
+                                Reopen
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
