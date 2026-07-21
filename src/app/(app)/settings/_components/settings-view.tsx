@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 import type { SettingsTeamInvite, SettingsTeamMember, SettingsTeamView, WorkspaceActivityEntry } from "@/lib/auth/team-view";
 import { WORKSPACE_ROLES } from "@/lib/auth/workspace-roles";
@@ -26,6 +26,7 @@ import type { SettingsConnectorsView } from "@/lib/connectors/settings-connector
 import type { EffectiveAgentConnection } from "@/lib/agent/connection";
 import type { SettingsBillingView } from "@/lib/billing/settings-billing";
 import { INDUSTRY_OPTIONS } from "@/lib/personas/industry-templates";
+import type { PersonaOption } from "@/lib/personas/read-model";
 import { canonicalIndustryKey } from "@/lib/product-language";
 import { IMAGE_MODELS, VIDEO_MODELS, type AppSettings } from "@/lib/settings/store";
 
@@ -314,8 +315,14 @@ const CONNECTOR_KIND_LABEL: Record<string, string> = {
 //            live in a csv field; this is why points were unreachable before)
 //   feeds  — one feed URL per line, optional "kind:" prefix + label (a URL can't
 //            live in a csv field for the same reason)
-type ConfigFieldKind = "text" | "csv" | "points" | "feeds" | "queries";
+type ConfigFieldKind = "text" | "persona" | "csv" | "points" | "feeds" | "queries";
 type ConfigField = { key: string; kind: ConfigFieldKind; label: string; placeholder: string; hint: string };
+
+// The workspace's own personas, provided once at the SettingsView root so the
+// connector "Default persona" field can render a picker instead of a free-text box
+// (a typo'd key otherwise fails the import late). Empty → the field falls back to a
+// plain input, so offline/no-persona workspaces still work.
+const PersonaOptionsContext = createContext<readonly PersonaOption[]>([]);
 
 const CONFIG_FIELDS: Record<string, ConfigField[]> = {
   "weather-signals": [
@@ -378,7 +385,7 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
   "hubspot-import": [
     {
       key: "defaultPersona",
-      kind: "text",
+      kind: "persona",
       label: "Default persona",
       placeholder: "persona_homeowner_emergency",
       hint: "A persona key from your workspace (see the Personas page) assigned to imported contacts — there is no auto-classifier. A per-record override is set with the personaProperty config key.",
@@ -387,7 +394,7 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
   "csv-import": [
     {
       key: "defaultPersona",
-      kind: "text",
+      kind: "persona",
       label: "Default persona",
       placeholder: "persona_homeowner_emergency",
       hint: "A persona key from your workspace (see the Personas page) for imported leads — they carry a required persona. A `persona` column in your CSV overrides it per row. Set this, then paste your CSV below.",
@@ -403,7 +410,7 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
     },
     {
       key: "defaultPersona",
-      kind: "text",
+      kind: "persona",
       label: "Default persona",
       placeholder: "persona_homeowner_emergency",
       hint: "A persona key from your workspace (see the Personas page) assigned to every imported member — they carry a required persona.",
@@ -464,7 +471,7 @@ const DENSITY_LABEL: Record<AppSettings["appearanceDensity"], string> = { comfor
 const MOTION_LABEL: Record<AppSettings["appearanceMotion"], string> = { standard: "Standard", reduced: "Reduced" };
 const PROFILE_LABEL: Record<AppSettings["workspaceProfile"], string> = { individual: "Individual", company: "Company", agency: "Agency" };
 
-export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, billing = null, settings, connectors, workspaces, emailConnection = null, liveSendEnabled = true, agentConnection = null }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; billing?: SettingsBillingView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null; liveSendEnabled?: boolean; agentConnection?: EffectiveAgentConnection | null }) {
+export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, billing = null, settings, connectors, workspaces, emailConnection = null, liveSendEnabled = true, agentConnection = null, personaOptions = [] }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; billing?: SettingsBillingView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null; liveSendEnabled?: boolean; agentConnection?: EffectiveAgentConnection | null; personaOptions?: readonly PersonaOption[] }) {
   const [cur, setCur] = useState("overview");
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
@@ -838,6 +845,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
   }
 
   return (
+    <PersonaOptionsContext.Provider value={personaOptions}>
     <div className="arc-settings">
       <nav className="setnav">
         <div className="setsearch">
@@ -886,6 +894,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
       {resendModalOpen && emailConnection && <ResendModal view={emailConnection} liveSendEnabled={liveSendEnabled} onClose={closeConnector} />}
       {modelSel && <ModelModal model={modelSel} onClose={() => setModelSel(null)} />}
     </div>
+    </PersonaOptionsContext.Provider>
   );
 }
 
@@ -1773,6 +1782,10 @@ function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: C
   const [value, setValue] = useState(() => configToInput(view.config, field));
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<SaveStatus>(null);
+  const personaOptions = useContext(PersonaOptionsContext);
+  // Render a picker only when we actually know the workspace's personas; otherwise
+  // (offline / none defined) fall back to the plain input so the field still works.
+  const asPersonaSelect = field.kind === "persona" && personaOptions.length > 0;
 
   const line = isLineField(field.kind) ? LINE_FIELDS[field.kind] : null;
   // Lines we couldn't read. Shown rather than dropped — silently discarding a typo'd
@@ -1804,6 +1817,15 @@ function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: C
             value={value}
             onChange={(e) => setValue(e.target.value)}
           />
+        ) : asPersonaSelect ? (
+          <select className="inp" value={value} onChange={(e) => setValue(e.target.value)}>
+            <option value="">Select a persona…</option>
+            {/* Preserve a value that isn't in the current taxonomy (legacy/renamed) so saving doesn't silently drop it. */}
+            {value && !personaOptions.some((o) => o.key === value) ? <option value={value}>{value} (not in current personas)</option> : null}
+            {personaOptions.map((o) => (
+              <option key={o.key} value={o.key}>{o.label}</option>
+            ))}
+          </select>
         ) : (
           <input className="inp" placeholder={field.placeholder} value={value} onChange={(e) => setValue(e.target.value)} />
         )}
