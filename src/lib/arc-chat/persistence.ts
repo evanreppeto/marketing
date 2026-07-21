@@ -1164,20 +1164,30 @@ export async function cancelPendingArcMessage(
 export async function unarchiveConversation(
   id: string,
   client: SupabaseClient = getSupabaseAdminClient(),
+  opts: { orgId?: string | null } = {},
 ): Promise<void> {
-  const { error } = await client.from("arc_conversations").update({ status: "active" }).eq("id", id);
+  let query = client.from("arc_conversations").update({ status: "active" }).eq("id", id);
+  // Scope the restore to the current workspace so a leaked id can't reactivate
+  // another org's conversation.
+  if (opts.orgId) query = query.eq("org_id", opts.orgId);
+  const { error } = await query;
   assertOk("arc_conversations unarchive", error);
 }
 
 export async function listArchivedConversations(
   operator: string,
   client: SupabaseClient = getSupabaseAdminClient(),
+  opts: { orgId?: string | null } = {},
 ): Promise<ArcConversation[]> {
-  const { data, error } = await client
+  let query = client
     .from("arc_conversations")
     .select(CONVERSATION_COLUMNS)
     .eq("operator", operator)
-    .eq("status", "archived")
+    .eq("status", "archived");
+  // Rows carry a NOT-NULL org_id; scope the read so an operator in more than one
+  // workspace never sees another org's archived chats.
+  if (opts.orgId) query = query.eq("org_id", opts.orgId);
+  const { data, error } = await query
     .order("pinned_at", { ascending: false, nullsFirst: false })
     .order("last_message_at", { ascending: false });
   assertOk("arc_conversations archived list", error);

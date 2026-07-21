@@ -49,6 +49,7 @@ import {
   Plus,
   Radar,
   Repeat2,
+  RotateCcw,
   Search,
   Share2,
   ShieldCheck,
@@ -106,13 +107,16 @@ import {
   regenerateArcReplyAction,
   renameArcConversationAction,
   installArcGithubSkillAction,
+  listArchivedArcConversationsAction,
   listSavedArcItemsAction,
   previewArcGithubSkillAction,
   removeArcGithubSkillAction,
   removeSavedArcItemAction,
   sendArcMessageAction,
   setArcSkillInstalledAction,
+  unarchiveArcConversationAction,
   uploadArcAttachmentAction,
+  type ArchivedArcConversationVM,
   type SavedArcItemVM,
 } from "../actions";
 import {
@@ -397,6 +401,10 @@ function ThreadDrawer({
   const [savedItems, setSavedItems] = useState<SavedArcItemVM[] | null>(null);
   const [savedLoading, setSavedLoading] = useState(false);
   const [savedError, setSavedError] = useState<string | null>(null);
+  // Archived conversations: a lazy-loaded disclosure at the bottom of the list.
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const [archivedConvos, setArchivedConvos] = useState<ArchivedArcConversationVM[] | null>(null);
+  const [archivedError, setArchivedError] = useState<string | null>(null);
   const [skillsMode, setSkillsMode] = useState<"installed" | "library">("installed");
   const [skillSearch, setSkillSearch] = useState("");
   const [query, setQuery] = useState("");
@@ -427,6 +435,26 @@ function ThreadDrawer({
     setSavedItems((cur) => (cur ? cur.filter((s) => s.id !== id) : cur));
     removeSavedArcItemAction(id).then((res) => {
       if (!res.ok) { setSavedItems(prev); setSavedError(res.error); }
+    });
+  };
+
+  const toggleArchived = () => {
+    const next = !archivedOpen;
+    setArchivedOpen(next);
+    if (next && archivedConvos === null) {
+      setArchivedError(null);
+      listArchivedArcConversationsAction().then((res) => {
+        if (res.ok) setArchivedConvos(res.items);
+        else { setArchivedConvos([]); setArchivedError(res.error); }
+      });
+    }
+  };
+  const restoreConvo = (id: string) => {
+    const prev = archivedConvos;
+    setArchivedConvos((cur) => (cur ? cur.filter((c) => c.id !== id) : cur));
+    unarchiveArcConversationAction(id).then((res) => {
+      if (res.ok) { if (live) router.refresh(); }
+      else { setArchivedConvos(prev); setArchivedError(res.error); }
     });
   };
 
@@ -647,6 +675,29 @@ function ThreadDrawer({
             </div>
           ))}
           {visibleGroups.length === 0 ? <div className="arc-history-empty"><Search size={17} /><b>No conversations found</b><span>Try a different title or date.</span></div> : null}
+        </div>
+        <div className="arc-archived">
+          <button type="button" className={`arc-archived-toggle${archivedOpen ? " is-open" : ""}`} onClick={toggleArchived} aria-expanded={archivedOpen}>
+            <Archive size={13} />
+            <span>Archived{archivedConvos && archivedConvos.length > 0 ? ` · ${archivedConvos.length}` : ""}</span>
+            <ChevronDown size={14} className="arc-archived-chevron" />
+          </button>
+          {archivedOpen ? (
+            archivedError ? <p className="arc-archived-error" role="alert">{archivedError}</p>
+            : archivedConvos === null ? <div className="arc-archived-empty"><LoaderCircle size={14} className="is-spinning" /> Loading…</div>
+            : archivedConvos.length === 0 ? <div className="arc-archived-empty">No archived conversations.</div>
+            : <div className="arc-archived-list">
+                {archivedConvos.map((conversation) => (
+                  <div className="arc-archived-item" key={conversation.id}>
+                    <span className="arc-archived-title" title={conversation.title}>{conversation.title}</span>
+                    {conversation.when ? <span className="arc-archived-when">{conversation.when}</span> : null}
+                    <button type="button" className="arc-archived-restore" onClick={() => restoreConvo(conversation.id)} title="Restore to active conversations">
+                      <RotateCcw size={12} /> Restore
+                    </button>
+                  </div>
+                ))}
+              </div>
+          ) : null}
         </div>
       </section> : null}
 
