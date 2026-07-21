@@ -13,5 +13,8 @@ export function resolveArcModelRoute(input: {
   if (input.preference !== "auto") return input.preference;
 
   const intent = inferArcRunIntent({ request: input.request, command: input.command });
-  return intent === "chat" ? "fast" : "standard";
+  // Sonnet is the responsive default for chat, research, and analysis. Reserve
+  // the slower Opus route for work that creates or changes durable workspace
+  // output; operators can still select Forge explicitly for any turn.
+  return intent === "create" || intent === "action" ? "standard" : "fast";
 }

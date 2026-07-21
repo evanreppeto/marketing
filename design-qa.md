@@ -1,45 +1,51 @@
-# Outbox responsive header design QA
+# Arc thinking and response metadata design QA
 
-- Source visual truth: `/var/folders/2g/05frnm2118b30sj5k5_zmcqm0000gn/T/codex-clipboard-d910175b-bc95-4220-b25e-098223f71b1c.png`
-- Normalized before capture: `/tmp/outbox-before-1133x719.png`
-- Implementation screenshot: `/tmp/outbox-after-1291x701.png`
-- Combined comparison input: `/tmp/outbox-responsive-normalized-comparison.png`
-- Viewport: 1291 x 701 browser content viewport
-- State: demo Outbox with two sends awaiting confirmation, one scheduled send, two recently sent items, and one failed item
+## Evidence
 
-## Full-view and focused comparison evidence
-
-The normalized before and after captures were stacked in the same comparison image. The before state reserved 364 pixels above the send queue: 100 pixels for the page heading, 103 pixels for the repeated outbound-lock explainer, 85 pixels for KPIs, and 35 pixels for filters plus their gaps. The first actionable queue began at y=419 and received only 282 pixels of viewport height.
-
-The implementation removes the redundant explainer while preserving the real two-step send confirmation on each card. It shortens the description, tightens short-window spacing, and prevents KPI and filter rows from wrapping into extra vertical rows at narrow desktop widths. The first queue now begins at y=254 and receives 452 pixels of viewport height, a 165-pixel improvement above the queue and 170 additional visible pixels for work.
-
-The full view was sufficient for the layout problem because typography, card actions, filters, and queue section boundaries remain legible at the captured viewport. The queue header and first two confirmation cards were also inspected directly in the browser for clipping and alignment.
-
-## Required fidelity surfaces
-
-- Fonts and typography: Existing serif page and section headings, sans-serif controls, numeric hierarchy, weights, line heights, and antialiasing remain unchanged. Only the description copy was shortened to prevent unnecessary wrapping.
-- Spacing and layout rhythm: The redundant 103-pixel panel is gone. Short-window paddings and KPI gaps are reduced without collapsing the existing rhythm. The queue is now the dominant vertical region.
-- Colors and visual tokens: Existing canvas, panel, accent, warning, border, and muted tokens are unchanged. No new colors or gradients were introduced.
-- Image quality and asset fidelity: The Outbox has no raster assets. Existing product icons and card channel marks remain unchanged; no placeholder or approximate asset was added.
-- Copy and content: The description now says, “Review approved sends, then confirm exactly what goes out.” All counts, recipient details, campaign names, statuses, and send warnings remain visible.
-- Accessibility and behavior: Filter buttons keep their accessible names and selected styling. The send safety model remains the card-level two-step confirmation, so removing the explanatory banner does not reduce protection.
-
-## Primary interactions tested
-
-- Selected Email and verified the visible queue changed from six cards to five email cards.
-- Returned to All channels and verified all six cards were restored.
-- Confirmed the lock explainer is absent while Confirm send, Cancel, Send now, Mark delivered, and Retry controls remain present.
-- Checked browser console errors and warnings: none.
-
-## Comparison history
-
-- Earlier P1: At the resized viewport, explanatory chrome pushed the first actionable queue to y=419, hiding most of the send list.
-- Fix: Removed the repeated lock explainer, shortened the header copy, tightened short-height spacing, and kept KPI and filter groups to a single horizontally scrollable row when width is constrained.
-- Post-fix evidence: The normalized after capture starts the queue at y=254 and shows confirmation, scheduled, recently sent, and failed sections within the same viewport.
+- Source visual truth — live run: `/var/folders/2g/05frnm2118b30sj5k5_zmcqm0000gn/T/codex-clipboard-68e72fa4-b3d9-40f5-acac-a2e0477d105e.png`
+- Source visual truth — assistant identity mark: `/var/folders/2g/05frnm2118b30sj5k5_zmcqm0000gn/T/codex-clipboard-f2624cc9-d1d0-4ad2-889b-20bf6565b4d6.png`
+- Browser-rendered live implementation: `/tmp/arc-thinking-simplified.jpg`
+- Browser-rendered settled response: `/tmp/arc-response-footer.jpg`
+- Full live-state comparison: `/tmp/arc-thinking-comparison.jpg`
+- Focused assistant-metadata comparison: `/tmp/arc-assistant-meta-comparison.jpg`
+- Viewport: 1280 × 720
+- State: demo Storm Rapid Response conversation, user message sent, active reasoning and tool activity, then settled response
 
 ## Findings
 
-- No actionable P0, P1, or P2 issue remains in the tested desktop viewport.
-- P3: The browser viewport override did not resize an already-claimed in-app tab, so the narrow-width breakpoint was verified through CSS inspection and the current resized desktop viewport rather than a second browser-rendered width.
+No actionable P0, P1, or P2 issue remains in the tested state.
+
+The implementation intentionally removes two parts of the source problem state: the pending “Read only · 4 sources” contract strip and the assistant avatar/name header. The live view now presents one status row, streamed reasoning, and chronological activity without repeating internal permissions. Settled replies begin directly with the response and place their timestamp quietly at the lower edge.
+
+## Full-view comparison evidence
+
+The combined comparison shows the original pending run above and the revised browser state below. The original spends a full bordered row on an unexplained permission label while reporting only one placeholder activity. The revised state uses that space for actual reasoning and four distinct activity rows, while retaining the thinking indicator, elapsed duration, Stop action, and progress states.
+
+## Focused comparison evidence
+
+The focused comparison places the supplied sparkle/avatar crop beside the revised settled reply. The identity badge and “Arc” label are absent; the response hierarchy now starts with useful content. The timestamp remains available below the response as subdued monospace metadata.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing Arc serif, interface sans, and monospace metadata styles remain unchanged. The timestamp uses the established muted monospace treatment at 9.5px.
+- Spacing and layout rhythm: removing the live contract strip eliminates an unnecessary 43px row and border. Removing the assistant header eliminates the 24px identity block without changing response width.
+- Colors and tokens: existing canvas, line, muted text, gold activity, success, and error tokens are preserved.
+- Image quality and assets: no raster assets are needed. The user-requested sparkle identity icon is removed; existing Lucide activity and state icons remain.
+- Copy and content: “Read only” and redundant “Arc” identity copy are removed from chat messages. Reasoning, work activity, completed receipts, and source citations remain available.
+
+## Interactions and runtime checks
+
+- Sent a message from the demo conversation and inspected the active thinking state.
+- Confirmed Thinking, elapsed duration, Stop, streamed commentary, and live activity remain visible.
+- Confirmed no pending “Read only” row is rendered.
+- Waited for completion and confirmed no Arc/avatar header is rendered.
+- Confirmed the response timestamp is rendered after the response content.
+- No error overlay, browser runtime failure, or server-side error appeared during the interaction.
+
+## Comparison history
+
+- Earlier P1: The pending contract strip exposed an implementation term (“Read only”) that did not help the user understand progress. Fix: remove the pending contract surface while preserving the completed run receipt and underlying safety contract.
+- Earlier P2: Every assistant response repeated a sparkle badge, “Arc,” and timestamp above the useful content. Fix: remove the identity header and render only the timestamp below completed response content.
+- Post-fix evidence: the live comparison shows a shorter, activity-first thinking state; the focused comparison shows content-first settled responses with quiet bottom metadata.
 
 final result: passed

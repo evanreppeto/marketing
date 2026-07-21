@@ -34,7 +34,7 @@ export function buildArcRunContract(input: {
   toolCount?: number;
   agentTaskId?: string | null;
 }): ArcRunContract {
-  const mode = input.mode ?? "ask";
+  const mode = input.mode ?? "act";
   const scopes = uniqueScopes(input.contextScopes ?? []);
   const actionCount = Math.max(0, input.actionCount ?? 0);
   const toolCount = Math.max(0, input.toolCount ?? 0);

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { getArcConversationHeader, shouldShowDemoLauncher } from "./view-state";
+import {
+  getArcConversationHeader,
+  getArcConversationScrollTarget,
+  shouldShowDemoLauncher,
+} from "./view-state";
 
 describe("shouldShowDemoLauncher", () => {
   it("shows the launcher for an untouched new demo conversation", () => {
@@ -13,6 +17,20 @@ describe("shouldShowDemoLauncher", () => {
 
   it("does not replace an existing demo conversation with the launcher", () => {
     expect(shouldShowDemoLauncher({ selectedDemoId: "storm", turnCount: 0, pending: false })).toBe(false);
+  });
+});
+
+describe("getArcConversationScrollTarget", () => {
+  it("starts a live blank conversation at the top of its launcher", () => {
+    expect(getArcConversationScrollTarget({ live: true, activeConversationId: null, selectedDemoId: "storm" })).toBe("start");
+  });
+
+  it("keeps established live conversations pinned to their latest turn", () => {
+    expect(getArcConversationScrollTarget({ live: true, activeConversationId: "conversation-1", selectedDemoId: "storm" })).toBe("end");
+  });
+
+  it("starts the demo launcher at the top", () => {
+    expect(getArcConversationScrollTarget({ live: false, activeConversationId: null, selectedDemoId: "new" })).toBe("start");
   });
 });
 

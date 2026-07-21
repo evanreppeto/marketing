@@ -70,7 +70,7 @@ describe("regenerateArcReplyAction", () => {
 
     expect(result).toEqual({ ok: true });
     expect(del).toHaveBeenCalledWith("conv-1", "op-1");
-    expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({ messageId: "op-1", message: "Find leads", conversationId: "conv-1" }));
+    expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({ messageId: "op-1", message: "Find leads", conversationId: "conv-1", mode: "act" }));
   });
 
   it("rejects a non-arc message", async () => {
@@ -106,7 +106,7 @@ describe("editAndResendArcMessageAction", () => {
     expect(result).toEqual({ ok: true });
     expect(updateBody).toHaveBeenCalledWith("op-1", "Find storm leads instead");
     expect(del).toHaveBeenCalledWith("conv-1", "op-1");
-    expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({ messageId: "op-1", message: "Find storm leads instead" }));
+    expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({ messageId: "op-1", message: "Find storm leads instead", mode: "act" }));
   });
 
   it("rejects an empty body before writing", async () => {
