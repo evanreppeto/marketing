@@ -1016,6 +1016,7 @@
 .arc-app .arc-personas .scellbar .mb { width: 40px; height: 5px; border-radius: 99px; background: var(--inset); overflow: hidden; }
 .arc-app .arc-personas .scellbar .mb i { display: block; height: 100%; border-radius: 99px; }
 .arc-app .arc-personas .empty { display: grid; place-items: center; height: 100%; padding: 40px; text-align: center; color: var(--muted); font-size: 13px; }
+.arc-app .arc-personas .pbody > .pfilter-empty { grid-column: 1 / -1; }
 
 @media (max-width: 900px) {
   .arc-app .arc-personas .pbody { grid-template-columns: 1fr; }
