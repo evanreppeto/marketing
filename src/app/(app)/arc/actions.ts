@@ -32,8 +32,10 @@ import {
   getMessageConversationId,
   getPrecedingOperatorMessage,
   insertOperatorMessage,
+  listArchivedConversations,
   parseArcAttachmentsJson,
   renameConversation,
+  unarchiveConversation,
   setArcMessageFeedback,
   setConversationPinned,
   touchConversation,
@@ -686,5 +688,65 @@ export async function removeSavedArcItemAction(id: string): Promise<ArcInteracti
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Couldn't remove that item." };
+  }
+}
+
+/**
+ * Archived conversations — the read side of the archive action. A chat can be
+ * archived (archiveArcConversationAction) but there was no way to see or restore
+ * one. Operator- AND org-scoped (the read filters on org, closing a cross-
+ * workspace leak). Offline preview shows a demo set.
+ */
+export type ArchivedArcConversationVM = { id: string; title: string; when: string; campaignId: string | null };
+
+function shortWhen(iso: string): string {
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return "";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function buildDemoArchivedConversations(): ArchivedArcConversationVM[] {
+  return [
+    { id: "demo-arch-1", title: "Winter-prep angle brainstorm", when: "Jul 12", campaignId: null },
+    { id: "demo-arch-2", title: "Old adjuster follow-up sequence", when: "Jul 8", campaignId: "demo-camp" },
+    { id: "demo-arch-3", title: "Superseded storm draft", when: "Jul 3", campaignId: null },
+  ];
+}
+
+export async function listArchivedArcConversationsAction(): Promise<{ ok: true; items: ArchivedArcConversationVM[] } | { ok: false; error: string }> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) {
+    return { ok: true, items: isDemoDataEnabled() ? buildDemoArchivedConversations() : [] };
+  }
+  try {
+    const operator = await getOperatorActor();
+    const ctx = await getCurrentWorkspaceContext();
+    const items = await listArchivedConversations(operator, getSupabaseAdminClient(), { orgId: ctx.orgId });
+    return {
+      ok: true,
+      items: items.map((conversation) => ({
+        id: conversation.id,
+        title: conversation.title?.trim() || "Untitled chat",
+        when: shortWhen(conversation.lastMessageAt),
+        campaignId: conversation.campaignId,
+      })),
+    };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't load archived conversations." };
+  }
+}
+
+export async function unarchiveArcConversationAction(id: string): Promise<ArcInteractionResult> {
+  await requireOperator();
+  if (!id) return { ok: false, error: "Missing conversation." };
+  if (!isSupabaseAdminConfigured()) return { ok: true };
+  try {
+    await assertConversationAccess(id, "view");
+    const ctx = await getCurrentWorkspaceContext();
+    await unarchiveConversation(id, getSupabaseAdminClient(), { orgId: ctx.orgId });
+    revalidatePath("/arc");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't restore that conversation." };
   }
 }
