@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
-import { archiveBrainNode, decideBrainNode, rebuildBrainMemoryAction } from "../actions";
+import { archiveBrainNode, decideBrainNode, rebuildBrainMemoryAction, searchBrainFacts } from "../actions";
 import { KnowledgeGraph, type GraphEdge, type GraphNode } from "./knowledge-graph";
 
 export type FactVM = {
@@ -24,6 +24,9 @@ export type BrainData = {
   stats: BrainStat[];
   coverageNote: string;
   facts: FactVM[];
+  /** Whole-brain node total (exact count), so the capped facts page can say
+   *  "showing N of TOTAL" instead of implying the page is the whole memory. */
+  totalFacts: number;
   review: FactVM[];
   learned: FactVM[];
   graphNodes: GraphNode[];
@@ -75,6 +78,14 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
       }
     });
   const [kind, setKind] = useState("all");
+  // Whole-brain fact search. The loaded `data.facts` is only the 200 most-recently
+  // updated nodes, so kind chips alone can't reach an older fact; this queries the
+  // full memory server-side. `results === null` means "not searching" (show the
+  // default page); a live query replaces the table with its matches.
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<FactVM[] | null>(null);
+  const [resultsCapped, setResultsCapped] = useState(false);
+  const [searching, setSearching] = useState(false);
   // The review list is interactive (approve/reject the trust gate). Decided nodes
   // drop out immediately; a real write revalidates, offline it stays session-only.
   const [review, setReview] = useState(data.review);
@@ -83,15 +94,61 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
+  // Debounced search: a trimmed query re-queries the whole brain ~250ms after the
+  // last keystroke; clearing it returns to the default page. The token guards
+  // against an earlier, slower response overwriting a newer one.
+  const searchToken = useRef(0);
+  useEffect(() => {
+    const term = query.trim();
+    const token = ++searchToken.current;
+    const timer = setTimeout(async () => {
+      if (token !== searchToken.current) return; // a newer query superseded this one
+      if (!term) {
+        setResults(null);
+        setResultsCapped(false);
+        setSearching(false);
+        return;
+      }
+      setSearching(true);
+      const res = await searchBrainFacts(term);
+      if (token !== searchToken.current) return;
+      if (res.ok) {
+        setResults(res.facts);
+        setResultsCapped(res.capped);
+      } else {
+        setResults([]);
+        setError(res.error);
+      }
+      setSearching(false);
+    }, 220);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const kinds = useMemo(() => {
     const seen = new Map<string, { label: string; color: string }>();
     for (const f of data.facts) if (!seen.has(f.kind)) seen.set(f.kind, { label: f.kindLabel, color: f.kindColor });
     return [...seen.entries()].map(([k, v]) => ({ key: k, ...v }));
   }, [data.facts]);
 
-  const liveFacts = data.facts.filter((f) => !archivedIds.has(f.id));
-  const visibleFacts = kind === "all" ? liveFacts : liveFacts.filter((f) => f.kind === kind);
-  const counts: Record<string, number> = { facts: liveFacts.length, review: review.length, learned: data.learned.length };
+  // The default page's live count (drives the tab badge + the "showing N of TOTAL"
+  // note) — always the loaded page, never the search result set.
+  const pageLive = data.facts.filter((f) => !archivedIds.has(f.id));
+  const searchActive = results !== null;
+  const baseFacts = (results ?? data.facts).filter((f) => !archivedIds.has(f.id));
+  const visibleFacts = kind === "all" ? baseFacts : baseFacts.filter((f) => f.kind === kind);
+  const counts: Record<string, number> = { facts: pageLive.length, review: review.length, learned: data.learned.length };
+
+  // Honest status line under the facts toolbar: while searching, how many matched
+  // (and whether the match set itself hit the cap); otherwise, when the loaded page
+  // is only a slice of the whole brain, say so — the table is never silently a page
+  // masquerading as the total.
+  const factNote = searchActive
+    ? searching
+      ? "Searching Arc's memory…"
+      : `${visibleFacts.length} ${visibleFacts.length === 1 ? "match" : "matches"} for “${query.trim()}”${resultsCapped ? " · showing the first 200, refine to narrow" : ""}`
+    : data.totalFacts > pageLive.length
+      ? `Showing the ${pageLive.length} most recently updated of ${data.totalFacts.toLocaleString()} facts — search to reach any of them.`
+      : "";
 
   async function decide(nodeId: string, decision: "approve" | "reject") {
     setError(null);
@@ -179,16 +236,39 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
             {tab === "facts" && (
               <>
                 <h3 className="sh">All facts <span className="tg">wired · listNodes</span></h3>
-                {kinds.length > 1 && (
-                  <div className="factbar">
-                    <button type="button" className={`fchip${kind === "all" ? " on" : ""}`} onClick={() => setKind("all")}>All</button>
-                    {kinds.map((k) => (
-                      <button key={k.key} type="button" className={`fchip${kind === k.key ? " on" : ""}`} onClick={() => setKind(k.key)}>{k.label}</button>
-                    ))}
+                <div className="facttools">
+                  <div className="factsearch">
+                    <svg viewBox="0 0 24 24" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search all facts…"
+                      aria-label="Search Arc's memory"
+                    />
+                    {query && (
+                      <button type="button" className="fs-clear" onClick={() => setQuery("")} aria-label="Clear search">
+                        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                      </button>
+                    )}
                   </div>
-                )}
+                  {kinds.length > 1 && (
+                    <div className="factbar">
+                      <button type="button" className={`fchip${kind === "all" ? " on" : ""}`} onClick={() => setKind("all")}>All</button>
+                      {kinds.map((k) => (
+                        <button key={k.key} type="button" className={`fchip${kind === k.key ? " on" : ""}`} onClick={() => setKind(k.key)}>{k.label}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {factNote && <div className="factnote">{factNote}</div>}
                 {visibleFacts.length === 0 ? (
-                  <div className="empty">No facts yet. Arc records what it learns about your business here.</div>
+                  <div className="empty">
+                    {searchActive
+                      ? searching
+                        ? "Searching Arc's memory…"
+                        : `No facts match “${query.trim()}”.`
+                      : "No facts yet. Arc records what it learns about your business here."}
+                  </div>
                 ) : (
                   <div className="ftwrap">
                     <table className="ft">
