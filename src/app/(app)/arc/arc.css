@@ -1151,6 +1151,25 @@
 .arc-composer-pill small { color: var(--muted); font-family: var(--mono); font-size: 8.5px; }
 .arc-model-button { padding-left: 7px; }
 .arc-model-button > svg:first-child { color: var(--muted); }
+.arc-auto-mark { color: currentColor; overflow: visible; }
+.arc-auto-mark path,
+.arc-auto-mark circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  transition: opacity 180ms ease, stroke-width 180ms ease;
+}
+.arc-auto-mark-bridge { opacity: .58; }
+.arc-auto-mark circle { fill: currentColor; stroke: none; }
+.arc-model-button:hover .arc-auto-mark-bridge,
+.arc-model-option:hover .arc-auto-mark-bridge { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .arc-auto-mark path,
+  .arc-auto-mark circle { transition: none; }
+}
 .arc-context-control { position: relative; display: flex; align-items: center; }
 .arc-context-meter {
   position: relative;

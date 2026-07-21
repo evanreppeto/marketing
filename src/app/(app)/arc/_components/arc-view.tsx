@@ -54,7 +54,6 @@ import {
   Share2,
   ShieldCheck,
   Slash,
-  Sparkles,
   Target,
   Telescope,
   Trash2,
@@ -162,7 +161,15 @@ function inferComposerMode(request: string, command: string | null): ArcMode {
 }
 
 function ArcModelIcon({ model, size }: { model: ArcModelPreference; size: number }) {
-  if (model === "auto") return <Sparkles size={size} />;
+  if (model === "auto") {
+    return (
+      <svg className="arc-auto-mark" width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path className="arc-auto-mark-arch" d="M3.6 16 8.75 4.45a1.37 1.37 0 0 1 2.5 0L16.4 16" />
+        <path className="arc-auto-mark-bridge" d="M6.1 11h2.25m3.3 0h2.25" />
+        <circle cx="10" cy="11" r="1.15" />
+      </svg>
+    );
+  }
   if (model === "fast") return <Gauge size={size} />;
   return <Hammer size={size} />;
 }
