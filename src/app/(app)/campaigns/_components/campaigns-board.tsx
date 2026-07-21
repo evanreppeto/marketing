@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { createCampaign, type NewCampaignInput } from "../actions";
@@ -269,19 +270,21 @@ export function CampaignsBoard({
                 <tr
                   key={r.id}
                   className={r.id.startsWith("local-") ? "freshrow" : undefined}
-                  onClick={() => {
-                    // Optimistic (unsaved) drafts have no live detail page yet.
-                    if (!r.id.startsWith("local-")) window.location.href = r.href;
-                  }}
                 >
                   <td>
-                    <div className="pcell">
+                    {r.id.startsWith("local-") ? <div className="pcell">
                       <span className="pav">{CampIcon}</span>
                       <div style={{ minWidth: 0 }}>
                         <div className="pnm">{r.name}</div>
                         <div className="psub">{r.brief}</div>
                       </div>
-                    </div>
+                    </div> : <Link className="pcell campaign-link" href={r.href} aria-label={`Open ${r.name}`}>
+                      <span className="pav">{CampIcon}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="pnm">{r.name}</div>
+                        <div className="psub">{r.brief}</div>
+                      </div>
+                    </Link>}
                   </td>
                   <td>
                     <span className={`pill ${r.tone}`}>

@@ -17,6 +17,7 @@ const d = (status: DispatchStatus, audienceCount: number | null): DispatchView =
   audienceCount,
   resultNote: null,
   updatedAt: "2026-07-16T00:00:00Z",
+  preview: null,
 });
 
 /** Exactly what prod held when this bug was found. */

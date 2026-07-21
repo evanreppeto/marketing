@@ -1,6 +1,7 @@
 import { buildOutboxKpis } from "@/lib/dispatch/kpis";
 import { getOutboxList } from "@/lib/dispatch/read-model";
 import { type DispatchStatus, type DispatchView } from "@/lib/dispatch/status";
+import { getEmailConnection } from "@/lib/connections/read-model";
 
 import {
   OutboxBoard,
@@ -52,7 +53,7 @@ function noteTone(status: DispatchStatus): OutboxCardVM["noteTone"] {
   return "";
 }
 
-function toOutboxCard(d: DispatchView): OutboxCardVM {
+function toOutboxCard(d: DispatchView, sender: string | null): OutboxCardVM {
   const recipients = typeof d.audienceCount === "number" ? d.audienceCount.toLocaleString() : null;
   const when = d.dispatchedAt || d.scheduledFor;
   const meta = [recipients ? `${recipients} recipients` : null, when].filter(Boolean).join(" · ") || null;
@@ -60,8 +61,13 @@ function toOutboxCard(d: DispatchView): OutboxCardVM {
     id: d.id,
     status: d.status,
     channel: normChannel(d.channel),
-    title: d.recipientSummary || d.deliverable,
+    title: d.deliverable,
     campaign: d.campaignName,
+    recipient: d.preview?.to || d.recipientSummary,
+    sender,
+    subject: d.preview?.subject || d.deliverable,
+    bodyPreview: d.preview?.text ?? null,
+    sendTiming: d.scheduledFor || (d.status === "queued" ? "Send immediately after confirmation" : null),
     note: d.resultNote,
     noteTone: noteTone(d.status),
     href: d.campaignId ? `/campaigns/${d.campaignId}` : "/campaigns",
@@ -74,8 +80,12 @@ function toOutboxCard(d: DispatchView): OutboxCardVM {
 }
 
 export default async function OutboxPage() {
-  const outbox = await getOutboxList().catch(() => ({ status: "unavailable" }) as const);
-  const dispatches = outbox.status === "live" ? outbox.dispatches.map(toOutboxCard) : [];
+  const [outbox, emailConnection] = await Promise.all([
+    getOutboxList().catch(() => ({ status: "unavailable" }) as const),
+    getEmailConnection().catch(() => null),
+  ]);
+  const sender = emailConnection?.fromEmail || process.env.RESEND_FROM || null;
+  const dispatches = outbox.status === "live" ? outbox.dispatches.map((dispatch) => toOutboxCard(dispatch, sender)) : [];
 
   // Priority-ordered send queue rather than one lane per lifecycle status: the
   // thing that needs a human (queued → confirmation) leads; scheduled sits next;

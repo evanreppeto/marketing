@@ -24,6 +24,12 @@ export const STATUS_TONE: Record<DispatchStatus, "amber" | "blue" | "green" | "r
   canceled: "gray",
 };
 
+export type DispatchPreview = {
+  to: string | null;
+  subject: string | null;
+  text: string | null;
+};
+
 export type DispatchView = {
   id: string;
   campaignId: string;
@@ -38,6 +44,8 @@ export type DispatchView = {
   audienceCount: number | null;
   resultNote: string | null;
   updatedAt: string;
+  /** Sanitized fields from the immutable queued payload for human send review. */
+  preview: DispatchPreview | null;
 };
 
 export type DispatchGroup = { status: DispatchStatus; items: DispatchView[] };
