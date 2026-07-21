@@ -6,7 +6,7 @@ import { useState, useTransition } from "react";
 import { type CrmRecordData, type CrmRecordGraphNode, type CrmRecordRelationship } from "@/lib/crm/read-model";
 import { type NoteEntry, type TaskEntry, type TimelineEntry } from "@/lib/interactions/read-model";
 
-import { addRecordNote, addRecordTask, completeRecordTask, setRecordNotePinned, updateCrmRecord } from "../actions";
+import { addRecordNote, addRecordTask, completeRecordTask, reopenRecordTask, setRecordNotePinned, updateCrmRecord } from "../actions";
 import { EditRecordModal } from "./edit-record-modal";
 
 export type RecordActivity = {
@@ -285,6 +285,21 @@ export function RecordView({
     });
   }
 
+  // Undo a completed task. Urgency is recomputed by the server on revalidate; the
+  // optimistic flip just reopens it so the checkbox reads as a real toggle.
+  function reopen(task: TaskEntry) {
+    if (task.status !== "completed" || pending) return;
+    setErr(null);
+    setTasks((ts) => ts.map((t) => (t.id === task.id ? { ...t, status: "open" } : t)));
+    startTransition(async () => {
+      const res = await reopenRecordTask(record.key, record.id, task.id);
+      if (!res.ok) {
+        setTasks((ts) => ts.map((t) => (t.id === task.id ? { ...t, status: task.status } : t)));
+        setErr(res.error);
+      }
+    });
+  }
+
   function togglePin(note: NoteEntry) {
     if (pending) return;
     setErr(null);
@@ -488,8 +503,9 @@ export function RecordView({
                         <span
                           className={`tcheck${t.status === "completed" ? " done" : ""}`}
                           role="button"
-                          aria-label={t.status === "completed" ? "Completed" : "Mark complete"}
-                          onClick={() => complete(t)}
+                          title={t.status === "completed" ? "Reopen task" : "Mark complete"}
+                          aria-label={t.status === "completed" ? "Reopen task" : "Mark complete"}
+                          onClick={() => (t.status === "completed" ? reopen(t) : complete(t))}
                         >
                           {svg(CHECK_IC)}
                         </span>
