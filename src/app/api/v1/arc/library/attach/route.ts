@@ -3,10 +3,9 @@ import { NextResponse } from "next/server";
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import {
   CAMPAIGN_ASSET_TYPE_VALUES,
-  RESTORATION_FOCUS_VALUES,
+  deriveCampaignTheme,
   isAllowedPersona,
   normalizeCampaignAssetType,
-  normalizeRestorationFocus,
 } from "@/domain";
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
 import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
@@ -61,28 +60,28 @@ export async function POST(request: Request) {
     if (!campaignId) {
       const name = str(body.name);
       const persona = str(body.persona);
-      const restorationFocusIn = str(body.restoration_focus);
-      if (!name || !persona || !restorationFocusIn) {
+      const campaignTheme = deriveCampaignTheme(str(body.campaign_theme), str(body.restoration_focus));
+      if (!name || !persona || !campaignTheme) {
         return fail(
           "rejected",
-          "To create a new campaign, name, persona, and restoration_focus are required (or pass campaign_id to attach to an existing campaign).",
+          "To create a new campaign, name, persona, and a campaign theme are required (or pass campaign_id to attach to an existing campaign).",
           400,
         );
       }
-      // Validate persona against the workspace's own taxonomy; restoration_focus
-      // stays a Postgres enum check below.
+      // Validate persona against the workspace's own taxonomy. The theme is free
+      // text; a legacy restoration_focus is normalized to enum-or-null on write.
       if (!isAllowedPersona(persona, await getOrgPersonaKeys(allowed.scope.orgId))) {
         return fail("rejected", `Unknown persona "${persona}" for this workspace.`, 400);
       }
-      const restorationFocus = normalizeRestorationFocus(restorationFocusIn);
-      if (!restorationFocus) {
-        return fail(
-          "rejected",
-          `Unknown restoration_focus "${restorationFocusIn}". Use one of: ${RESTORATION_FOCUS_VALUES.join(", ")}.`,
-          400,
-        );
-      }
-      const shell = await createCampaignShell({ operator: "Arc", name, persona, restorationFocus, agentName: "Arc", tenant });
+      const shell = await createCampaignShell({
+        operator: "Arc",
+        name,
+        persona,
+        campaignTheme,
+        restorationFocus: str(body.restoration_focus),
+        agentName: "Arc",
+        tenant,
+      });
       campaignId = shell.campaignId;
     }
 

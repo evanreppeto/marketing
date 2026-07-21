@@ -119,11 +119,13 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
       assetId: "asset_1",
     });
     expect(resolveMock).toHaveBeenCalledOnce();
+    // The route forwards the raw inputs; theme derivation + enum normalization now
+    // live inside resolveOrCreateCampaign (mocked here), not at the boundary.
     expect(resolveMock).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "Fall Water Push",
         persona: "persona_homeowner_emergency",
-        restorationFocus: "water_backup",
+        restorationFocus: "water",
         tenant: { org_id: "org-1", workspace_id: "workspace-1" },
       }),
     );
@@ -152,13 +154,13 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
     expect(promoteMock).toHaveBeenCalledWith(expect.objectContaining({ assetType: "video_prompt" }));
   });
 
-  it("400s on an unknown restoration_focus when creating a new campaign", async () => {
+  it("accepts an unknown restoration_focus as a free-text theme (industry-neutral, no 400)", async () => {
     configure();
     const res = await POST(
       req("Bearer secret", { asset_type: "social_ad", title: "x", name: "N", persona: "persona_landlord", restoration_focus: "lava" }),
     );
-    expect(res.status).toBe(400);
-    expect(resolveMock).not.toHaveBeenCalled();
+    expect(res.status).toBe(201);
+    expect(resolveMock).toHaveBeenCalledWith(expect.objectContaining({ restorationFocus: "lava" }));
   });
 
   it("400s on an unknown persona when creating a new campaign", async () => {
@@ -170,13 +172,13 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
     expect(resolveMock).not.toHaveBeenCalled();
   });
 
-  it("normalizes the restoration_focus alias water -> water_backup on the shell", async () => {
+  it("forwards a free-text campaign_theme when creating a new campaign", async () => {
     configure();
     const res = await POST(
-      req("Bearer secret", { asset_type: "social_ad", title: "x", name: "N", persona: "persona_landlord", restoration_focus: "water" }),
+      req("Bearer secret", { asset_type: "social_ad", title: "x", name: "N", persona: "persona_landlord", campaign_theme: "Spring onboarding" }),
     );
     expect(res.status).toBe(201);
-    expect(resolveMock).toHaveBeenCalledWith(expect.objectContaining({ restorationFocus: "water_backup" }));
+    expect(resolveMock).toHaveBeenCalledWith(expect.objectContaining({ campaignTheme: "Spring onboarding" }));
   });
 
   it("attaches to an existing campaign without creating a shell", async () => {

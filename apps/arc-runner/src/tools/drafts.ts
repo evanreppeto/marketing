@@ -51,17 +51,19 @@ export function draftWorkProductTools(
   const collectCard = sink.card;
   const createCampaignDraft = tool(
     "create_campaign_draft",
-    "Create an approval-gated campaign DRAFT asset (e.g. social_ad, email, sms, image_prompt, video_prompt, landing_page, one_pager). Attach to an existing campaign with campaign_id, or create a new draft campaign by giving name + persona (use a persona key) + restoration_focus (one of: flood | water_backup | burst_pipe | storm_surge | standing_water | mold | sewage | fire). The asset is created pending approval and surfaced with an inline Approve/Decline card — nothing is sent. Returns campaignId + assetId.",
+    "Create an approval-gated campaign DRAFT asset (e.g. social_ad, email, sms, image_prompt, video_prompt, landing_page, one_pager). Attach to an existing campaign with campaign_id, or create a new draft campaign by giving name + persona (use a persona key) + campaign_theme (a short phrase for what the campaign is about, in this workspace's own terms — e.g. 'Spring storm roof response', 'Q4 onboarding push', 'Lapsed-customer win-back'). The asset is created pending approval and surfaced with an inline Approve/Decline card — nothing is sent. Returns campaignId + assetId.",
     {
       campaign_id: z.string().optional().describe("Existing campaign to attach to; omit to create a new draft campaign"),
       name: z.string().optional().describe("New campaign name (required when campaign_id is omitted)"),
       persona: z.string().optional().describe("Persona key (required when creating a new campaign)"),
+      campaign_theme: z
+        .string()
+        .optional()
+        .describe("Short, industry-appropriate campaign theme, required when creating a new campaign (what the campaign is about, in the workspace's own terms)"),
       restoration_focus: z
         .string()
         .optional()
-        .describe(
-          "Loss focus, required when creating a new campaign. One of: flood | water_backup | burst_pipe | storm_surge | standing_water | mold | sewage | fire",
-        ),
+        .describe("Legacy restoration loss-focus (BSR only) — optional; prefer campaign_theme"),
       asset_type: z.string().describe("Asset type, e.g. social_ad | email | sms | image_prompt | landing_page | one_pager"),
       title: z.string().describe("Short title for the asset"),
       body: z.string().optional().describe("The draft copy/content"),

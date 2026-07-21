@@ -86,15 +86,21 @@ describe("POST /api/v1/arc/library/attach", () => {
     expect(promoteMock).toHaveBeenCalledWith(expect.objectContaining({ assetType: "video_prompt" }));
   });
 
-  it("400s on an unknown persona / restoration_focus when creating a new campaign", async () => {
+  it("400s on an unknown persona when creating a new campaign", async () => {
     configure();
     expect(
       (await POST(req("Bearer secret", { library_asset_id: "lib-1", title: "x", name: "N", persona: "persona_alien", restoration_focus: "flood" }))).status,
     ).toBe(400);
-    expect(
-      (await POST(req("Bearer secret", { library_asset_id: "lib-1", title: "x", name: "N", persona: "persona_landlord", restoration_focus: "lava" }))).status,
-    ).toBe(400);
     expect(shellMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a non-restoration focus as a free-text theme (industry-neutral, no 400)", async () => {
+    configure();
+    const res = await POST(
+      req("Bearer secret", { library_asset_id: "lib-1", title: "x", name: "N", persona: "persona_landlord", restoration_focus: "lava" }),
+    );
+    expect(res.status).toBe(201);
+    expect(shellMock).toHaveBeenCalledWith(expect.objectContaining({ campaignTheme: "Lava" }));
   });
 
   it("accepts a custom org-defined persona that isn't in the BSR set", async () => {
@@ -108,13 +114,15 @@ describe("POST /api/v1/arc/library/attach", () => {
     expect(shellMock).toHaveBeenCalledWith(expect.objectContaining({ persona: "wedding_lead" }));
   });
 
-  it("normalizes restoration_focus water -> water_backup on the shell", async () => {
+  it("forwards a free-text campaign_theme + the legacy restoration_focus to the shell", async () => {
     configure();
     const res = await POST(
-      req("Bearer secret", { library_asset_id: "lib-1", title: "x", name: "N", persona: "persona_landlord", restoration_focus: "water" }),
+      req("Bearer secret", { library_asset_id: "lib-1", title: "x", name: "N", persona: "persona_landlord", campaign_theme: "Spring onboarding" }),
     );
     expect(res.status).toBe(201);
-    expect(shellMock).toHaveBeenCalledWith(expect.objectContaining({ restorationFocus: "water_backup" }));
+    // The route derives the theme and hands it to createCampaignShell, which owns
+    // enum normalization of any legacy restoration_focus.
+    expect(shellMock).toHaveBeenCalledWith(expect.objectContaining({ campaignTheme: "Spring onboarding" }));
   });
 
   it("links the originating conversation to the campaign", async () => {

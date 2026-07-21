@@ -274,7 +274,9 @@ export function buildNodeInputForCampaign(row: Record<string, unknown>): Knowled
     key: campaignNodeKey(id),
     label: (row.name as string) || "Campaign",
     summary: lines([
-      ["Campaign", row.name], ["Persona", persona(row)], ["Focus", row.restoration_focus],
+      ["Campaign", row.name], ["Persona", persona(row)],
+      // Prefer the industry-neutral theme; fall back to the legacy restoration enum.
+      ["Theme", row.campaign_theme || row.restoration_focus],
       ["Status", row.status], ["Objective", row.objective],
       ["Audience", row.audience_summary], ["Offer", row.offer_summary],
     ]),

@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type ParsedCampaignDraft, type ViralityScore, resolveCampaignCta } from "@/domain";
+import { type ParsedCampaignDraft, type ViralityScore, deriveCampaignTheme, normalizeRestorationFocus, resolveCampaignCta } from "@/domain";
 
 import { getSupabaseAdminClient, type TypedSupabaseClient } from "../supabase/server";
 import { type AgentTaskTenantFields } from "../agent-tasks/scope";
@@ -132,7 +132,8 @@ export async function createOperatorCampaign({
     ...orgTenantFields(tenant),
     name: draft.name,
     persona: draft.persona,
-    restoration_focus: draft.restorationFocus,
+    campaign_theme: draft.campaignTheme,
+    restoration_focus: draft.restorationFocus || null,
     status: "draft",
     source_system: SOURCE_SYSTEM,
     launch_locked: true,
@@ -243,8 +244,10 @@ export async function createCampaignFromOpportunity(
   const client = input.client ?? getSupabaseAdminClient();
   const agentName = input.agentName?.trim() || "Arc";
   const opp = input.opportunity;
-  const campaignTheme = (input.campaignTheme || input.restorationFocus || "Campaign growth").trim();
-  const legacyRestorationFocus = input.restorationFocus?.trim() || null;
+  const campaignTheme = deriveCampaignTheme(input.campaignTheme, input.restorationFocus) || "Campaign growth";
+  // Normalize to a valid enum member (or null) — the legacy column is still an
+  // enum type, so a free-text theme must never be written into it.
+  const legacyRestorationFocus = normalizeRestorationFocus(input.restorationFocus);
 
   const campaignId = await insertOne(client, "campaigns", {
     ...orgTenantFields(input.tenant),
@@ -312,8 +315,10 @@ export type CreateCampaignShellInput = {
 export async function createCampaignShell(input: CreateCampaignShellInput): Promise<{ campaignId: string }> {
   const client = input.client ?? getSupabaseAdminClient();
   const agentName = input.agentName?.trim() || "Agent";
-  const campaignTheme = (input.campaignTheme || input.restorationFocus || "Campaign growth").trim();
-  const legacyRestorationFocus = input.restorationFocus?.trim() || null;
+  const campaignTheme = deriveCampaignTheme(input.campaignTheme, input.restorationFocus) || "Campaign growth";
+  // Normalize to a valid enum member (or null) — the legacy column is still an
+  // enum type, so a free-text theme must never be written into it.
+  const legacyRestorationFocus = normalizeRestorationFocus(input.restorationFocus);
   const campaignId = await insertOne(client, "campaigns", {
     ...orgTenantFields(input.tenant),
     name: input.name,
@@ -357,6 +362,9 @@ export type ResolveOrCreateCampaignInput = {
   campaignId?: string | null;
   name?: string | null;
   persona?: string | null;
+  /** Industry-neutral theme for the new draft. */
+  campaignTheme?: string | null;
+  /** Legacy restoration enum retained for older callers during migration. */
   restorationFocus?: string | null;
   agentName?: string;
   client?: SupabaseClient;
@@ -365,11 +373,13 @@ export type ResolveOrCreateCampaignInput = {
 
 /**
  * Resolve an existing campaign id, or create a fresh draft shell from
- * name/persona/restoration_focus. Shared by the Arc draft-asset and
- * submit-variants routes so neither duplicates campaign-creation logic.
+ * name/persona/theme. Shared by the Arc draft-asset and submit-variants routes so
+ * neither duplicates campaign-creation logic.
  *
- * Throws `CampaignResolutionError` (→ 400) when creating a new campaign without
- * the required fields.
+ * Industry-neutral: a `campaignTheme` (free text) is the primary field; a legacy
+ * `restorationFocus` still satisfies the requirement and seeds the theme. Throws
+ * `CampaignResolutionError` (→ 400) when creating a new campaign without the
+ * required fields.
  */
 export async function resolveOrCreateCampaign(input: ResolveOrCreateCampaignInput): Promise<{ campaignId: string }> {
   const existing = input.campaignId?.trim();
@@ -377,10 +387,10 @@ export async function resolveOrCreateCampaign(input: ResolveOrCreateCampaignInpu
 
   const name = input.name?.trim();
   const persona = input.persona?.trim();
-  const restorationFocus = input.restorationFocus?.trim();
-  if (!name || !persona || !restorationFocus) {
+  const campaignTheme = deriveCampaignTheme(input.campaignTheme, input.restorationFocus);
+  if (!name || !persona || !campaignTheme) {
     throw new CampaignResolutionError(
-      "To create a new campaign, name, persona, and restoration_focus are required (or pass campaign_id to attach to an existing campaign).",
+      "To create a new campaign, name, persona, and a campaign theme are required (or pass campaign_id to attach to an existing campaign).",
     );
   }
 
@@ -388,7 +398,8 @@ export async function resolveOrCreateCampaign(input: ResolveOrCreateCampaignInpu
     operator: input.operator,
     name,
     persona,
-    restorationFocus,
+    campaignTheme,
+    restorationFocus: input.restorationFocus ?? undefined,
     agentName: input.agentName ?? "Arc",
     client: input.client,
     tenant: input.tenant,

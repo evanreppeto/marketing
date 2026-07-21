@@ -14,6 +14,9 @@ describe("parseCampaignDraft", () => {
     expect(out).toMatchObject({
       name: "Spring flood push",
       persona: "persona_homeowner_emergency",
+      // A legacy restorationFocus seeds the industry-neutral theme; the enum value
+      // is kept only for the legacy column.
+      campaignTheme: "Flood",
       restorationFocus: "flood",
       audienceSummary: "North side",
       channel: "social",
@@ -30,8 +33,20 @@ describe("parseCampaignDraft", () => {
     expect(() => parseCampaignDraft({ ...base, persona: "nope" })).toThrow(/persona/i);
   });
 
-  it("rejects an invalid restoration focus", () => {
-    expect(() => parseCampaignDraft({ ...base, restorationFocus: "earthquake" })).toThrow(/restoration/i);
+  it("accepts a non-restoration value as a free-text theme (industry-neutral)", () => {
+    const out = parseCampaignDraft({ ...base, restorationFocus: "earthquake" });
+    expect(out.campaignTheme).toBe("Earthquake");
+    expect(out.restorationFocus).toBe(""); // not an enum member → no legacy value written
+  });
+
+  it("accepts an explicit industry-neutral campaignTheme", () => {
+    const out = parseCampaignDraft({ name: "Q4 push", persona: "persona_homeowner_emergency", campaignTheme: "Customer onboarding" });
+    expect(out.campaignTheme).toBe("Customer onboarding");
+    expect(out.restorationFocus).toBe("");
+  });
+
+  it("requires a theme when neither campaignTheme nor restorationFocus is given", () => {
+    expect(() => parseCampaignDraft({ name: "X", persona: "persona_homeowner_emergency" })).toThrow(/theme/i);
   });
 
   it("validates optional lead/company UUIDs when present", () => {

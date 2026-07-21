@@ -21,12 +21,13 @@ export function variantsTools(
 ) {
   const submitAdVariants = tool(
     "submit_ad_variants",
-    "Submit a scored batch of generated ad variants for ranking. FIRST generate N variants (generate_video for video ads, generate_image for image ads), and for EACH video call mcp__higgsfield__virality_predictor and poll it to completion to get analysis.scores. THEN call this with every variant. For videos include `analysis` (the raw analysis.scores object: viral_potential, hook_score, sustain, brain_engagement, peak_second) and optionally `dashboard_url`. For images include format_matches_channel / has_brand / width / height. The server scores, ranks, submits the top-K as approval-gated drafts, and returns the rationale — relay it. Attach to campaign_id or start a new draft campaign with name + persona + restoration_focus.",
+    "Submit a scored batch of generated ad variants for ranking. FIRST generate N variants (generate_video for video ads, generate_image for image ads), and for EACH video call mcp__higgsfield__virality_predictor and poll it to completion to get analysis.scores. THEN call this with every variant. For videos include `analysis` (the raw analysis.scores object: viral_potential, hook_score, sustain, brain_engagement, peak_second) and optionally `dashboard_url`. For images include format_matches_channel / has_brand / width / height. The server scores, ranks, submits the top-K as approval-gated drafts, and returns the rationale — relay it. Attach to campaign_id or start a new draft campaign with name + persona + campaign_theme.",
     {
       campaign_id: z.string().optional(),
       name: z.string().optional(),
       persona: z.string().optional(),
-      restoration_focus: z.string().optional(),
+      campaign_theme: z.string().optional().describe("Short, industry-appropriate campaign theme when creating a new campaign"),
+      restoration_focus: z.string().optional().describe("Legacy restoration focus (BSR only) — optional; prefer campaign_theme"),
       asset_type: z.string().describe("e.g. video_ad | image_prompt"),
       top_k: z.number().optional().describe("how many top variants to submit (default 2)"),
       variants: z
@@ -62,6 +63,7 @@ export function variantsTools(
               : {}),
           name: args.name,
           persona: args.persona,
+          campaign_theme: args.campaign_theme,
           restoration_focus: args.restoration_focus,
           asset_type: args.asset_type,
           top_k: args.top_k,
