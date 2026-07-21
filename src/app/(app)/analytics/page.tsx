@@ -1,5 +1,5 @@
 import { getRecentActivity, type ActivityEntry, type ActivityTone } from "@/lib/activity/read-model";
-import { getAnalyticsOverview } from "@/lib/analytics/overview";
+import { getAnalyticsOverview, normalizeWindow } from "@/lib/analytics/overview";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getOpportunityConversion } from "@/lib/performance/opportunity-conversion";
 import { getPerformanceReadModel } from "@/lib/performance/read-model";
@@ -30,10 +30,11 @@ function toActivityRow(e: ActivityEntry) {
   return { id: e.id, dot: TONE_DOT[e.tone] ?? "var(--muted)", title: e.title, detail: e.detail, meta, time: timeLabel(e.occurredAt) };
 }
 
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const ctx = await getCurrentWorkspaceContext();
+  const range = normalizeWindow((await searchParams).range);
   const [overview, activity, performance, conversion] = await Promise.all([
-    getAnalyticsOverview(ctx.orgId).catch(() => null),
+    getAnalyticsOverview(ctx.orgId, range).catch(() => null),
     getRecentActivity({}, undefined, ctx.orgId).catch(() => ({ status: "unavailable" }) as const),
     getPerformanceReadModel(undefined, undefined, ctx.orgId).catch(() => ({ status: "unavailable" }) as const),
     getOpportunityConversion(ctx.orgId).catch(() => ({ status: "unavailable" }) as const),
@@ -72,6 +73,7 @@ export default async function AnalyticsPage() {
   return (
     <AnalyticsView
       overview={safeOverview}
+      range={range}
       conversion={conversion}
       activitySummary={activitySummary}
       activityDays={activityDays}
