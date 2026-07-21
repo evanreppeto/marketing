@@ -16,7 +16,7 @@ import { LOCKED_CLAIMS, MEASUREMENT_PLAN } from "@/lib/performance/measurement-c
 import { buildPerformanceLearning, type CampaignPerformancePanel, type PerformanceTrendPoint } from "@/lib/performance/campaign-panel";
 
 import { ShareDialog } from "../../../_components/share-dialog";
-import { attachCampaignMediaAction, decideCampaignAsset, editCampaignDraftAction, launchCampaignAction, requestCampaignRevision } from "../actions";
+import { attachCampaignMediaAction, decideCampaignAsset, editCampaignDraftAction, launchCampaignAction, reopenCampaignAsset, requestCampaignRevision } from "../actions";
 import {
   getCampaignSharingStateAction,
   setCampaignSharingAction,
@@ -439,6 +439,22 @@ export function CampaignDetailView({ detail, performance, audience, attachableMe
     });
   }
 
+  function reopen(asset: CampaignWorkspaceAsset) {
+    if (pending) return;
+    setErr(null);
+    const prev = asset.status;
+    // Optimistically flip back to review so the decision controls reappear; the
+    // action re-locks dispatch server-side. Revert on failure.
+    setAssetStatus(asset.id, "pending_approval");
+    startTransition(async () => {
+      const res = await reopenCampaignAsset(campaign.id, asset.id);
+      if (!res.ok) {
+        setAssetStatus(asset.id, prev);
+        setErr(res.error);
+      }
+    });
+  }
+
   function attachMedia(asset: CampaignWorkspaceAsset, item: AttachableMediaItem) {
     if (pending) return;
     setErr(null);
@@ -748,8 +764,16 @@ export function CampaignDetailView({ detail, performance, audience, attachableMe
                           </div>
                         ) : (
                           <div className="ddecided">
-                            {meta.label}
-                            {asset.dispatchLocked && " · outbound stays locked until launch"}
+                            <span>
+                              {meta.label}
+                              {asset.dispatchLocked && " · outbound stays locked until launch"}
+                            </span>
+                            {/^(approved|archived)/i.test(asset.status) && (
+                              <button type="button" className="cbtn ghost dreopen" onClick={() => reopen(asset)} disabled={pending} title="Send this deliverable back to review">
+                                {svg('<path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 10a8 8 0 00-14-3M4 14a8 8 0 0014 3"/>')}
+                                Reopen
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
