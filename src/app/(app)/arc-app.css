@@ -705,9 +705,18 @@
 .arc-app .arc-analytics .vtab:hover { color: var(--text); background: rgba(255, 255, 255, .035); }
 .arc-app .arc-analytics .vtab.on { color: var(--text); background: var(--accent-soft); border-color: var(--accent-border); }
 .arc-app .arc-analytics .cspacer { margin-left: auto; }
-.arc-app .arc-analytics .ctl { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--inset); color: var(--text-2); font-size: 12px; font-weight: 500; }
+.arc-app .arc-analytics .ctl { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--inset); color: var(--text-2); font-size: 12px; font-weight: 500; font-family: inherit; }
 .arc-app .arc-analytics .ctl svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; opacity: .85; }
 .arc-app .arc-analytics .ctl .cv { color: var(--muted); font-size: 10px; }
+.arc-app .arc-analytics .rangectl { position: relative; }
+.arc-app .arc-analytics .rangectl .ctl { cursor: pointer; transition: border-color .14s, color .14s; }
+.arc-app .arc-analytics .rangectl .ctl:hover, .arc-app .arc-analytics .rangectl .ctl[aria-expanded="true"] { border-color: var(--accent-border); color: var(--text); }
+.arc-app .arc-analytics .ctl-backdrop { position: fixed; inset: 0; z-index: 40; background: none; border: none; cursor: default; }
+.arc-app .arc-analytics .ctl-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 41; min-width: 160px; padding: 5px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel); box-shadow: 0 12px 30px rgba(0,0,0,.34); display: flex; flex-direction: column; gap: 2px; }
+.arc-app .arc-analytics .ctl-opt { display: flex; align-items: center; justify-content: space-between; height: 30px; padding: 0 10px; border: none; border-radius: 7px; background: none; color: var(--text-2); font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer; text-align: left; transition: background .12s, color .12s; }
+.arc-app .arc-analytics .ctl-opt:hover { background: var(--inset); color: var(--text); }
+.arc-app .arc-analytics .ctl-opt.on { color: var(--text); background: var(--accent-soft); }
+.arc-app .arc-analytics .ctl-opt.on::after { content: "✓"; color: var(--accent); font-size: 11px; }
 
 .arc-app .arc-analytics .body { flex: 1; min-height: 0; overflow: auto; padding: 22px clamp(22px, 3vw, 38px) 46px; }
 .arc-app .arc-analytics .inner { max-width: 1200px; }

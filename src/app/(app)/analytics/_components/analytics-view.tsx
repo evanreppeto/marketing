@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { formatRate } from "@/domain";
-import type { AnalyticsOverview, TrendKey, TrendSeries } from "@/lib/analytics/overview";
+import { ANALYTICS_WINDOWS } from "@/lib/analytics/overview";
+import type { AnalyticsOverview, AnalyticsWindow, TrendKey, TrendSeries } from "@/lib/analytics/overview";
 import type { OpportunityConversionReadModel } from "@/lib/performance/opportunity-conversion";
 import type { CampaignPerformanceRow, ChannelPerformance, PerformanceAnomaly, PerformanceNextMove } from "@/lib/performance/read-model";
 
@@ -277,6 +279,7 @@ function WhatConverts({ model }: { model: OpportunityConversionReadModel }) {
 
 export function AnalyticsView({
   overview,
+  range,
   conversion,
   activitySummary,
   activityDays,
@@ -286,6 +289,7 @@ export function AnalyticsView({
   nextMoves,
 }: {
   overview: AnalyticsOverview;
+  range: AnalyticsWindow;
   conversion: OpportunityConversionReadModel;
   activitySummary: { label: string; value: number }[];
   activityDays: ActivityDayVM[];
@@ -294,8 +298,16 @@ export function AnalyticsView({
   anomalies: PerformanceAnomaly[];
   nextMoves: PerformanceNextMove[];
 }) {
+  const router = useRouter();
   const [view, setView] = useState<View>("overview");
   const [metric, setMetric] = useState<TrendKey>("revenue");
+  const [rangeOpen, setRangeOpen] = useState(false);
+  // The range drives a server recompute via ?range=N; soft navigation keeps the
+  // active tab + metric (client state) in place while new overview data streams in.
+  const selectRange = (n: AnalyticsWindow) => {
+    setRangeOpen(false);
+    if (n !== range) router.push(`/analytics?range=${n}`, { scroll: false });
+  };
 
   return (
     <div className="arc-analytics">
@@ -306,14 +318,33 @@ export function AnalyticsView({
           ))}
         </div>
         <span className="cspacer" />
-        <span className="ctl">
-          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v4M16 3v4" /></svg>
-          Last 30 days <span className="cv">▾</span>
-        </span>
-        <span className="ctl">
-          <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>
-          Persona <span className="cv">▾</span>
-        </span>
+        {view === "overview" && (
+          <div className="rangectl">
+            <button type="button" className="ctl" onClick={() => setRangeOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={rangeOpen}>
+              <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v4M16 3v4" /></svg>
+              Last {range} days <span className="cv">▾</span>
+            </button>
+            {rangeOpen && (
+              <>
+                <button type="button" className="ctl-backdrop" aria-hidden onClick={() => setRangeOpen(false)} tabIndex={-1} />
+                <div className="ctl-menu" role="listbox" aria-label="Date range">
+                  {ANALYTICS_WINDOWS.map((n) => (
+                    <button
+                      type="button"
+                      key={n}
+                      role="option"
+                      aria-selected={n === range}
+                      className={`ctl-opt${n === range ? " on" : ""}`}
+                      onClick={() => selectRange(n)}
+                    >
+                      Last {n} days
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="body">
@@ -323,7 +354,7 @@ export function AnalyticsView({
               <div className="vhead">
                 <div>
                   <h1 className="pt">Performance overview</h1>
-                  <div className="psub">Last 30 days · compared to the prior 30 · org-scoped, straight from CRM</div>
+                  <div className="psub">Last {range} days · compared to the prior {range} · org-scoped, straight from CRM</div>
                 </div>
               </div>
 

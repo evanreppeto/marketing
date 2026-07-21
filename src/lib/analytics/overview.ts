@@ -7,7 +7,18 @@ import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 const DAY = 86400000;
-const WINDOW = 30; // days per period
+const DEFAULT_WINDOW = 30; // days per period
+
+/** Supported analytics windows (days). The UI range selector and the read-model
+ *  share this list so a URL can't request an unsupported period. */
+export const ANALYTICS_WINDOWS = [7, 30, 90] as const;
+export type AnalyticsWindow = (typeof ANALYTICS_WINDOWS)[number];
+
+/** Clamp an untrusted `?range` value to a supported window; defaults to 30. */
+export function normalizeWindow(raw: unknown): AnalyticsWindow {
+  const n = typeof raw === "string" ? parseInt(raw, 10) : typeof raw === "number" ? raw : NaN;
+  return (ANALYTICS_WINDOWS as readonly number[]).includes(n) ? (n as AnalyticsWindow) : DEFAULT_WINDOW;
+}
 
 export type TrendKey = "revenue" | "leads" | "bookings";
 export type KpiTag = "wired" | "partial" | "sync";
@@ -61,8 +72,8 @@ type LeadRow = { created_at: string; persona: string | null; source: string | nu
 type JobRow = { created_at: string };
 type OutcomeRow = { created_at: string; persona: string | null; gross_revenue_cents: number | null; status: string };
 
-function emptyOverview(): AnalyticsOverview {
-  const zero = () => ({ cur: Array(WINDOW).fill(0), prev: Array(WINDOW).fill(0) });
+function emptyOverview(windowDays: number): AnalyticsOverview {
+  const zero = () => ({ cur: Array(windowDays).fill(0), prev: Array(windowDays).fill(0) });
   return {
     kpis: [],
     trend: { revenue: zero(), leads: zero(), bookings: zero() },
@@ -88,14 +99,15 @@ function seeded(seed: number): () => number {
 // Illustrative overview for local preview / demos (no Supabase). Numbers are
 // synthetic but internally consistent and mirror the demo campaign portfolio
 // (see lib/performance/read-model demo dataset). Read-only display only.
-function demoAnalyticsOverview(): AnalyticsOverview {
+function demoAnalyticsOverview(windowDays: number): AnalyticsOverview {
   const rng = seeded(20260708);
-  const series = (): TrendSeries => ({ cur: Array(WINDOW).fill(0), prev: Array(WINDOW).fill(0) });
+  const series = (): TrendSeries => ({ cur: Array(windowDays).fill(0), prev: Array(windowDays).fill(0) });
   const trend: Record<TrendKey, TrendSeries> = { revenue: series(), leads: series(), bookings: series() };
 
-  for (let i = 0; i < WINDOW; i++) {
-    const progress = i / (WINDOW - 1);
-    const stormSpike = i >= 14 && i <= 18 ? 7 : 0; // mid-window storm surge
+  const spikeCenter = Math.floor(windowDays * 0.55); // storm surge sits just past mid-window
+  for (let i = 0; i < windowDays; i++) {
+    const progress = windowDays > 1 ? i / (windowDays - 1) : 0;
+    const stormSpike = Math.abs(i - spikeCenter) <= 2 ? 7 : 0; // storm surge, window-relative
     const baseLeads = 18 + progress * 10 + stormSpike; // ramps ~18 → ~28
     const lc = Math.max(0, Math.round(baseLeads + (rng() - 0.5) * 6));
     const lp = Math.max(0, Math.round(baseLeads * 0.82 + (rng() - 0.5) * 6));
@@ -168,8 +180,8 @@ function demoAnalyticsOverview(): AnalyticsOverview {
     dot: PERSONA_DOTS[i % PERSONA_DOTS.length],
   }));
 
-  const trendLabels = Array.from({ length: WINDOW }, (_, i) => {
-    const d = new Date(Math.floor(Date.now() / DAY) * DAY - (WINDOW - 1 - i) * DAY);
+  const trendLabels = Array.from({ length: windowDays }, (_, i) => {
+    const d = new Date(Math.floor(Date.now() / DAY) * DAY - (windowDays - 1 - i) * DAY);
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   });
 
@@ -189,10 +201,13 @@ function demoAnalyticsOverview(): AnalyticsOverview {
   };
 }
 
-export async function getAnalyticsOverview(orgId: string): Promise<AnalyticsOverview> {
-  if (!isSupabaseAdminConfigured()) return isDemoDataEnabled() ? demoAnalyticsOverview() : emptyOverview();
+export async function getAnalyticsOverview(
+  orgId: string,
+  windowDays: number = DEFAULT_WINDOW,
+): Promise<AnalyticsOverview> {
+  if (!isSupabaseAdminConfigured()) return isDemoDataEnabled() ? demoAnalyticsOverview(windowDays) : emptyOverview(windowDays);
   const admin = getSupabaseAdminClient();
-  const since = new Date(Date.now() - 2 * WINDOW * DAY).toISOString();
+  const since = new Date(Date.now() - 2 * windowDays * DAY).toISOString();
 
   const [leadsRes, jobsRes, outcomesRes] = await Promise.all([
     admin.from("leads").select("created_at, persona, source").eq("org_id", orgId).gte("created_at", since),
@@ -203,25 +218,26 @@ export async function getAnalyticsOverview(orgId: string): Promise<AnalyticsOver
   const jobs = (jobsRes.data ?? []) as JobRow[];
   const outcomes = (outcomesRes.data ?? []) as OutcomeRow[];
 
-  // Bucket anchors: 30 daily buckets ending today; previous window is the 30 days before.
+  // Bucket anchors: `windowDays` daily buckets ending today; the previous window
+  // is the equal-length span immediately before.
   const startOfToday = Math.floor(Date.now() / DAY) * DAY;
-  const curStart = startOfToday - (WINDOW - 1) * DAY;
-  const prevStart = curStart - WINDOW * DAY;
+  const curStart = startOfToday - (windowDays - 1) * DAY;
+  const prevStart = curStart - windowDays * DAY;
   const bucket = (iso: string): { period: "cur" | "prev" | null; idx: number } => {
     const t = new Date(iso).getTime();
     if (!Number.isFinite(t)) return { period: null, idx: -1 };
     if (t >= curStart) {
       const idx = Math.floor((t - curStart) / DAY);
-      return idx >= 0 && idx < WINDOW ? { period: "cur", idx } : { period: null, idx: -1 };
+      return idx >= 0 && idx < windowDays ? { period: "cur", idx } : { period: null, idx: -1 };
     }
     if (t >= prevStart) {
       const idx = Math.floor((t - prevStart) / DAY);
-      return idx >= 0 && idx < WINDOW ? { period: "prev", idx } : { period: null, idx: -1 };
+      return idx >= 0 && idx < windowDays ? { period: "prev", idx } : { period: null, idx: -1 };
     }
     return { period: null, idx: -1 };
   };
 
-  const series = (): TrendSeries => ({ cur: Array(WINDOW).fill(0), prev: Array(WINDOW).fill(0) });
+  const series = (): TrendSeries => ({ cur: Array(windowDays).fill(0), prev: Array(windowDays).fill(0) });
   const trend: Record<TrendKey, TrendSeries> = { revenue: series(), leads: series(), bookings: series() };
 
   for (const l of leads) {
@@ -247,7 +263,6 @@ export async function getAnalyticsOverview(orgId: string): Promise<AnalyticsOver
   const curRev = sum(trend.revenue.cur);
   const prevRev = sum(trend.revenue.prev);
   const curWon = outcomes.filter((o) => isWin(o) && bucket(o.created_at).period === "cur").length;
-  const prevWon = outcomes.filter((o) => isWin(o) && bucket(o.created_at).period === "prev").length;
 
   const hasHistory = curLeads + prevLeads + curJobs + curRev > 0;
 
@@ -322,7 +337,7 @@ export async function getAnalyticsOverview(orgId: string): Promise<AnalyticsOver
         rec: "",
       };
 
-  const trendLabels = Array.from({ length: WINDOW }, (_, i) => {
+  const trendLabels = Array.from({ length: windowDays }, (_, i) => {
     const d = new Date(curStart + i * DAY);
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   });
