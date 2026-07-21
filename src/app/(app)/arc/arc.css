@@ -278,34 +278,17 @@
 }
 .arc-assistant-message.is-active { margin-top: 2px; }
 .arc-assistant-content { min-width: 0; }
-.arc-assistant-meta {
-  height: 24px;
+.arc-assistant-footer {
+  max-width: 76ch;
+  min-height: 18px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  color: var(--text);
-  font-size: 12px;
+  justify-content: flex-end;
+  margin-top: 5px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9.5px;
 }
-/* Arc identity mark — the same Sparkles glyph the thinking indicator uses, so a
-   reply carries the agent's identity from the live state through to the settled
-   answer (the ChatGPT/Claude assistant-avatar convention, on-brand in gold).
-   Scoped past the generic `.arc-assistant-meta span` (mono/muted) so the glyph
-   stays gold, not grayed. */
-.arc-assistant-meta .arc-assistant-avatar {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  flex: none;
-  border: 1px solid var(--accent-border);
-  border-radius: 7px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 0;
-}
-.arc-assistant-meta b { font-weight: 650; letter-spacing: -.005em; }
-.arc-assistant-meta span { font-family: var(--mono); color: var(--muted); font-size: 9.5px; }
 
 .arc-answer,
 .arc-markdown {
@@ -617,7 +600,6 @@
   border-radius: 10px;
   background: color-mix(in srgb, var(--panel) 74%, transparent);
 }
-.arc-run-contract[data-state="planned"] { border-color: color-mix(in srgb, var(--accent) 24%, var(--line-2)); }
 .arc-run-contract[data-state="failed"],
 .arc-run-contract[data-state="canceled"] { border-color: color-mix(in srgb, var(--red-text) 28%, var(--line-2)); }
 .arc-run-contract[data-state="failed"] .arc-run-contract-head,
@@ -642,31 +624,6 @@
 .arc-run-contract-grid > div:nth-last-child(-n + 2) { border-bottom: 0; }
 .arc-run-contract-grid span { color: var(--muted); font-size: 8.5px; font-weight: 650; letter-spacing: .055em; text-transform: uppercase; }
 .arc-run-contract-grid b { color: var(--text-2); font-size: 10.5px; font-weight: 520; line-height: 1.35; }
-.arc-run-contract-compact {
-  margin: 0;
-  border-width: 1px 0 0;
-  border-color: var(--line) !important;
-  border-radius: 0;
-  background: transparent;
-}
-.arc-run-contract-compact summary {
-  min-height: 43px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 9px;
-  color: var(--muted);
-  cursor: pointer;
-  list-style: none;
-}
-.arc-run-contract-compact summary::-webkit-details-marker { display: none; }
-.arc-run-contract-compact summary > svg:first-child { color: var(--ok-text); }
-.arc-run-contract-compact summary > svg:last-child { transition: transform var(--arc-base) var(--arc-curve); }
-.arc-run-contract-compact[open] summary > svg:last-child { transform: rotate(180deg); }
-.arc-run-contract-compact summary > span { min-width: 0; display: flex; align-items: baseline; gap: 7px; }
-.arc-run-contract-compact summary b { color: var(--text-2); font-size: 10.5px; font-weight: 600; }
-.arc-run-contract-compact summary small { overflow: hidden; color: var(--muted); font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
-.arc-run-contract-compact .arc-run-contract-grid { overflow: hidden; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 9px; animation: arc-detail-in var(--arc-base) var(--arc-curve) both; }
 .arc-run-rows { display: flex; flex-direction: column; }
 .arc-run-row {
   min-height: 34px;
@@ -2050,7 +2007,6 @@
   .arc-operator-message { max-width: 88%; margin-bottom: 24px; }
   .arc-operator-message > div { font-size: 13.5px; }
   .arc-assistant-message { margin-bottom: 30px; }
-  .arc-assistant-meta { height: 20px; }
   .arc-answer,
   .arc-markdown { font-size: 14px; }
   .arc-answer h2,

@@ -1,37 +1,51 @@
-# Arc new conversation design QA
+# Arc thinking and response metadata design QA
 
 ## Evidence
 
-- Source truth: `/var/folders/2g/05frnm2118b30sj5k5_zmcqm0000gn/T/codex-clipboard-c4db228a-4c28-47d9-b973-d69218ec89e7.png`
-- Implementation capture: `/tmp/arc-new-conversation-after.png`
-- Normalized comparison: `/tmp/arc-new-conversation-comparison-normalized.jpg`
+- Source visual truth — live run: `/var/folders/2g/05frnm2118b30sj5k5_zmcqm0000gn/T/codex-clipboard-68e72fa4-b3d9-40f5-acac-a2e0477d105e.png`
+- Source visual truth — assistant identity mark: `/var/folders/2g/05frnm2118b30sj5k5_zmcqm0000gn/T/codex-clipboard-f2624cc9-d1d0-4ad2-889b-20bf6565b4d6.png`
+- Browser-rendered live implementation: `/tmp/arc-thinking-simplified.jpg`
+- Browser-rendered settled response: `/tmp/arc-response-footer.jpg`
+- Full live-state comparison: `/tmp/arc-thinking-comparison.jpg`
+- Focused assistant-metadata comparison: `/tmp/arc-assistant-meta-comparison.jpg`
 - Viewport: 1280 × 720
-- State: Arc workspace drawer → New conversation → blank conversation launcher
+- State: demo Storm Rapid Response conversation, user message sent, active reasoning and tool activity, then settled response
 
-The full-view comparison is readable at this viewport and includes the fixed header, welcome content, waiting-on-you items, four launch shortcuts, and composer. Browser geometry additionally confirmed `scrollTop: 0`, the greeting 38px below the header, all four shortcut cards visible, and the composer focused.
+## Findings
 
-## Interaction and runtime checks
+No actionable P0, P1, or P2 issue remains in the tested state.
 
-- Opened the workspace drawer and activated New conversation.
-- Confirmed the blank screen resets to the top rather than retaining the previous thread's bottom position.
-- Confirmed the composer receives focus immediately.
-- Confirmed all four shortcut cards fit above the composer at the short desktop viewport.
-- Checked the browser console: no warnings or errors.
+The implementation intentionally removes two parts of the source problem state: the pending “Read only · 4 sources” contract strip and the assistant avatar/name header. The live view now presents one status row, streamed reasoning, and chronological activity without repeating internal permissions. Settled replies begin directly with the response and place their timestamp quietly at the lower edge.
+
+## Full-view comparison evidence
+
+The combined comparison shows the original pending run above and the revised browser state below. The original spends a full bordered row on an unexplained permission label while reporting only one placeholder activity. The revised state uses that space for actual reasoning and four distinct activity rows, while retaining the thinking indicator, elapsed duration, Stop action, and progress states.
+
+## Focused comparison evidence
+
+The focused comparison places the supplied sparkle/avatar crop beside the revised settled reply. The identity badge and “Arc” label are absent; the response hierarchy now starts with useful content. The timestamp remains available below the response as subdued monospace metadata.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing Arc serif, interface sans, and monospace metadata styles remain unchanged. The timestamp uses the established muted monospace treatment at 9.5px.
+- Spacing and layout rhythm: removing the live contract strip eliminates an unnecessary 43px row and border. Removing the assistant header eliminates the 24px identity block without changing response width.
+- Colors and tokens: existing canvas, line, muted text, gold activity, success, and error tokens are preserved.
+- Image quality and assets: no raster assets are needed. The user-requested sparkle identity icon is removed; existing Lucide activity and state icons remain.
+- Copy and content: “Read only” and redundant “Arc” identity copy are removed from chat messages. Reasoning, work activity, completed receipts, and source citations remain available.
+
+## Interactions and runtime checks
+
+- Sent a message from the demo conversation and inspected the active thinking state.
+- Confirmed Thinking, elapsed duration, Stop, streamed commentary, and live activity remain visible.
+- Confirmed no pending “Read only” row is rendered.
+- Waited for completion and confirmed no Arc/avatar header is rendered.
+- Confirmed the response timestamp is rendered after the response content.
+- No error overlay, browser runtime failure, or server-side error appeared during the interaction.
 
 ## Comparison history
 
-- P1 — The greeting and introductory copy were clipped beneath the fixed header because a blank live conversation was scrolled to the end. Fixed by treating blank conversations as a start-scroll state.
-- P2 — The old thread remained visible while the new route loaded, making the button feel laggy. Fixed with an immediate optimistic blank-conversation shell while Next.js completes navigation.
-- P2 — Two shortcut cards fell below the useful area at shorter desktop heights. Fixed with a compact, height-aware launcher layout.
+- Earlier P1: The pending contract strip exposed an implementation term (“Read only”) that did not help the user understand progress. Fix: remove the pending contract surface while preserving the completed run receipt and underlying safety contract.
+- Earlier P2: Every assistant response repeated a sparkle badge, “Arc,” and timestamp above the useful content. Fix: remove the identity header and render only the timestamp below completed response content.
+- Post-fix evidence: the live comparison shows a shorter, activity-first thinking state; the focused comparison shows content-first settled responses with quiet bottom metadata.
 
-## Fidelity surfaces
-
-- Fonts and typography: preserved the existing Arc serif display and Geist interface typography.
-- Spacing and layout: corrected initial scroll position, vertical rhythm, and short-height density.
-- Colors and tokens: retained the existing Arc surface, border, text, and gold accent tokens.
-- Image assets: no new imagery was needed; existing Lucide interface icons remain in use.
-- Copy: preserved the existing welcome, status, and shortcut copy.
-
-## Final result
-
-passed
+final result: passed

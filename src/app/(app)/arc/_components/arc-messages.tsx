@@ -32,9 +32,7 @@ import {
   PencilLine,
   RotateCcw,
   Search,
-  ShieldCheck,
   Smartphone,
-  Sparkles,
   Square,
   Target,
   ThumbsDown,
@@ -121,36 +119,22 @@ export function formatWorkingTime(seconds: number) {
 }
 
 
-export function RunContract({ contract, pending, outcome = "complete" }: { contract: ArcRunContract; pending: boolean; outcome?: "complete" | "failed" | "canceled" }) {
-  const title = pending ? "Run plan" : outcome === "canceled" ? "Canceled receipt" : outcome === "failed" ? "Failed receipt" : "Run receipt";
-  const sourceLabel = contract.readScopes.length === 1 ? "1 source" : `${contract.readScopes.length} sources`;
+export function RunContract({ contract, outcome = "complete" }: { contract: ArcRunContract; outcome?: "complete" | "failed" | "canceled" }) {
+  const title = outcome === "canceled" ? "Canceled receipt" : outcome === "failed" ? "Failed receipt" : "Run receipt";
   const contractGrid = (
     <div className="arc-run-contract-grid">
       <div><span>Reads</span><b>{contract.readScopes.length > 0 ? contract.readScopes.join(" · ") : "Conversation only"}</b></div>
       <div><span>Workspace effect</span><b>{contract.workspaceEffect}</b></div>
       <div><span>External effect</span><b>{contract.externalEffect}</b></div>
-      <div><span>{pending ? "Approval" : "Recorded output"}</span><b>{pending ? contract.approval : contract.outputSummary}</b></div>
+      <div><span>Recorded output</span><b>{contract.outputSummary}</b></div>
     </div>
   );
-
-  if (pending) {
-    return (
-      <details className="arc-run-contract arc-run-contract-compact" data-state="planned">
-        <summary>
-          <ShieldCheck size={14} />
-          <span><b>{contract.modeLabel}</b><small>{sourceLabel}</small></span>
-          <ChevronDown size={14} />
-        </summary>
-        {contractGrid}
-      </details>
-    );
-  }
 
   return (
     <div className="arc-run-contract" data-state={outcome}>
       <div className="arc-run-contract-head">
         {outcome === "complete" ? <ClipboardCheck size={15} /> : <X size={15} />}
-        <span><b>{title}</b><small>{contract.modeLabel} · {contract.modelLabel}</small></span>
+        <span><b>{title}</b><small>{contract.modelLabel}</small></span>
         {contract.receiptId ? <code>#{contract.receiptId}</code> : null}
       </div>
       {contractGrid}
@@ -253,7 +237,7 @@ export function RunTrace({
           <span className="arc-run-summary-meta">View details <ChevronRight size={14} /></span>
         </summary>
         <div className="arc-run-details">
-          {contract ? <RunContract contract={contract} pending={false} outcome={outcome} /> : null}
+          {contract ? <RunContract contract={contract} outcome={outcome} /> : null}
           {reasoning ? (
             <div className="arc-reasoning-summary">
               <Brain size={15} />
@@ -341,7 +325,6 @@ export function RunTrace({
         ))}
         </div>
       </div>
-      {contract ? <RunContract contract={contract} pending /> : null}
     </motion.div>
   );
 }
@@ -448,8 +431,8 @@ export function AssistantMessage({
       transition={{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="arc-assistant-content">
-        {!active ? <div className="arc-assistant-meta"><span className="arc-assistant-avatar" aria-hidden><Sparkles size={12} /></span><b>Arc</b>{time ? <span>{time}</span> : timeIso ? <MessageTime iso={timeIso} /> : null}</div> : null}
         {children}
+        {!active && (time || timeIso) ? <div className="arc-assistant-footer">{time ? <time>{time}</time> : timeIso ? <MessageTime iso={timeIso} /> : null}</div> : null}
       </div>
     </motion.article>
   );
