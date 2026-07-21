@@ -80,7 +80,12 @@ export function libraryWriteTools(client: ArcClient, step: StepFn) {
   return [createFolder, fileAsset];
 }
 
-export function libraryDraftTools(client: ArcClient, step: StepFn, collectCard: (card: ArcActionCard) => void) {
+export function libraryDraftTools(
+  client: ArcClient,
+  step: StepFn,
+  collectCard: (card: ArcActionCard) => void,
+  ctx: { conversationId?: string | null; campaignId?: string | null } = {},
+) {
   const attachMedia = tool(
     "attach_media",
     "Attach a REAL Library asset (by id from list_media) to a campaign as an approval-gated draft asset — the approval-safe way to reuse authentic BSR photos/video. Provide library_asset_id and a short title. Attach to an existing campaign with campaign_id, OR start a new draft campaign with name + persona (a persona key) + restoration_focus (one of: flood | water_backup | burst_pipe | storm_surge | standing_water | mold | sewage | fire). The asset stays pending approval and never goes outbound.",
@@ -106,10 +111,11 @@ export function libraryDraftTools(client: ArcClient, step: StepFn, collectCard: 
             library_asset_id: args.library_asset_id,
             title: args.title,
             asset_type: args.asset_type,
-            campaign_id: args.campaign_id,
+            campaign_id: args.campaign_id ?? ctx.campaignId,
             name: args.name,
             persona: args.persona,
             restoration_focus: args.restoration_focus,
+            ...(ctx.conversationId ? { conversation_id: ctx.conversationId } : {}),
           },
         );
         await step(label, "done");

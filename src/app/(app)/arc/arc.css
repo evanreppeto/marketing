@@ -6,7 +6,7 @@
   --arc-fast: 140ms;
   --arc-base: 220ms;
   --arc-slow: 420ms;
-  --arc-workspace-width: clamp(400px, 30vw, 430px);
+  --arc-workspace-width: clamp(360px, 28vw, 420px);
   position: relative;
   flex: 1;
   min-width: 0;
@@ -1948,16 +1948,16 @@
 .arc-share-notice { color: var(--ok-text); font-size: 11px; margin: 11px 0 0; }
 
 /* ── Responsive behavior ────────────────────────────────────────────────── */
-@media (max-width: 1180px) {
+@media (max-width: 1399px) {
   .arc-chat[data-workspace-open="true"] > .arc-conversation-header,
   .arc-chat[data-workspace-open="true"] > .arc-conversation-scroll,
   .arc-chat[data-workspace-open="true"] > .arc-composer-dock { margin-right: 0; }
-  .arc-artifact-workspace { width: min(370px, calc(100% - 42px)); }
+  .arc-artifact-workspace { width: min(390px, calc(100% - 42px)); }
   .arc-workspace-scrim { position: absolute; inset: 0; z-index: 18; display: block; border: 0; background: rgba(7, 7, 9, .58); }
   .arc-artifact-workspace { z-index: 19; }
 }
 
-@media (min-width: 1181px) {
+@media (min-width: 1400px) {
   .arc-chat[data-workspace-open="true"] .arc-package-row { grid-template-columns: 36px minmax(140px, 1fr) auto; }
   .arc-chat[data-workspace-open="true"] .arc-package-channels { grid-column: 2 / -1; grid-row: 2; padding-bottom: 4px; }
   .arc-chat[data-workspace-open="true"] .arc-review-button { grid-column: 3; grid-row: 1; }
