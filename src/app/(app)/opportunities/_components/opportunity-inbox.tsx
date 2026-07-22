@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,7 @@ import {
   scanForOpportunitiesAction,
   snoozeOpportunityAction,
 } from "../actions";
+import { scanMessage } from "../scan-feedback";
 import { DraftCampaignModal, type DraftMode } from "./draft-campaign-modal";
 
 export type OppSignal = { label: string; value: string };
@@ -114,6 +115,23 @@ function ScanButton({ subtle }: { subtle?: boolean }) {
   );
 }
 
+/** The scan form + its result line. Self-contained so both call sites report alike. */
+function ScanForm({ subtle }: { subtle?: boolean }) {
+  const [result, formAction] = useActionState(scanForOpportunitiesAction, null);
+  return (
+    <>
+      <form action={formAction}>
+        <ScanButton subtle={subtle} />
+      </form>
+      {result && (
+        <div className={`scanmsg${result.ok ? "" : " bad"}`} role="status">
+          {scanMessage(result)}
+        </div>
+      )}
+    </>
+  );
+}
+
 /** Urgency ordering for the priority sort — high first, then medium, then low. */
 const URGENCY_RANK: Record<OpportunityVM["urgencyTone"], number> = { red: 0, amber: 1, info: 2 };
 
@@ -178,9 +196,7 @@ export function OpportunityInbox({
       <div className="arc-opps" style={{ display: "block" }}>
         <div className="empty" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
           <span>No open opportunities yet. Arc scans your CRM for source-backed signals — quiet leads worth re-engaging, and more.</span>
-          <form action={scanForOpportunitiesAction}>
-            <ScanButton subtle />
-          </form>
+          <ScanForm subtle />
         </div>
       </div>
     );
@@ -258,9 +274,9 @@ export function OpportunityInbox({
               : `${visible.length} open${highCount > 0 ? ` · ${highCount} high` : ""} · ${avgConf}% avg`}
           </span>
         </div>
-        <form action={scanForOpportunitiesAction} style={{ padding: "2px 4px 12px" }}>
-          <ScanButton />
-        </form>
+        <div style={{ padding: "2px 4px 12px" }}>
+          <ScanForm />
+        </div>
 
         {types.length > 1 && (
           <div className="ofilter" role="group" aria-label="Filter by signal type">

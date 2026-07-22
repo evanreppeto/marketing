@@ -26,7 +26,14 @@ import { getSignalSource } from "./registry";
 export type DetectionRefusal = { reason: "cap_exceeded"; message: string };
 
 export type DetectionResult =
-  | { ok: true; bySource: Record<string, number>; total: number; refused: Record<string, DetectionRefusal> }
+  | {
+      ok: true;
+      bySource: Record<string, number>;
+      total: number;
+      /** Candidates rejected by the confidence floor, summed across sources. */
+      filtered: number;
+      refused: Record<string, DetectionRefusal>;
+    }
   | { ok: false; error: string };
 
 export async function runSignalSourceDetection(input: {
@@ -45,6 +52,7 @@ export async function runSignalSourceDetection(input: {
   const bySource: Record<string, number> = {};
   const refused: Record<string, DetectionRefusal> = {};
   let total = 0;
+  let filtered = 0;
   for (const view of enabled) {
     const source = getSignalSource(view.key);
     if (!source) continue; // catalog entry with no registered behaviour — skip
@@ -76,6 +84,9 @@ export async function runSignalSourceDetection(input: {
     const count = res.ok ? res.count : 0;
     bySource[view.key] = count;
     total += count;
+    // Carried up rather than dropped: a source whose findings all fell below the
+    // floor added nothing, but that is not the same as having found nothing.
+    filtered += res.ok ? res.filtered ?? 0 : 0;
   }
-  return { ok: true, bySource, total, refused };
+  return { ok: true, bySource, total, filtered, refused };
 }

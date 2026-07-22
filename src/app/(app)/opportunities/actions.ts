@@ -29,14 +29,28 @@ import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
  * authenticated request context. Each source is best-effort so one failing source
  * can't sink the whole scan. Read-only detection — nothing outbound, nothing drafted.
  */
-export async function scanForOpportunitiesAction(): Promise<void> {
-  if (!isSupabaseAdminConfigured()) return;
-  // Ensures the caller is authenticated + establishes the org scope the detectors read.
-  await getCurrentWorkspaceContext();
-  // Same deterministic detectors the scheduled cron runs — one shared path so the
-  // manual scan and the daily scan can never surface different opportunities.
-  await runDeterministicOpportunityScan();
-  revalidatePath("/opportunities");
+export type ScanFeedback =
+  | { ok: true; added: number; filtered: number }
+  | { ok: false; error: string };
+
+export async function scanForOpportunitiesAction(
+  _prev: ScanFeedback | null,
+  _formData: FormData,
+): Promise<ScanFeedback> {
+  if (!isSupabaseAdminConfigured()) {
+    return { ok: false, error: "Connect a workspace to scan for opportunities." };
+  }
+  try {
+    // Ensures the caller is authenticated + establishes the org scope the detectors read.
+    await getCurrentWorkspaceContext();
+    // Same deterministic detectors the scheduled cron runs — one shared path so the
+    // manual scan and the daily scan can never surface different opportunities.
+    const summary = await runDeterministicOpportunityScan();
+    revalidatePath("/opportunities");
+    return { ok: true, ...summary };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "The scan could not complete." };
+  }
 }
 
 export type OpportunityTriageResult = { ok: true; persisted: boolean } | { ok: false; error: string };
