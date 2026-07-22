@@ -17,7 +17,7 @@ function req(auth?: string) { return new Request("http://localhost/api/cron/oppo
 const env = { CRON_SECRET: process.env.CRON_SECRET, OPPORTUNITY_SCAN_CRON_ENABLED: process.env.OPPORTUNITY_SCAN_CRON_ENABLED };
 beforeEach(() => {
   enqueueMock.mockReset(); recentMock.mockReset(); scanMock.mockReset(); configuredMock.mockReset();
-  enqueueMock.mockResolvedValue({ ok: true }); recentMock.mockResolvedValue(false); scanMock.mockResolvedValue(undefined); configuredMock.mockReturnValue(true);
+  enqueueMock.mockResolvedValue({ ok: true }); recentMock.mockResolvedValue(false); scanMock.mockResolvedValue({ added: 0, filtered: 0 }); configuredMock.mockReturnValue(true);
   process.env.CRON_SECRET = "s3cret"; process.env.OPPORTUNITY_SCAN_CRON_ENABLED = "1";
 });
 afterEach(() => { for (const [k, v] of Object.entries(env)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } });

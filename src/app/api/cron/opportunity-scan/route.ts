@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { enqueueOpportunityScanTask } from "@/lib/opportunities/enqueue";
 import { hasRecentOpportunityScan } from "@/lib/opportunities/recent-scan";
-import { runDeterministicOpportunityScan } from "@/lib/opportunities/scan";
+import { runDeterministicOpportunityScan, type OpportunityScanSummary } from "@/lib/opportunities/scan";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -34,16 +34,20 @@ export async function GET(request: Request) {
   // Refresh deterministic opportunities every scheduled pass. Best-effort — a
   // detector failure must not block the generative scan below.
   let deterministic: "ok" | "error" = "ok";
+  // Carried into the response so a scheduled pass that rejects everything below
+  // the confidence floor is visible in the cron log, not indistinguishable from
+  // a pass that genuinely found nothing.
+  let scan: OpportunityScanSummary = { added: 0, filtered: 0 };
   try {
-    await runDeterministicOpportunityScan();
+    scan = await runDeterministicOpportunityScan();
   } catch {
     deterministic = "error";
   }
 
   if (await hasRecentOpportunityScan(RECENT_HOURS)) {
-    return NextResponse.json({ ok: true, deterministic, skipped: "recent" });
+    return NextResponse.json({ ok: true, deterministic, scan, skipped: "recent" });
   }
 
   const result = await enqueueOpportunityScanTask({ operator: "Scheduled scan" });
-  return NextResponse.json({ ok: result.ok, deterministic, queued: result.ok, ...(result.error ? { error: result.error } : {}) });
+  return NextResponse.json({ ok: result.ok, deterministic, scan, queued: result.ok, ...(result.error ? { error: result.error } : {}) });
 }
