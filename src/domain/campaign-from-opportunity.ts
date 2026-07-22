@@ -72,14 +72,65 @@ function personaLabel(persona: string): string {
 
 function humanize(value: string): string {
   const s = (value || "").replace(/[_-]+/g, " ").trim();
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+  const sentence = s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+  // `re_engagement` humanizes to "Re engagement", which is not a word. The
+  // underscore there joins a prefix rather than separating two words, so put the
+  // hyphen back: "Re-engagement".
+  return sentence.replace(/^Re (?=[a-z])/, "Re-");
 }
 
-/** Concise, editable campaign name derived from the opportunity title. */
-function suggestCampaignName(title: string): string {
+const MAX_CAMPAIGN_NAME = 96;
+const MAX_SUBJECT = 48;
+
+/**
+ * The thing a campaign is *about*, pulled out of an opportunity headline.
+ *
+ * Opportunity titles are written to be scanned in an inbox — "Dana Whitfield
+ * (Southside Water & Gas) — quiet 53 days" tells a reviewer why it surfaced.
+ * As a campaign name that is noise: the "quiet 53 days" is the trigger, not the
+ * campaign. Prefer the parenthetical (the company), else the head before the
+ * dash, which is where these titles put their subject.
+ */
+function subjectFromTitle(title: string): string {
   const clean = (title || "").replace(/\s+/g, " ").trim();
-  if (clean.length <= 96) return clean;
-  return `${clean.slice(0, 94).trim()}…`;
+
+  // A parenthetical is usually the company ("Dana Whitfield (Southside Water &
+  // Gas)") — but not always: "Naperville hail swath (Jun 14)" parenthesizes a
+  // date, which named a campaign "Storm rapid response — Jun 14". Digits are a
+  // good enough tell for dates and counts; a company name rarely needs one, and
+  // when it does the dash fallback below still produces something sane.
+  const parenthetical = clean.match(/\(([^)]{2,})\)/)?.[1]?.trim();
+  if (parenthetical && !/\d/.test(parenthetical) && parenthetical.length <= MAX_SUBJECT) {
+    return parenthetical;
+  }
+
+  // Split on a spaced dash (em, en, or hyphen) — the separator these titles use
+  // between subject and rationale. A hyphen inside a word ("Insurance-agent")
+  // is untouched because it has no surrounding spaces. Any parenthetical left in
+  // the head is dropped: it was rejected above precisely because it isn't the
+  // subject.
+  const head = (clean.split(/\s[—–-]\s/)[0] ?? "").replace(/\s*\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
+  if (head && head !== clean && head.length <= MAX_SUBJECT) return head;
+  return "";
+}
+
+/**
+ * Concise, editable campaign name. Reads "<theme> — <subject>", matching how
+ * operator-created campaigns are already named, instead of restating the
+ * opportunity headline verbatim.
+ *
+ * Falls back to the cleaned title whenever a subject can't be pulled out
+ * confidently — a slightly long name beats a confidently wrong one, and the
+ * field is editable either way.
+ */
+function suggestCampaignName(title: string, theme: string): string {
+  const clean = (title || "").replace(/\s+/g, " ").trim();
+  const subject = subjectFromTitle(clean);
+  const themeLabel = (theme || "").trim();
+  const composed = subject && themeLabel ? `${themeLabel} — ${subject}` : "";
+  const name = composed || clean;
+  if (name.length <= MAX_CAMPAIGN_NAME) return name;
+  return `${name.slice(0, MAX_CAMPAIGN_NAME - 2).trim()}…`;
 }
 
 /** A single suggested campaign-type label — the detector's value if present, else by urgency. */
@@ -118,7 +169,7 @@ export function buildCampaignSeedFromOpportunity(
     : "Audience sourced from an Arc opportunity signal.";
 
   return {
-    name: suggestCampaignName(input.title),
+    name: suggestCampaignName(input.title, campaignTheme),
     persona,
     restorationFocus,
     campaignTheme,
