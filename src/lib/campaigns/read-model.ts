@@ -516,7 +516,11 @@ export type CampaignNameRef = { id: string; name: string; href: string };
  * mention search) don't pay for the full workspace build on every render.
  */
 export async function listCampaignNames(orgId?: string, client?: SupabaseClient): Promise<CampaignNameRef[]> {
-  if (!client && !isSupabaseAdminConfigured()) return [];
+  if (!client && !isSupabaseAdminConfigured()) {
+    if (!isDemoDataEnabled()) return [];
+    const demo = buildDemoCampaignWorkspaceList();
+    return demo.status === "live" ? demo.campaigns.map((c) => ({ id: c.id, name: c.name, href: `/campaigns/${c.id}` })) : [];
+  }
   try {
     const supabase = client ?? getSupabaseAdminClient();
     const { data, error } = await applyOrgScope(supabase.from("campaigns").select("id,name"), orgId)
