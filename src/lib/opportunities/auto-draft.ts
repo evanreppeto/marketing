@@ -95,9 +95,20 @@ type PendingRow = {
   campaign_id: string | null;
   snoozed_until: string | null;
   created_at: string;
+  evidence: unknown;
 };
 
-function toCandidate(row: PendingRow): AutoDraftCandidate {
+/**
+ * The persona an opportunity carries. It lives in `evidence.persona`, not a
+ * column — `opportunities` has none.
+ */
+function personaFromEvidence(evidence: unknown): string {
+  if (!evidence || typeof evidence !== "object") return "";
+  const value = (evidence as Record<string, unknown>).persona;
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function toCandidate(row: PendingRow, allowedPersonaKeys: string[]): AutoDraftCandidate {
   return {
     id: row.id,
     confidence: typeof row.confidence === "number" ? row.confidence : 0,
@@ -107,6 +118,8 @@ function toCandidate(row: PendingRow): AutoDraftCandidate {
     subjectId: row.subject_id,
     kind: row.kind,
     campaignId: row.campaign_id,
+    // Resolved up front so unusable candidates never consume the daily limit.
+    hasPersona: isAllowedPersona(personaFromEvidence(row.evidence), allowedPersonaKeys),
     snoozedUntil: row.snoozed_until,
     detectedAt: row.created_at,
   };
@@ -146,12 +159,16 @@ export async function runScheduledAutoDraft(
   const client = getSupabaseAdminClient();
   const { data, error } = await client
     .from("opportunities")
-    .select("id,confidence,urgency,status,subject_type,subject_id,kind,campaign_id,snoozed_until,created_at")
+    .select("id,confidence,urgency,status,subject_type,subject_id,kind,campaign_id,snoozed_until,created_at,evidence")
     .eq("org_id", orgId)
     .eq("status", "pending");
   if (error) throw new Error(`opportunities: ${error.message}`);
 
-  const candidates = ((data ?? []) as PendingRow[]).map(toCandidate);
+  // Fetched before selection so the persona gate can run inside it rather than
+  // downstream, where a skip would already have cost a slot.
+  const allowedPersonaKeys = await getOrgPersonaKeys(orgId);
+
+  const candidates = ((data ?? []) as PendingRow[]).map((row) => toCandidate(row, allowedPersonaKeys));
   if (candidates.length === 0) return { ...empty, ran: true, skipped: "no_candidates" };
 
   const selection = selectOpportunitiesForAutoDraft({
@@ -171,8 +188,6 @@ export async function runScheduledAutoDraft(
   };
 
   if (selection.selected.length === 0) return summary;
-
-  const allowedPersonaKeys = await getOrgPersonaKeys(orgId);
 
   for (const candidate of selection.selected) {
     try {
@@ -196,9 +211,9 @@ export async function runScheduledAutoDraft(
         allowedPersonaKeys,
       );
 
-      // A campaign needs a real persona and the DB enforces it. When the
-      // opportunity carries none, this is a judgement call an operator should
-      // make — leave it pending rather than guessing a persona for them.
+      // Defense in depth: selection already gated on a resolvable persona, but
+      // the seed builder may still land on one the workspace does not allow.
+      // Leave it pending rather than guessing a persona for the operator.
       if (!seed.persona || !isAllowedPersona(seed.persona, allowedPersonaKeys)) {
         summary.unusable += 1;
         continue;

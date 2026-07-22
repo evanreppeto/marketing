@@ -64,6 +64,17 @@ export type AutoDraftCandidate = {
   kind: string;
   /** Set once converted. Non-null means "already drafted" — never draft again. */
   campaignId: string | null;
+  /**
+   * Whether a persona the workspace allows can be resolved for this opportunity.
+   *
+   * Load-bearing for the *budget*, not just correctness. A campaign needs a real
+   * persona and Arc must not guess one, so an opportunity without a resolvable
+   * persona can never be drafted. If that check only happened downstream, those
+   * candidates would still consume the daily limit — on real data that turned a
+   * 3-draft pass into 1, while draftable opportunities lower down never got a
+   * slot. Filtering here means the limit counts drafts, not attempts.
+   */
+  hasPersona: boolean;
   /** ISO timestamp; a live snooze suppresses regardless of confidence. */
   snoozedUntil?: string | null;
   /** ISO timestamp the opportunity was detected. Older drains first. */
@@ -74,6 +85,7 @@ export type AutoDraftSkipReason =
   | "not_pending"
   | "already_drafted"
   | "snoozed"
+  | "no_persona"
   | "below_confidence_floor"
   | "duplicate_subject"
   | "kind_quota"
@@ -154,6 +166,7 @@ export function selectOpportunitiesForAutoDraft(input: SelectAutoDraftInput): Au
     if (candidate.campaignId) skipped.push({ id: candidate.id, reason: "already_drafted" });
     else if (candidate.status !== ELIGIBLE_STATUS) skipped.push({ id: candidate.id, reason: "not_pending" });
     else if (isSnoozed(candidate, input.now)) skipped.push({ id: candidate.id, reason: "snoozed" });
+    else if (!candidate.hasPersona) skipped.push({ id: candidate.id, reason: "no_persona" });
     else if (candidate.confidence < floor) skipped.push({ id: candidate.id, reason: "below_confidence_floor" });
     else eligible.push(candidate);
   }
@@ -187,6 +200,7 @@ export function summarizeAutoDraftSkips(selection: AutoDraftSelection): Record<A
     not_pending: 0,
     already_drafted: 0,
     snoozed: 0,
+    no_persona: 0,
     below_confidence_floor: 0,
     duplicate_subject: 0,
     kind_quota: 0,
