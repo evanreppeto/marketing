@@ -126,6 +126,45 @@ function toCandidate(row: PendingRow, allowedPersonaKeys: string[]): AutoDraftCa
 }
 
 /**
+ * Render a run summary for the runtime log.
+ *
+ * The dry run exists to be *read* before anyone lets this write campaigns, but
+ * its plan only ever went into the cron endpoint's HTTP response body — and
+ * Vercel's cron view shows status codes, not bodies. A rehearsal nobody can see
+ * is not a rehearsal, so the summary goes to stdout too.
+ *
+ * Pure and multi-line: one line per planned or created draft, because a single
+ * JSON blob is exactly the thing people skim past.
+ */
+export function formatAutoDraftLog(summary: AutoDraftRunSummary | { ran: false; error: string }): string {
+  if ("error" in summary) return `[auto-draft] FAILED: ${summary.error}`;
+
+  const mode = summary.dryRun ? "DRY RUN — nothing written" : "LIVE";
+  if (!summary.ran) return `[auto-draft] skipped (${summary.skipped ?? "unknown"}) · ${mode}`;
+
+  const lines = [
+    `[auto-draft] ${mode} · considered ${summary.considered} · selected ${summary.selected} · ` +
+      `drafted ${summary.drafted} · unusable ${summary.unusable} · failed ${summary.failed}`,
+  ];
+
+  for (const planned of summary.wouldDraft) {
+    lines.push(
+      `[auto-draft]   would draft: ${planned.kind} (${planned.confidence}/${planned.urgency}) ` +
+        `persona=${planned.persona} theme=${planned.theme} name="${planned.name}"`,
+    );
+  }
+  for (const campaignId of summary.campaignIds) {
+    lines.push(`[auto-draft]   created campaign ${campaignId}`);
+  }
+
+  const skips = Object.entries(summary.skips ?? {}).filter(([, n]) => n > 0);
+  if (skips.length > 0) {
+    lines.push(`[auto-draft]   skipped: ${skips.map(([reason, n]) => `${reason}=${n}`).join(" ")}`);
+  }
+  return lines.join("\n");
+}
+
+/**
  * Draft the top pending opportunities for the current workspace. Every step is
  * best-effort per opportunity: one failure records and moves on rather than
  * aborting the pass, so a single bad opportunity can't stall the queue forever.

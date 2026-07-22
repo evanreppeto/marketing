@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { runScheduledAutoDraft, type AutoDraftRunSummary } from "@/lib/opportunities/auto-draft";
+import { formatAutoDraftLog, runScheduledAutoDraft, type AutoDraftRunSummary } from "@/lib/opportunities/auto-draft";
 import { enqueueOpportunityScanTask } from "@/lib/opportunities/enqueue";
 import { hasRecentOpportunityScan } from "@/lib/opportunities/recent-scan";
 import { runDeterministicOpportunityScan, type OpportunityScanSummary } from "@/lib/opportunities/scan";
@@ -61,6 +61,9 @@ export async function GET(request: Request) {
   } catch (error) {
     autoDraft = { ran: false, error: error instanceof Error ? error.message : "auto-draft failed" };
   }
+  // The response body is not visible in Vercel's cron view, so the plan a dry
+  // run exists to produce would otherwise be unreadable.
+  console.log(formatAutoDraftLog(autoDraft));
 
   if (await hasRecentOpportunityScan(RECENT_HOURS)) {
     return NextResponse.json({ ok: true, deterministic, scan, autoDraft, skipped: "recent" });
