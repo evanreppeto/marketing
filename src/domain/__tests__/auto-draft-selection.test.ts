@@ -18,6 +18,7 @@ function candidate(overrides: Partial<AutoDraftCandidate> & { id: string }): Aut
     subjectId: `co-${overrides.id}`,
     kind: "cold_lead",
     campaignId: null,
+    hasPersona: true,
     snoozedUntil: null,
     detectedAt: "2026-07-20T00:00:00.000Z",
     ...overrides,
@@ -91,6 +92,42 @@ describe("eligibility", () => {
       now: NOW,
     });
     expect(reasonFor(result, "a")).toBe("snoozed");
+  });
+});
+
+describe("persona gate", () => {
+  it("skips an opportunity with no resolvable persona", () => {
+    const result = selectOpportunitiesForAutoDraft({
+      candidates: [candidate({ id: "a", hasPersona: false })],
+      now: NOW,
+    });
+    expect(result.selected).toEqual([]);
+    expect(reasonFor(result, "a")).toBe("no_persona");
+  });
+
+  it("does not let unusable candidates consume the daily limit", () => {
+    // The defect this fixes: on real prod data the top three by rank included
+    // two with no persona, so a 3-draft pass produced 1 and draftable
+    // opportunities lower down never got a slot.
+    const candidates = [
+      candidate({ id: "no-persona-1", confidence: 100, subjectId: "s1", kind: "k1", hasPersona: false }),
+      candidate({ id: "no-persona-2", confidence: 99, subjectId: "s2", kind: "k2", hasPersona: false }),
+      candidate({ id: "draftable-1", confidence: 90, subjectId: "s3", kind: "k3" }),
+      candidate({ id: "draftable-2", confidence: 85, subjectId: "s4", kind: "k4" }),
+      candidate({ id: "draftable-3", confidence: 80, subjectId: "s5", kind: "k5" }),
+    ];
+    const result = selectOpportunitiesForAutoDraft({ candidates, now: NOW });
+    expect(result.selected.map((c) => c.id)).toEqual(["draftable-1", "draftable-2", "draftable-3"]);
+    expect(summarizeAutoDraftSkips(result).no_persona).toBe(2);
+    expect(summarizeAutoDraftSkips(result).over_limit).toBe(0);
+  });
+
+  it("ranks the persona gate above the confidence floor in the reported reason", () => {
+    const result = selectOpportunitiesForAutoDraft({
+      candidates: [candidate({ id: "a", confidence: 10, hasPersona: false })],
+      now: NOW,
+    });
+    expect(reasonFor(result, "a")).toBe("no_persona");
   });
 });
 
@@ -249,6 +286,7 @@ describe("summarizeAutoDraftSkips", () => {
       not_pending: 0,
       already_drafted: 0,
       snoozed: 0,
+      no_persona: 0,
       below_confidence_floor: 0,
       duplicate_subject: 0,
       kind_quota: 0,
