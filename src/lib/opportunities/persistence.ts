@@ -10,11 +10,47 @@ export type OpportunityScope = { orgId: string };
 
 const NOT_CONFIGURED = "Supabase isn't configured, so opportunities can't be saved.";
 const OPEN_STATUSES = ["pending", "drafting", "drafted"];
+/** Statuses that can suppress a re-detected candidate. */
+const SUPPRESSING_STATUSES = [...OPEN_STATUSES, "dismissed", "snoozed"];
 
 /**
- * Insert new opportunities, skipping any subject that already has an OPEN
- * opportunity of the same kind (app-level dedup; the partial unique index is the
- * DB safety net). Re-scans therefore don't flood the inbox.
+ * How long a dismissal suppresses re-detection of the same (kind, subject).
+ *
+ * Dismissing used to mean nothing to the detector — dedup checked only OPEN
+ * statuses, so the very next scan re-inserted an identical card and the operator
+ * could never actually clear the queue. A cooldown rather than a permanent block
+ * because "not relevant right now" is a statement about now: if a lead is still
+ * cold in a month, that is worth raising again, but not tomorrow.
+ */
+const DISMISS_COOLDOWN_DAYS = 30;
+
+type SuppressionRow = {
+  subject_id: string;
+  status: string;
+  dismissed_at: string | null;
+  snoozed_until: string | null;
+};
+
+/** True when an existing row should block re-inserting a candidate for its subject. */
+function suppresses(row: SuppressionRow, now: number): boolean {
+  if (OPEN_STATUSES.includes(row.status)) return true;
+  // A snooze always suppresses, expired or not: while it runs the operator has
+  // asked not to see it, and once it expires the read model wakes the ORIGINAL
+  // card — so re-inserting here would show them two of the same signal.
+  if (row.status === "snoozed") return true;
+  if (row.status === "dismissed") {
+    if (!row.dismissed_at) return true;
+    const elapsed = now - Date.parse(row.dismissed_at);
+    return elapsed < DISMISS_COOLDOWN_DAYS * 86_400_000;
+  }
+  return false;
+}
+
+/**
+ * Insert new opportunities, skipping any subject of the same kind that already
+ * has an open opportunity, a live snooze, or a recent dismissal (app-level
+ * dedup; the partial unique index is the DB safety net). Re-scans therefore
+ * neither flood the inbox nor undo the operator's triage.
  */
 export async function upsertOpportunities(
   candidates: OpportunityCandidate[],
@@ -32,16 +68,19 @@ export async function upsertOpportunities(
   const orgId = scope?.orgId ?? (await getCurrentOrgId());
   const kind = candidates[0].kind;
 
-  const { data: open, error: readErr } = await db
+  const { data: existing, error: readErr } = await db
     .from("opportunities")
-    .select("subject_id")
+    .select("subject_id, status, dismissed_at, snoozed_until")
     .eq("org_id", orgId)
     .eq("kind", kind)
-    .in("status", OPEN_STATUSES);
+    .in("status", SUPPRESSING_STATUSES);
   if (readErr) return { ok: false, error: readErr.message };
 
-  const openIds = new Set((open ?? []).map((r: { subject_id: string }) => r.subject_id));
-  const fresh = candidates.filter((c) => !openIds.has(c.subjectId));
+  const now = Date.now();
+  const suppressed = new Set(
+    ((existing ?? []) as SuppressionRow[]).filter((row) => suppresses(row, now)).map((row) => row.subject_id),
+  );
+  const fresh = candidates.filter((c) => !suppressed.has(c.subjectId));
   if (fresh.length === 0) return { ok: true, count: 0 };
 
   const rows = fresh.map((c) => ({
