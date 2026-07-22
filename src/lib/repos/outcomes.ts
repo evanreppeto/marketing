@@ -11,6 +11,8 @@ export type ListOutcomesFilter = {
   status?: OutcomeStatus;
   persona?: string;
   companyId?: string;
+  /** Hide synthetic seed fixtures from customer-facing analysis. */
+  excludeSynthetic?: boolean;
   /** Page size. `0` counts without fetching rows; omitted means unbounded. */
   limit?: number;
 };
@@ -25,6 +27,7 @@ function applyOutcomeFilters(
   if (filter.status) q = q.eq("status", filter.status);
   if (filter.persona) q = q.eq("persona", filter.persona);
   if (filter.companyId) q = q.eq("company_id", filter.companyId);
+  if (filter.excludeSynthetic) q = q.is("metadata->>seed_batch", null);
   return q;
 }
 

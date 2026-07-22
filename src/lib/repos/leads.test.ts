@@ -129,6 +129,14 @@ describe("listLeads filters", () => {
 
     expect(supabase.calls).toContainEqual(["ilike", "loss_summary", "%flood%"]);
   });
+
+  it("can exclude synthetic seed fixtures before counting or returning rows", async () => {
+    const supabase = createSupabaseQueryMock({ leads: { data: [], error: null } });
+
+    await listLeadSummariesPage({ excludeSynthetic: true }, supabase);
+
+    expect(supabase.calls).toContainEqual(["is", "metadata->>seed_batch", null]);
+  });
 });
 
 describe("listLeadsPage", () => {
