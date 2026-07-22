@@ -221,12 +221,16 @@ async function seedArcDemo() {
     },
   });
 
+  // Personalize from the scenario record, exactly like the company/contact rows
+  // above. This used to hardcode "Hi Jordan," — scenario 0's first name — so every
+  // seeded partner email greeted the wrong person and all bodies came out
+  // byte-identical, which reads as a generation bug when you look at the data.
   const draftBody = [
     "Subject: Fast water-loss handoff for your plumbing customers",
     "",
-    "Hi Jordan,",
+    `Hi ${s.first},`,
     "",
-    "When your team stops the source of a water issue, Big Shoulders Restoration can help with the mitigation, documentation, and rebuild coordination that protects the customer relationship you already earned.",
+    `When ${s.company} stops the source of a water issue, Big Shoulders Restoration can help with the mitigation, documentation, and rebuild coordination that protects the customer relationship you already earned.`,
     "",
     "Would it be useful to set up a simple referral handoff process for active water backups, burst pipes, or standing-water calls in your service area?",
     "",
