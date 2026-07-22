@@ -66,7 +66,7 @@ function modeBlock(mode: "ask" | "act" | "draft" | "scan"): string {
   if (mode === "ask") {
     return [
       "MODE: ask — read-only. Answer and analyze using read tools only. Do not create, modify, or draft anything.",
-      "If the operator asks you to build, draft, create, or change something, don't just refuse: give what you can read-only (e.g. the plan, angle, or outline) and tell them to switch the composer to Act mode (the mode pill next to the composer) so you can create the approval-gated drafts.",
+      "If the operator asks you to build, draft, create, or change something, don't just refuse: give what you can read-only (e.g. the plan, angle, or outline) and tell them to choose Work from the capability control beside the composer so you can create approval-gated drafts.",
     ].join("\n");
   }
   if (mode === "scan") {
