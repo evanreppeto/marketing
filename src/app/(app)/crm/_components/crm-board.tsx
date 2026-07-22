@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { OFFICIAL_PERSONA_MAPPINGS } from "@/domain";
 import { type CrmObjectKey } from "@/lib/crm/read-model";
 
-import { bulkAddTask, bulkAssignPersona, createCrmRecord } from "../actions";
+import { bulkAddContactsToCampaign, bulkAddTask, bulkAssignPersona, createCrmRecord } from "../actions";
 import { AddRecordModal, type AddRecordValue, type LinkOption } from "./add-record-modal";
 import { KpiStrip, type KpiCell } from "../../_components/kpi-strip";
 
@@ -346,6 +346,7 @@ export function CrmBoard({
   defaultKey,
   kpis,
   personaOptions,
+  campaigns = [],
 }: {
   objects: CrmObjectVM[];
   rowsByKey: Record<string, CrmRowVM[]>;
@@ -353,6 +354,8 @@ export function CrmBoard({
   kpis?: KpiCell[];
   /** The org's own personas for the Add-record picker. */
   personaOptions?: { key: string; label: string }[];
+  /** The org's campaigns, for the bulk "Add to campaign" picker (contacts only). */
+  campaigns?: { id: string; name: string; href: string }[];
 }) {
   const [activeKey, setActiveKey] = useState(defaultKey);
   const [q, setQ] = useState("");
@@ -366,6 +369,9 @@ export function CrmBoard({
   // Optimistic open-task-count bumps by row id — a bulk add-task increments the
   // Tasks column for the selected rows immediately, reverting on failure.
   const [taskBumps, setTaskBumps] = useState<Record<string, number>>({});
+  const [campaignMenuOpen, setCampaignMenuOpen] = useState(false);
+  // Add-to-campaign has no on-row display, so a success confirmation is the feedback.
+  const [notice, setNotice] = useState<string | null>(null);
   // Client-only rows for records created this session, keyed by object. They sit
   // on top of the server rows until a real DB write revalidates the page.
   const [localByKey, setLocalByKey] = useState<Record<string, CrmRowVM[]>>({});
@@ -457,6 +463,21 @@ export function CrmBoard({
         setTaskBumps(prev);
         setError("Could not add the task.");
       });
+  };
+
+  const addToCampaign = (campaign: { id: string; name: string }) => {
+    const ids = [...selected];
+    setCampaignMenuOpen(false);
+    if (ids.length === 0) return;
+    setError(null);
+    setNotice(null);
+    bulkAddContactsToCampaign(campaign.id, ids)
+      .then((res) => {
+        if (res.ok) setNotice(`Added ${ids.length} ${ids.length === 1 ? "contact" : "contacts"} to “${campaign.name}”.`);
+        else setError(res.error);
+      })
+      .catch(() => setError("Could not add to the campaign."));
+    setSelected(new Set());
   };
 
   // Parent records a lead/outcome can link to, from the loaded rows. Leads link
@@ -598,6 +619,14 @@ export function CrmBoard({
           </button>
         </div>
       )}
+      {notice && (
+        <div className="crm-notice" role="status">
+          <span>{notice}</span>
+          <button type="button" aria-label="Dismiss" onClick={() => setNotice(null)}>
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+      )}
 
       <div className="subtabs">
         {objects.map((o) => (
@@ -659,9 +688,31 @@ export function CrmBoard({
         </span>
       </div>
 
-      <div className={`selbar${selected.size ? " show" : ""}${personaMenuOpen || taskMenuOpen ? " menuopen" : ""}`}>
+      <div className={`selbar${selected.size ? " show" : ""}${personaMenuOpen || taskMenuOpen || campaignMenuOpen ? " menuopen" : ""}`}>
         <span className="sc">{selected.size} selected</span>
-        <span className="sa" data-soon="Bulk add to campaign is coming soon"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to campaign</span>
+        {active.key === "contacts" ? (
+          <div className="sa-wrap">
+            <button type="button" className="sa" onClick={() => setCampaignMenuOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={campaignMenuOpen}>
+              <svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to campaign
+            </button>
+            {campaignMenuOpen && (
+              <>
+                <button type="button" className="sa-backdrop" aria-hidden onClick={() => setCampaignMenuOpen(false)} tabIndex={-1} />
+                <div className="sa-menu" role="listbox" aria-label="Add the selected contacts to a campaign">
+                  {campaigns.length === 0 ? (
+                    <div className="sa-empty">No campaigns yet — create one on the Campaigns page.</div>
+                  ) : (
+                    campaigns.map((c) => (
+                      <button type="button" key={c.id} role="option" aria-selected={false} className="sa-opt" onClick={() => addToCampaign(c)}>{c.name}</button>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <span className="sa" data-soon="Add contacts to a campaign from the People tab"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to campaign</span>
+        )}
         <div className="sa-wrap">
           <button type="button" className="sa" onClick={() => setPersonaMenuOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={personaMenuOpen}>
             <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>Assign persona

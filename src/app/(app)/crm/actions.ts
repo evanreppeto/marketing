@@ -2,14 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 
+import { type SupabaseClient } from "@supabase/supabase-js";
+
 import { entityTypeFromCrmObjectKey, parseTaskInput } from "@/domain";
+import { addContactsToCampaignAudience } from "@/lib/audience/campaign-audience";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { bulkUpdateCrmPersona, type CreateCrmInput, insertCrmRecord } from "@/lib/crm/create";
 import { insertTask } from "@/lib/interactions/persistence";
 import { type CrmObjectKey } from "@/lib/crm/read-model";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
  * Real operator write for the CRM board's "Add {record}" button. A new CRM
@@ -103,6 +106,43 @@ export async function bulkAddTask(objectKey: string, ids: string[], title: strin
   if (count === 0) return { ok: false, error: "Could not add the task." };
   revalidatePath("/crm");
   return { ok: true, persisted: true, count };
+}
+
+export type AddToCampaignResult =
+  | { ok: true; persisted: boolean; total?: number }
+  | { ok: false; error: string };
+
+/**
+ * Bulk "Add to campaign" (contacts only — a campaign's audience is contacts). Adds
+ * the selected contacts to the chosen campaign's manual audience. Nothing outbound —
+ * membership only; the approval + send gates are unchanged. The campaign is verified
+ * to be the operator's org (the tenant gate, since campaign_audiences has no org_id).
+ */
+export async function bulkAddContactsToCampaign(campaignId: string, contactIds: string[]): Promise<AddToCampaignResult> {
+  await requireOperator();
+  if (!campaignId?.trim()) return { ok: false, error: "Choose a campaign." };
+  if (!contactIds?.length) return { ok: false, error: "Select at least one contact." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const orgId = await getCurrentOrgId();
+  // The generic client — campaign_audiences isn't in the generated types, and the
+  // ownership query filters org_id (the tenant gate). Matches campaign-audience.ts.
+  const client = getSupabaseAdminClient() as unknown as SupabaseClient;
+  const { data: campaign, error } = await client
+    .from("campaigns")
+    .select("persona")
+    .eq("id", campaignId.trim())
+    .eq("org_id", orgId)
+    .maybeSingle<{ persona: string }>();
+  if (error) return { ok: false, error: error.message };
+  if (!campaign?.persona) return { ok: false, error: "That campaign isn't in this workspace." };
+
+  const res = await addContactsToCampaignAudience(client, campaignId.trim(), campaign.persona, contactIds);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath("/crm");
+  revalidatePath(`/campaigns/${campaignId.trim()}`);
+  return { ok: true, persisted: true, total: res.total };
 }
 
 export async function createCrmRecord(input: CreateCrmInput): Promise<CreateResult> {

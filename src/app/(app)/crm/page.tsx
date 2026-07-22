@@ -2,6 +2,7 @@ import { getAnalyticsOverview } from "@/lib/analytics/overview";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getBusinessProfile } from "@/lib/brand-kit/persistence";
 import { getCrmMentionSamples, getCrmNavCounts, type CrmObjectKey, type CrmObjectRow } from "@/lib/crm/read-model";
+import { listCampaignNames } from "@/lib/campaigns/read-model";
 import { getOrgPersonaOptions } from "@/lib/personas/read-model";
 import { getProductLanguage } from "@/lib/product-language";
 import { getAppSettings } from "@/lib/settings/store";
@@ -121,13 +122,14 @@ function toRow(row: CrmObjectRow): CrmRowVM {
 
 export default async function CrmPage() {
   const orgId = await getCurrentOrgId().catch(() => "");
-  const [samples, navCounts, overview, personaOptions, appSettings, businessProfile] = await Promise.all([
+  const [samples, navCounts, overview, personaOptions, appSettings, businessProfile, campaigns] = await Promise.all([
     getCrmMentionSamples().catch(() => ({}) as Partial<Record<CrmObjectKey, CrmObjectRow[]>>),
     getCrmNavCounts().catch(() => ({ status: "unavailable" }) as const),
     orgId ? getAnalyticsOverview(orgId).catch(() => null) : Promise.resolve(null),
     getOrgPersonaOptions(orgId || undefined).catch(() => []),
     getAppSettings(orgId).catch(() => null),
     orgId ? getBusinessProfile(orgId).catch(() => null) : Promise.resolve(null),
+    listCampaignNames(orgId || undefined).catch(() => []),
   ]);
   const productLanguage = getProductLanguage(appSettings?.industry || businessProfile?.industry);
 
@@ -175,5 +177,5 @@ export default async function CrmPage() {
     };
   });
 
-  return <CrmBoard objects={objects} rowsByKey={rowsByKey} defaultKey="contacts" kpis={kpis} personaOptions={personaOptions} />;
+  return <CrmBoard objects={objects} rowsByKey={rowsByKey} defaultKey="contacts" kpis={kpis} personaOptions={personaOptions} campaigns={campaigns} />;
 }
