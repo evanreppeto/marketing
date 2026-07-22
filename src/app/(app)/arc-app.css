@@ -1279,6 +1279,13 @@
 .arc-app .selbar .sa-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 41; min-width: 200px; max-height: 300px; overflow-y: auto; padding: 5px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 1px; }
 .arc-app .selbar .sa-opt { display: block; width: 100%; text-align: left; padding: 7px 10px; border: none; border-radius: 7px; background: none; color: var(--text-2); font-size: 12.5px; font-family: inherit; cursor: pointer; transition: 0.12s; }
 .arc-app .selbar .sa-opt:hover { background: var(--inset); color: var(--text); }
+.arc-app .selbar .sa-taskmenu { flex-direction: row; align-items: center; gap: 6px; min-width: 300px; padding: 7px; }
+.arc-app .selbar .sa-taskinput { flex: 1; min-width: 0; height: 30px; padding: 0 9px; border: 1px solid var(--line-2); border-radius: 7px; background: var(--inset); color: var(--text); font-size: 12.5px; font-family: inherit; outline: none; }
+.arc-app .selbar .sa-taskinput:focus { border-color: var(--accent-border); }
+.arc-app .selbar .sa-taskinput::placeholder { color: var(--muted); }
+.arc-app .selbar .sa-taskbtn { flex: none; height: 30px; padding: 0 12px; border: none; border-radius: 7px; background: var(--accent-soft); color: var(--accent-contrast); font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; transition: 0.12s; }
+.arc-app .selbar .sa-taskbtn:hover:not(:disabled) { filter: brightness(1.08); }
+.arc-app .selbar .sa-taskbtn:disabled { opacity: 0.5; cursor: default; }
 .arc-app .selbar .clr { margin-left: auto; color: var(--muted); font-size: 11.5px; cursor: pointer; }
 .arc-app .selbar .clr:hover { color: var(--text); }
 .arc-app .pager .rpp { display: flex; align-items: center; gap: 7px; }
