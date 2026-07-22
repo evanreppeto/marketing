@@ -155,9 +155,9 @@ const MODEL_OPTIONS: Array<{ id: ArcModelPreference; label: string; description:
 ];
 
 const CAPABILITY_OPTIONS: Array<{ id: ArcComposerModePreference; label: string; description: string }> = [
-  { id: "auto", label: "Automatic", description: "Choose read-only or workspace tools from your request" },
-  { id: "ask", label: "Read only", description: "Analyze and answer without changing the workspace" },
-  { id: "act", label: "Work", description: "Use workspace tools while outbound stays locked" },
+  { id: "auto", label: "Automatic", description: "Choose capability from the request" },
+  { id: "ask", label: "Read only", description: "Analyze without workspace changes" },
+  { id: "act", label: "Work", description: "Use tools; outbound stays locked" },
 ];
 
 const ARC_CONTEXT_SCOPES = ["workspace", "brand", "crm", "campaigns"];
@@ -1730,7 +1730,7 @@ export function ArcView({
 
                   {composerMenu === "mode" ? (
                     <>
-                      <div className="arc-model-menu-label">Capability</div>
+                      <div className="arc-model-menu-label">Capability{modePreference === "auto" ? <span>Automatic → {capabilityLabel}</span> : <span>Manual</span>}</div>
                       <div className="arc-model-options">
                         {CAPABILITY_OPTIONS.map((option) => <button type="button" className="arc-model-option" role="menuitemradio" aria-checked={modePreference === option.id} key={option.id} onClick={() => chooseModePreference(option.id)}><i className="arc-model-symbol" aria-hidden="true"><ArcCapabilityIcon mode={option.id} size={16} /></i><span><b>{option.label}</b><small>{option.description}</small></span><i className="arc-model-check" aria-hidden="true">{modePreference === option.id ? <Check size={14} /> : null}</i></button>)}
                       </div>
@@ -1789,7 +1789,7 @@ export function ArcView({
                 <button type="button" className="arc-composer-pill arc-model-button" aria-label={`Model: ${currentModel.label}${modelPreference === "auto" ? `. Currently routes to Arc ${resolvedModelName}.` : ""}`} aria-haspopup="menu" aria-controls={composerMenu === "model" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "model"} onClick={(event) => toggleComposerMenu("model", event.currentTarget)}><ArcModelIcon model={modelPreference} size={14} /><span>{currentModel.label}{modelPreference === "auto" ? <small> · {resolvedModelName}</small> : null}</span><ChevronDown size={12} /></button>
                 <div className="arc-context-control">
                   <button type="button" className="arc-context-meter" data-level={contextState.level} aria-label={`Context window: ${contextState.pct}% used. Full workspace memory is always on.`} aria-expanded={contextInfoOpen} aria-controls="arc-context-info" onClick={() => { setComposerMenu(null); setContextInfoOpen((current) => !current); }} onKeyDown={(event) => { if (event.key === "Escape") setContextInfoOpen(false); }}>
-                    <CircularProgress className="arc-context-progress" variant="determinate" value={contextState.pct} size={30} thickness={2.4} role="presentation" aria-hidden="true" />
+                    <CircularProgress className="arc-context-progress" variant="determinate" value={contextState.pct} size={24} thickness={2.2} role="presentation" aria-hidden="true" />
                   </button>
                   <AnimatePresence>
                     {contextInfoOpen ? (
