@@ -53,6 +53,8 @@ import {
   Search,
   Share2,
   ShieldCheck,
+  Sparkles,
+  Info,
   Slash,
   Target,
   Telescope,
@@ -111,6 +113,8 @@ import {
   regenerateArcReplyAction,
   renameArcConversationAction,
   installArcGithubSkillAction,
+  generateExemplarSkillAction,
+  removeGeneratedSkillAction,
   listArchivedArcConversationsAction,
   listSavedArcItemsAction,
   previewArcGithubSkillAction,
@@ -123,6 +127,7 @@ import {
   type ArchivedArcConversationVM,
   type SavedArcItemVM,
 } from "../actions";
+import type { GeneratedSkillRecord } from "@/lib/exemplar-skills/persistence";
 import {
   getChatSharingStateAction,
   setChatSharingAction,
@@ -375,6 +380,9 @@ function ThreadDrawer({
   onSetSkillInstalled,
   workspaceSkills,
   onWorkspaceSkillsChange,
+  generatedSkills,
+  onGeneratedSkillsChange,
+  workspaceName,
   campaignItems,
   connectorsConfigured,
   connectors,
@@ -397,6 +405,9 @@ function ThreadDrawer({
   onSetSkillInstalled: (skill: ArcSkillDefinition, installed: boolean) => void;
   workspaceSkills: WorkspaceArcSkill[];
   onWorkspaceSkillsChange: (skills: WorkspaceArcSkill[]) => void;
+  generatedSkills: GeneratedSkillRecord[];
+  onGeneratedSkillsChange: (skills: GeneratedSkillRecord[]) => void;
+  workspaceName: string;
   campaignItems: ArcMention[];
   connectorsConfigured: boolean;
   connectors: ConnectorView[];
@@ -422,6 +433,8 @@ function ThreadDrawer({
   const [githubOpen, setGithubOpen] = useState(false);
   const [githubUrl, setGithubUrl] = useState("");
   const [githubPreview, setGithubPreview] = useState<WorkspaceArcSkill | null>(null);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<{ tone: "ok" | "info"; text: string } | null>(null);
   const [githubStatus, setGithubStatus] = useState<string | null>(null);
   const [githubBusy, setGithubBusy] = useState(false);
   const [demoGroups, setDemoGroups] = useState<ArcThreadGroupVM[]>(DEMO_THREADS);
@@ -551,8 +564,40 @@ function ThreadDrawer({
     setGithubBusy(false);
   };
 
+  /** Learn this workspace's voice from copy it already approved. Read-only. */
+  const learnVoice = async () => {
+    setVoiceBusy(true);
+    setVoiceStatus(null);
+    const result = await generateExemplarSkillAction({});
+    // A refusal ("not enough proven copy yet") is the expected first answer for
+    // most workspaces — show it as guidance, not as a failure.
+    if (!result.ok) setVoiceStatus({ tone: "info", text: result.error });
+    else {
+      onGeneratedSkillsChange(result.skills);
+      setVoiceStatus(
+        result.generated
+          ? { tone: "ok", text: `Learned from ${result.generated.exemplarCount} approved assets. Use ${result.generated.command} in chat.` }
+          : { tone: "ok", text: "Voice skill updated." },
+      );
+    }
+    setVoiceBusy(false);
+  };
+
+  const removeVoiceSkill = async (record: GeneratedSkillRecord) => {
+    setVoiceBusy(true);
+    const result = await removeGeneratedSkillAction({ skillKey: record.key });
+    if (!result.ok) setVoiceStatus({ tone: "info", text: result.error });
+    else {
+      onGeneratedSkillsChange(result.skills);
+      setVoiceStatus(null);
+    }
+    setVoiceBusy(false);
+  };
+
   const installGithubSkill = async () => {
-    if (!githubPreview) return;
+    // `repositoryUrl` is optional on WorkspaceArcSkill because generated skills
+    // have none; a GitHub preview always carries one.
+    if (!githubPreview?.repositoryUrl) return;
     setGithubBusy(true);
     const result = await installArcGithubSkillAction({ url: githubPreview.repositoryUrl });
     if (!result.ok) setGithubStatus(result.error);
@@ -716,7 +761,23 @@ function ThreadDrawer({
           <button type="button" className="arc-skill-create" onClick={() => onUseSkill(ARC_SKILL_BUILDER)}><span><Plus size={15} /></span><span><b>Create a skill</b><small>Guided builder · /create-skill</small></span><ArrowRight size={14} /></button>
           <button type="button" className="arc-skill-browse" onClick={() => { setSkillsMode("library"); setGithubOpen(true); }}><span><GitFork size={15} /></span><span><b>Add from GitHub</b><small>Review a public SKILL.md before installing</small></span><ArrowRight size={14} /></button>
           <button type="button" className="arc-skill-browse" onClick={() => setSkillsMode("library")}><span><Download size={15} /></span><span><b>Browse Arc Library</b><small>Curated workflows reviewed by Arc</small></span><ArrowRight size={14} /></button>
+          <button type="button" className="arc-skill-browse" disabled={voiceBusy} onClick={() => void learnVoice()}><span>{voiceBusy ? <LoaderCircle size={15} className="is-spinning" /> : <Sparkles size={15} />}</span><span><b>Learn your voice</b><small>{voiceBusy ? "Reading approved campaign copy…" : "Build a skill from copy you already approved"}</small></span><ArrowRight size={14} /></button>
         </div>
+        {voiceStatus ? <p className="arc-voice-status" data-tone={voiceStatus.tone}>{voiceStatus.tone === "ok" ? <Check size={13} /> : <Info size={13} />}{voiceStatus.text}</p> : null}
+        {generatedSkills.length > 0 ? <>
+          <div className="arc-skills-section-head"><span>Your voice</span><small>Learned from {workspaceName || "this workspace"}</small></div>
+          <div className="arc-voice-list" onKeyDown={handleRovingListKeyDown}>
+            {generatedSkills.map((record) => (
+              <div className="arc-voice-skill" key={record.key}>
+                <button type="button" onClick={() => onUseSkill(toDrawerSkill(record, workspaceName))}>
+                  <span className="arc-skill-icon"><Sparkles size={17} /></span>
+                  <span><b>{record.name}</b><small>{VOICE_TIER_LABEL[record.evidenceTier]} · {record.exemplarCount} example{record.exemplarCount === 1 ? "" : "s"}</small><em>{record.command}</em></span>
+                </button>
+                <button type="button" aria-label={`Remove ${record.name}`} disabled={voiceBusy} onClick={() => void removeVoiceSkill(record)}><X size={13} /></button>
+              </div>
+            ))}
+          </div>
+        </> : null}
         <div className="arc-skills-section-head"><span>Installed</span><small>{installedSkillKeys.length > 0 ? `${installedSkillKeys.length} from library` : "Included with Arc"}</small></div>
         <div className="arc-skills-list" onKeyDown={handleRovingListKeyDown}>
           {installedSkills.map((skill) => (
@@ -804,7 +865,34 @@ function ThreadDrawer({
   );
 }
 
+/**
+ * How much a generated skill's ranking is actually grounded. Surfaced next to
+ * every voice skill so "a human approved these" is never mistaken for
+ * "these converted" — the two look identical once rendered.
+ */
+const VOICE_TIER_LABEL: Record<GeneratedSkillRecord["evidenceTier"], string> = {
+  outcome: "Backed by booked work",
+  engagement: "Backed by opens & clicks",
+  approval: "Backed by your approvals",
+};
+
+/** Adapt a stored voice skill to the shape the drawer's skill handlers take. */
+function toDrawerSkill(record: GeneratedSkillRecord, workspaceName: string): ArcSkillDefinition {
+  return {
+    key: record.key,
+    id: "approval-gated-drafting",
+    name: record.name,
+    description: record.description,
+    prompt: record.description,
+    commands: [record.command],
+    mode: "draft",
+    source: "generated",
+    publisher: workspaceName || "This workspace",
+  };
+}
+
 function SkillIcon({ skill, size = 17 }: { skill: ArcSkillDefinition; size?: number }) {
+  if (skill.source === "generated") return <Sparkles size={size} />;
   if (skill.key === "skill-authoring") return <Blocks size={size} />;
   if (skill.key === "skill-installation") return <GitFork size={size} />;
   if (skill.source === "github") return <GitFork size={size} />;
@@ -884,6 +972,8 @@ export function ArcView({
   liveSendEnabled = false,
   installedSkillKeys: initialInstalledSkillKeys = [],
   workspaceSkills: initialWorkspaceSkills = [],
+  generatedSkills: initialGeneratedSkills = [],
+  workspaceName = "",
 }: {
   brandName: string;
   operatorName?: string;
@@ -900,6 +990,8 @@ export function ArcView({
   liveSendEnabled?: boolean;
   installedSkillKeys?: string[];
   workspaceSkills?: WorkspaceArcSkill[];
+  generatedSkills?: GeneratedSkillRecord[];
+  workspaceName?: string;
 }) {
   const router = useRouter();
   const greetName = operatorName?.trim() || brandName?.trim() || "there";
@@ -921,6 +1013,7 @@ export function ArcView({
   const [optimisticTurn, setOptimisticTurn] = useState<(OptimisticArcTurn & { baselineMessageCount: number }) | null>(null);
   const [installedSkillKeys, setInstalledSkillKeys] = useState(initialInstalledSkillKeys);
   const [workspaceSkills, setWorkspaceSkills] = useState(initialWorkspaceSkills);
+  const [generatedSkills, setGeneratedSkills] = useState(initialGeneratedSkills);
   const [installingSkillKey, setInstallingSkillKey] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [workPanelOpen, setWorkPanelOpen] = useState(false);
@@ -1283,6 +1376,10 @@ export function ArcView({
         const preview = await previewArcGithubSkillAction({ url: body });
         if (!preview.ok) {
           setComposerNotice(preview.error);
+          return;
+        }
+        if (!preview.skill.repositoryUrl) {
+          setComposerNotice("That skill is missing its GitHub source.");
           return;
         }
         const result = await installArcGithubSkillAction({ url: preview.skill.repositoryUrl });
@@ -1690,7 +1787,7 @@ export function ArcView({
           : workPanelOpen
             ? <ArcWorkPanel key="work-panel" message={latestArcMessage} cards={workCards} statuses={assetStatuses} demoSeed={demoSeed} demoPending={demoPending} demoRequest={latestDemoRequest} onReview={openReview} onRecover={recoverRun} onClose={() => setWorkPanelVisibility(false)} />
             : null}
-        {historyOpen ? <Fragment key="arc-workspace"><motion.button type="button" className="arc-drawer-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setHistoryOpen(false)} aria-label="Close Arc workspace" /><ThreadDrawer live={live} groups={threadGroups} activeConversationId={visibleConversationId} selectedDemoId={selectedDemoId} needsReviewCount={needsReviewCards.length} onSelectDemo={selectDemoThread} onStartNew={startNewConversation} onOpenReview={() => { setHistoryOpen(false); openReview(needsReviewCards); }} onUseSkill={applyDrawerSkill} installedSkills={installedSkills} installedSkillKeys={installedSkillKeys} installingSkillKey={installingSkillKey} onSetSkillInstalled={setLibrarySkillInstalled} workspaceSkills={workspaceSkills} onWorkspaceSkillsChange={setWorkspaceSkills} campaignItems={mentionGroups.find((group) => group.type === "campaign")?.items ?? []} connectorsConfigured={connectorsConfigured} connectors={connectors} emailConnection={emailConnection} liveSendEnabled={liveSendEnabled} onClose={() => setHistoryOpen(false)} /></Fragment> : null}
+        {historyOpen ? <Fragment key="arc-workspace"><motion.button type="button" className="arc-drawer-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setHistoryOpen(false)} aria-label="Close Arc workspace" /><ThreadDrawer live={live} groups={threadGroups} activeConversationId={visibleConversationId} selectedDemoId={selectedDemoId} needsReviewCount={needsReviewCards.length} onSelectDemo={selectDemoThread} onStartNew={startNewConversation} onOpenReview={() => { setHistoryOpen(false); openReview(needsReviewCards); }} onUseSkill={applyDrawerSkill} installedSkills={installedSkills} installedSkillKeys={installedSkillKeys} installingSkillKey={installingSkillKey} onSetSkillInstalled={setLibrarySkillInstalled} workspaceSkills={workspaceSkills} onWorkspaceSkillsChange={setWorkspaceSkills} generatedSkills={generatedSkills} onGeneratedSkillsChange={setGeneratedSkills} workspaceName={workspaceName} campaignItems={mentionGroups.find((group) => group.type === "campaign")?.items ?? []} connectorsConfigured={connectorsConfigured} connectors={connectors} emailConnection={emailConnection} liveSendEnabled={liveSendEnabled} onClose={() => setHistoryOpen(false)} /></Fragment> : null}
         {shareOpen ? <ShareDialog key="share-dialog" conversationId={visibleConversationId} onClose={() => setShareOpen(false)} /> : null}
       </AnimatePresence>
     </div>

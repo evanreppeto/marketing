@@ -16,11 +16,14 @@ export type ArcSkillDefinition = {
   prompt: string;
   commands: readonly string[];
   mode: "ask" | "act" | "draft";
-  source: "built-in" | "library" | "system" | "github";
+  /** `generated` = built by Arc from this workspace's own campaign history. */
+  source: "built-in" | "library" | "system" | "github" | "generated";
   publisher?: string;
-  /** Present for workspace-installed GitHub skills. Kept out of the visible chat
-   *  message, but injected into the runner request behind a read-only skill. */
+  /** Present for workspace-installed GitHub skills and generated exemplar skills.
+   *  Kept out of the visible chat message, but injected into the runner request
+   *  behind a read-only skill. */
   instructions?: string;
+  /** GitHub-imported skills only. Generated skills have no upstream repository. */
   repositoryUrl?: string;
 };
 

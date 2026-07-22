@@ -12,6 +12,7 @@ import {
   type ArcMention,
   type ArcMode,
   type ArcRoute,
+  type CampaignAssetType,
 } from "@/domain";
 import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { decideAsset, type ApprovalDecision } from "@/lib/campaigns/decisions";
@@ -50,7 +51,15 @@ import { logArcChatStatus } from "@/lib/arc-chat/status-log";
 import { ALL_ARC_SKILLS, ARC_SKILL_LIBRARY, skillIdForArcCommand } from "@/lib/arc-skills/catalog";
 import { instructionForWorkspaceSkill, parseWorkspaceArcSkills, type WorkspaceArcSkill } from "@/lib/arc-skills/custom";
 import { ARC_CUSTOM_SKILLS_SETTING, getWorkspaceArcSkills, previewGithubArcSkill } from "@/lib/arc-skills/github";
+import { getAllWorkspaceArcSkills } from "@/lib/arc-skills/workspace-skills";
 import { getInstalledArcSkillKeys, ARC_INSTALLED_SKILLS_SETTING } from "@/lib/arc-skills/installation";
+import { generateExemplarSkill } from "@/lib/exemplar-skills/generate";
+import {
+  deleteGeneratedSkill,
+  listGeneratedSkills,
+  saveGeneratedSkill,
+  type GeneratedSkillRecord,
+} from "@/lib/exemplar-skills/persistence";
 import { getCreationTenancy } from "@/lib/arc-chat/sharing";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
@@ -217,9 +226,14 @@ export async function sendArcMessageAction(input: {
     const mode = parseArcMode(input.mode);
     const route = parseArcRoute(input.route);
     const command = typeof input.command === "string" ? input.command.trim().replace(/^\//, "") || null : null;
+    // Only resolved when a slash command is in play — a generated skill's
+    // publisher is the workspace's own name.
+    const skillContext = command ? await getCurrentWorkspaceContext().catch(() => null) : null;
     const [operator, workspaceSkills, agentName] = await Promise.all([
       getOperatorActor(),
-      command ? getWorkspaceArcSkills(orgId) : Promise.resolve([] as WorkspaceArcSkill[]),
+      command
+        ? getAllWorkspaceArcSkills(orgId, skillContext?.workspaceName || skillContext?.orgName || "This workspace")
+        : Promise.resolve([] as WorkspaceArcSkill[]),
       getArcDisplayName(),
     ]);
     const workspaceSkill = command
@@ -309,8 +323,10 @@ export async function sendArcMessageAction(input: {
  */
 async function reEnqueueTurn(operatorMessage: ArcMessage, body: string): Promise<void> {
   const command = operatorMessage.command?.replace(/^\//, "") ?? null;
+  const skillContext = command ? await getCurrentWorkspaceContext().catch(() => null) : null;
   const workspaceSkill = command
-    ? (await getWorkspaceArcSkills(await getCurrentOrgId())).find((skill) => skill.commands.some((candidate) => candidate.replace(/^\//, "") === command)) ?? null
+    ? (await getAllWorkspaceArcSkills(skillContext?.orgId ?? (await getCurrentOrgId()), skillContext?.workspaceName || skillContext?.orgName || "This workspace"))
+        .find((skill) => skill.commands.some((candidate) => candidate.replace(/^\//, "") === command)) ?? null
     : null;
   const conversation = await getConversation(operatorMessage.conversationId);
   const mode = operatorMessage.mode === "ask" ? "act" : operatorMessage.mode;
@@ -763,5 +779,89 @@ export async function unarchiveArcConversationAction(id: string): Promise<ArcInt
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Couldn't restore that conversation." };
+  }
+}
+
+// --- Generated exemplar skills ---------------------------------------------
+
+export type GeneratedSkillActionResult =
+  | { ok: true; skills: GeneratedSkillRecord[]; generated?: GeneratedSkillRecord }
+  | { ok: false; error: string };
+
+/**
+ * Build a SKILL.md from this workspace's own proven campaign copy and store it.
+ *
+ * Reads only — it learns from assets the operator already decided on and writes
+ * a drafting aid. Nothing here approves, sends, or unlocks anything.
+ *
+ * A refusal ("not enough proven copy yet") is an expected outcome, not an error
+ * to paper over: it is returned verbatim so the operator learns what to do next
+ * instead of seeing an empty skill list.
+ */
+export async function generateExemplarSkillAction(input: {
+  assetType?: CampaignAssetType;
+  persona?: string;
+}): Promise<GeneratedSkillActionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Generating a voice skill needs a connected backend." };
+
+  try {
+    const context = await getCurrentWorkspaceContext();
+    if (!context.orgId) return { ok: false, error: "No active workspace is available." };
+
+    const result = await generateExemplarSkill({
+      orgId: context.orgId,
+      workspaceName: context.workspaceName || context.orgName,
+      assetType: input.assetType,
+      persona: input.persona,
+      generatedAt: new Date().toISOString(),
+    });
+    if (!result.ok) return { ok: false, error: result.message };
+
+    const command = result.skill.command.replace(/^\//, "");
+    const reserved = ALL_ARC_SKILLS.some((candidate) =>
+      candidate.commands.some((item) => item.replace(/^\//, "") === command),
+    );
+    if (reserved) {
+      return { ok: false, error: `${result.skill.command} is already used by Arc. Generate a narrower slice instead.` };
+    }
+
+    const client = getSupabaseAdminClient();
+    await saveGeneratedSkill(context.orgId, {
+      key: result.skill.key,
+      name: result.skill.name,
+      description: result.skill.description,
+      command: result.skill.command,
+      assetType: input.assetType ?? null,
+      persona: input.persona ?? null,
+      evidenceTier: result.tier,
+      instructions: result.skill.markdown,
+      exemplarCount: result.exemplarCount,
+      sourceAssetIds: result.sourceAssetIds,
+      counterExampleAssetIds: result.counterExampleAssetIds,
+      generatedAt: new Date().toISOString(),
+    }, client);
+
+    const skills = await listGeneratedSkills(context.orgId, client);
+    revalidatePath("/arc");
+    return { ok: true, skills, generated: skills.find((skill) => skill.key === result.skill.key) };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not generate that voice skill." };
+  }
+}
+
+export async function removeGeneratedSkillAction(input: { skillKey: string }): Promise<GeneratedSkillActionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Removing a voice skill needs a connected backend." };
+
+  try {
+    const context = await getCurrentWorkspaceContext();
+    if (!context.orgId) return { ok: false, error: "No active workspace is available." };
+    const client = getSupabaseAdminClient();
+    await deleteGeneratedSkill(context.orgId, input.skillKey, client);
+    revalidatePath("/arc");
+    return { ok: true, skills: await listGeneratedSkills(context.orgId, client) };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not remove that voice skill." };
   }
 }
