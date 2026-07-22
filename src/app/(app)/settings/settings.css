@@ -164,6 +164,14 @@
 .arc-settings .cxm-field .btn { flex-shrink: 0; }
 /* Multi-line variant (the weather points list): the field stacks above its Save so
    a tall textarea doesn't leave the button floating in the vertical middle. */
+.arc-settings .cxm-checks { display: grid; gap: 6px; margin-bottom: 9px; }
+.arc-settings .cxm-check { display: grid; grid-template-columns: 15px minmax(0, 1fr); gap: 9px; align-items: start; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--inset); cursor: pointer; transition: border-color .15s, background .15s; }
+.arc-settings .cxm-check:hover { border-color: var(--line); }
+.arc-settings .cxm-check:has(input:checked) { border-color: var(--accent-border); background: var(--accent-soft); }
+.arc-settings .cxm-check input { margin: 2px 0 0; accent-color: var(--accent); cursor: pointer; }
+.arc-settings .cxm-check span { display: block; min-width: 0; }
+.arc-settings .cxm-check b { display: block; font-size: 12px; font-weight: 600; color: var(--text); }
+.arc-settings .cxm-check i { display: block; font-style: normal; font-size: 10.5px; color: var(--muted); line-height: 1.45; margin-top: 2px; }
 .arc-settings .cxm-field.stack { display: block; }
 .arc-settings .cxm-field.stack .inp { display: block; width: 100%; min-width: 0; margin-bottom: 8px; resize: vertical; line-height: 1.5; font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); }
 .arc-settings .cxm-actions { display: flex; gap: 8px; margin-top: 11px; }

@@ -109,6 +109,9 @@ function toVM(rec: OpportunityRecord, allowedPersonaKeys?: readonly string[]): O
   const evidence: OpportunityVM["evidence"] = [];
   // Weather-event signals (kind='weather_event').
   if (ev.eventType) evidence.push({ label: "Alert", value: humanize(ev.severity ?? "") ? `${ev.eventType} (${humanize(ev.severity ?? "")})` : ev.eventType });
+  // A heat card and a hail card look alike once rendered, and the claim each makes
+  // is different — say which demand this alert was surfaced for.
+  if (ev.category) evidence.push({ label: "Signal type", value: humanize(ev.category) });
   if (ev.area) evidence.push({ label: "Coverage area", value: ev.area });
   if (Array.isArray(ev.zipCodes) && ev.zipCodes.length) evidence.push({ label: "ZIPs", value: ev.zipCodes.slice(0, 6).join(", ") });
   // Competitor signals (kind='competitor_signal').

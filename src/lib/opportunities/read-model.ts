@@ -15,6 +15,8 @@ type OpportunityEvidence = {
   evidence_urls?: string[];
   // Weather-event evidence (kind='weather_event').
   eventType?: string;
+  /** Which demand the alert drives — property_damage | extreme_heat | … */
+  category?: string;
   area?: string;
   severity?: string;
   zipCodes?: string[];
