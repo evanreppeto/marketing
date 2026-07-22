@@ -343,20 +343,31 @@ const PERSONA_PLACEHOLDER = "your-persona-key";
 // plain input, so offline/no-persona workspaces still work.
 const PersonaOptionsContext = createContext<readonly PersonaOption[]>([]);
 
+/**
+ * Per-connector config fields.
+ *
+ * Placeholders are EXAMPLES, and this UI is shown to every workspace — so they
+ * must not be one tenant's real data. They used to be: "Big Shoulders
+ * Restoration" and "ServPro Chicago" named an actual company and its actual
+ * competitor, "roof, storm, water damage" was one trade's vocabulary, and
+ * "IL, WI, IN" / "Chicago / Naperville" were one workspace's real service area.
+ * The geographic examples now describe a single, plainly fictional business so
+ * nothing here reads as somebody's live configuration.
+ */
 const CONFIG_FIELDS: Record<string, ConfigField[]> = {
   "weather-signals": [
     {
       key: "states",
       kind: "csv",
       label: "Service area — whole states",
-      placeholder: "IL, WI, IN",
+      placeholder: "CO, UT, NM",
       hint: "Comma-separated two-letter US state codes. Watches every active NWS/NOAA alert statewide — broad, so a metro-area business usually wants points below instead. No API key needed.",
     },
     {
       key: "points",
       kind: "points",
       label: "Service area — points",
-      placeholder: "41.8781,-87.6298 Chicago\n41.7508,-88.1535 Naperville",
+      placeholder: "39.7392,-104.9903 Downtown\n39.7294,-104.8319 East side",
       hint: "One lat,lng per line, with an optional label. Only alerts whose area actually covers a point become opportunities — the right choice when you serve a metro, not a whole state. Use either or both.",
     },
     {
@@ -386,7 +397,7 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       key: "keywords",
       kind: "csv",
       label: "Only surface items mentioning… (optional)",
-      placeholder: "roof, storm, water damage",
+      placeholder: "a service you sell, your city, a competitor",
       hint: "Comma-separated. When set, only feed items mentioning one of these words become opportunities — the way to tame a noisy industry feed. Leave blank to surface every fresh item.",
     },
   ],
@@ -395,7 +406,7 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       key: "queries",
       kind: "queries",
       label: "Search terms to watch",
-      placeholder: "brand: Big Shoulders Restoration\ncompetitor: ServPro Chicago\nChicago storm damage",
+      placeholder: "brand: Your company name\ncompetitor: A competitor's name\nyour city + a service you sell",
       hint: "One search term per line. Optional prefix — brand:, competitor:, or industry: (default) — sets the angle. Each fresh news article matching a term becomes a timely-response opportunity. Needs a GNews key above.",
     },
   ],
