@@ -70,7 +70,15 @@ export const OPPORTUNITY_SCAN_BRIEFING =
   "Survey the current CRM, personas, brand knowledge, recent activity, and the existing opportunity inbox. " +
   "Propose source-backed opportunities the deterministic detectors miss — dormant companies worth re-engaging, " +
   "persona-segment gaps, competitor signals, or newly-approved media that suggests a campaign. For each, call " +
-  "propose_opportunity with concrete evidence/source refs and a stable subject id. Everything stays pending for " +
+  "propose_opportunity with concrete evidence/source refs and a stable subject id. " +
+  // The tool accepting a persona is not enough — the model has to be told to
+  // supply one. Without it the opportunity can never become a campaign draft on
+  // its own, which is what left scheduled auto-drafting able to touch only the
+  // detector-produced kinds.
+  "Set `persona` on every opportunity that targets an audience, using a persona key from this workspace's own list — " +
+  "an opportunity with no persona cannot be turned into a campaign draft and will wait for a human to pick one. " +
+  "Leave it unset only when the finding genuinely has no audience (a data-quality or attribution gap), rather than guessing. " +
+  "Everything stays pending for " +
   "human approval — do NOT draft campaigns, contact anyone, or take any outbound action.";
 
 /**

@@ -129,3 +129,64 @@ describe("arc-runner tool enum stays in step with the domain", () => {
     expect(SOURCE).toMatch(/subject_type:\s*z\.enum\(OPPORTUNITY_SUBJECT_TYPES\)/);
   });
 });
+
+describe("parseOpportunityProposal persona", () => {
+  const base = {
+    kind: "dormant_account",
+    subject_type: "company",
+    subject_id: "co-1",
+    title: "Dormant account worth re-engaging",
+    summary: "No activity in 90 days.",
+  };
+
+  function candidateFor(raw: Record<string, unknown>) {
+    const parsed = parseOpportunityProposal(raw);
+    if (!parsed.ok) throw new Error(`expected ok, got: ${parsed.error}`);
+    return parsed.candidate;
+  }
+
+  it("normalizes a top-level persona into evidence, where the drafting path reads it", () => {
+    // The producer and the consumer disagreed: propose_opportunity had no
+    // persona arg at all, while getOpportunityForCampaign reads evidence.persona
+    // and a campaign cannot be created without one.
+    const candidate = candidateFor({ ...base, persona: "persona_property_manager" });
+    expect(candidate.evidence.persona).toBe("persona_property_manager");
+  });
+
+  it("still accepts a persona nested in the free-form evidence blob", () => {
+    const candidate = candidateFor({ ...base, evidence: { persona: "persona_landlord", src: "crm" } });
+    expect(candidate.evidence.persona).toBe("persona_landlord");
+    expect(candidate.evidence.src).toBe("crm");
+  });
+
+  it("prefers the explicit argument over a nested one", () => {
+    const candidate = candidateFor({
+      ...base,
+      persona: "persona_property_manager",
+      evidence: { persona: "persona_landlord" },
+    });
+    expect(candidate.evidence.persona).toBe("persona_property_manager");
+  });
+
+  it("leaves no persona key when none is supplied", () => {
+    // An absent persona must stay absent rather than becoming "", which would
+    // read as present downstream and fail the allowed-persona check instead of
+    // the clearer no-persona skip.
+    const candidate = candidateFor(base);
+    expect(candidate.evidence.persona).toBeUndefined();
+    expect("persona" in candidate.evidence).toBe(false);
+  });
+
+  it("treats a blank or whitespace persona as absent", () => {
+    for (const persona of ["", "   "]) {
+      const candidate = candidateFor({ ...base, persona });
+      expect("persona" in candidate.evidence).toBe(false);
+    }
+  });
+
+  it("does not mutate the caller's evidence object", () => {
+    const evidence = { src: "crm" };
+    candidateFor({ ...base, persona: "persona_landlord", evidence });
+    expect(evidence).toEqual({ src: "crm" });
+  });
+});
