@@ -1503,6 +1503,14 @@
 .arc-app .crm-error button { margin-left: auto; display: grid; place-items: center; width: 22px; height: 22px; border: none; background: transparent; color: currentColor; cursor: pointer; opacity: .7; }
 .arc-app .crm-error button:hover { opacity: 1; }
 .arc-app .crm-error svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+.arc-app .crm-notice {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 9px 12px; border-radius: 9px;
+  font-size: 12.5px; color: var(--ok-text); background: var(--ok-soft); border: 1px solid color-mix(in srgb, var(--ok-text) 30%, transparent);
+}
+.arc-app .crm-notice button { margin-left: auto; display: grid; place-items: center; width: 22px; height: 22px; border: none; background: transparent; color: currentColor; cursor: pointer; opacity: .7; }
+.arc-app .crm-notice button:hover { opacity: 1; }
+.arc-app .crm-notice svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+.arc-app .selbar .sa-empty { padding: 8px 10px; font-size: 12px; color: var(--muted); max-width: 220px; }
 
 /* A just-added optimistic row gently announces itself */
 .arc-app .arc-crm .dt tbody tr.freshrow { cursor: default; animation: arc-modal-in 0.3s var(--ease) both; }

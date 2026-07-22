@@ -38,6 +38,10 @@ export type CampaignAudienceTarget = {
   contactId?: string | null;
   /** When set (and no contactId), narrows the persona audience to this company's contacts. */
   companyId?: string | null;
+  /** Contacts explicitly added to the campaign (operator-picked, e.g. bulk "Add to
+   *  campaign" on the CRM board). They qualify regardless of persona — but still
+   *  pass suppression + address checks in the resolver. */
+  manualContactIds?: readonly string[];
 };
 
 export type SuppressionReason =
@@ -97,6 +101,9 @@ function suppressionForStatus(status: AudienceContact["status"]): SuppressionRea
 
 /** Is this contact in the campaign's candidate set (before eligibility filtering)? */
 function isCandidate(contact: AudienceContact, target: CampaignAudienceTarget): boolean {
+  // Operator-picked contacts always qualify (persona-agnostic); they still go
+  // through suppression + address validity below.
+  if (target.manualContactIds?.includes(contact.id)) return true;
   if (target.contactId) return contact.id === target.contactId;
   if (contact.persona !== target.persona) return false;
   if (target.companyId && contact.companyId !== target.companyId) return false;

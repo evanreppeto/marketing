@@ -40,6 +40,28 @@ describe("resolveCampaignAudience", () => {
     expect(res.suppressedCount).toBe(0);
   });
 
+  it("includes manually-added contacts regardless of persona (bulk 'Add to campaign')", () => {
+    const contacts = [
+      contact({ id: "persona-match", persona: PERSONA, email: "a@example.com" }),
+      contact({ id: "manual-other", persona: "persona_property_manager", email: "m@example.com" }),
+      contact({ id: "unrelated", persona: "persona_landlord", email: "u@example.com" }),
+    ];
+    const res = resolveCampaignAudience({ persona: PERSONA, manualContactIds: ["manual-other"] }, contacts, "email");
+    // The persona match AND the manually-added off-persona contact qualify; the
+    // unrelated off-persona contact does not.
+    expect(res.recipients.map((r) => r.contactId).sort()).toEqual(["manual-other", "persona-match"]);
+  });
+
+  it("still suppresses a manually-added contact that's do_not_contact or has no email", () => {
+    const contacts = [
+      contact({ id: "dnc", persona: "persona_landlord", status: "do_not_contact", email: "x@example.com" }),
+      contact({ id: "noemail", persona: "persona_landlord", email: null }),
+    ];
+    const res = resolveCampaignAudience({ persona: PERSONA, manualContactIds: ["dnc", "noemail"] }, contacts, "email");
+    expect(res.recipients).toHaveLength(0);
+    expect(res.suppressed.map((s) => s.reason)).toEqual(expect.arrayContaining(["status_do_not_contact", "missing_email"]));
+  });
+
   it("suppresses do_not_contact / inactive / archived with reason tags", () => {
     const contacts = [
       contact({ id: "dnc", status: "do_not_contact" }),
