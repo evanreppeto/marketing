@@ -2,6 +2,13 @@ import type { ArcMode } from "@/domain";
 
 import { inferArcRunIntent } from "./run-profile";
 
+const EXPLICIT_READ_ONLY_REQUESTS = [
+  /\bread[-\s]?only\b/i,
+  /\bask mode\b/i,
+  /\bdo not (?:create|edit|update|change)(?:[^.\n]{0,60})(?:create|edit|update|change|send)\b/i,
+  /\bdon['’]?t (?:create|edit|update|change)(?:[^.\n]{0,60})(?:create|edit|update|change|send)\b/i,
+];
+
 /**
  * Arc is an action-capable workspace agent by default. The old composer inferred
  * `ask` for ordinary chat and research, silently putting the runner into a
@@ -13,6 +20,7 @@ export function resolveArcComposerMode(input: {
   request: string;
   commandMode?: ArcMode;
 }): ArcMode {
+  if (EXPLICIT_READ_ONLY_REQUESTS.some((pattern) => pattern.test(input.request))) return "ask";
   if (input.commandMode === "draft") return "draft";
   return inferArcRunIntent({ request: input.request }) === "create" ? "draft" : "act";
 }

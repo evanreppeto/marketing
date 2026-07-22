@@ -37,7 +37,6 @@ import {
   MailCheck,
   MapPinned,
   Megaphone,
-  Menu,
   MessageSquareText,
   MessagesSquare,
   MoreHorizontal,
@@ -1651,7 +1650,7 @@ export function ArcView({
   return (
     <div className="arc-chat" data-workspace-open={panelVisible ? "true" : "false"} data-new-conversation={live && !visibleConversationId && visibleMessages.length === 0 && !optimisticTurn ? "true" : "false"}>
       <header className="arc-conversation-header">
-        <button type="button" className="arc-history-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversation history"><Menu size={17} /><span>History</span></button>
+        <button type="button" className="arc-history-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversations"><MessagesSquare size={17} /><span>Conversations</span></button>
         <div className="arc-conversation-title"><h1>{header.title}</h1><p>{header.subtitle}</p></div>
         <div className="arc-conversation-actions">
           {needsReviewCards.length > 0 ? <button type="button" className="arc-header-attention" onClick={() => openReview(needsReviewCards)}><ClipboardCheck size={15} /><span>{needsReviewCards.length} need review</span></button> : null}

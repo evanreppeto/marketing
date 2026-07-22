@@ -42,9 +42,11 @@ export function buildArcRunContract(input: {
   const modeLabel = mode === "ask" ? "Read only" : mode === "draft" ? "Draft only" : "Workspace action";
   const workspaceEffect = mode === "ask"
     ? "No workspace changes"
-    : mode === "draft"
-      ? "May create reviewable drafts"
-      : "May update internal workspace records";
+    : actionCount === 0
+      ? "No workspace changes recorded"
+      : mode === "draft"
+        ? `Created ${actionCount} reviewable draft${actionCount === 1 ? "" : "s"}`
+        : `Created ${actionCount} reviewable workspace output${actionCount === 1 ? "" : "s"}`;
   const approval = mode === "ask"
     ? "Not needed for read-only work"
     : "Required before any outbound action";

@@ -20,6 +20,7 @@ import { listCampaignNames } from "@/lib/campaigns/read-model";
 import { requestAssetRevision } from "@/lib/campaigns/revisions";
 import { getArcDisplayName } from "@/lib/arc-chat/agent-config";
 import { isAcceptedAttachment } from "@/lib/arc-chat/attachment-types";
+import { deriveArcConversationTitle } from "@/lib/arc-chat/conversation-title";
 import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
 import { cancelChatTask } from "@/lib/arc-chat/inbox";
 import {
@@ -251,7 +252,7 @@ export async function sendArcMessageAction(input: {
       const tenancy = await getCreationTenancy();
       const conversation = await createConversation({
         operator,
-        title: body.length > 60 ? `${body.slice(0, 57)}…` : body,
+        title: deriveArcConversationTitle(body),
         campaignId: selectedCampaignId,
         ownerId: tenancy.ownerId,
         workspaceId: tenancy.workspaceId,
