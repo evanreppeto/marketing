@@ -104,7 +104,7 @@ describe("runCompetitorSignalDetection", () => {
         ],
         error: null,
       },
-      opportunities: { data: [{ subject_id: "cc-1" }], error: null },
+      opportunities: { data: [{ subject_id: "cc-1", status: "pending" }], error: null },
     });
 
     const res = await runCompetitorSignalDetection(mock, NOW);

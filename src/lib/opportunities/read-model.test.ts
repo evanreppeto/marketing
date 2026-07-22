@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
+// countPendingOpportunities resolves the org even when handed an explicit
+// client; the demo/unconfigured tests below return before reaching it.
+vi.mock("@/lib/auth/org", () => ({ getCurrentOrgId: async () => "org-1" }));
+
 import {
   countPendingOpportunities,
   getOpportunityForCampaign,
@@ -102,6 +106,42 @@ describe("opportunities demo fallback", () => {
     await expect(countPendingOpportunities()).resolves.toBe(0);
     await expect(getOpportunityForDraft("demo-opp-storm-riverside")).resolves.toBeNull();
     await expect(getOpportunityForCampaign("demo-opp-storm-riverside")).resolves.toBeNull();
+  });
+});
+
+describe("listOpenOpportunities (snooze wake-up)", () => {
+  // `snoozeOpportunity` writes snoozed_until, but nothing ever read it back: the
+  // list filtered on status in (pending, drafting, drafted), so a snoozed card
+  // never returned and "Snooze 1 week" was a silent permanent dismissal.
+  function snoozeFilter(supabase: ReturnType<typeof createSupabaseQueryMock>): string {
+    const call = supabase.calls.find(([method]) => method === "or");
+    return String(call?.[1] ?? "");
+  }
+
+  it("asks for open opportunities AND snoozes whose snoozed_until has passed", async () => {
+    const supabase = createSupabaseQueryMock({ opportunities: { data: [], error: null } });
+
+    await listOpenOpportunities(supabase, "org-1");
+
+    const filter = snoozeFilter(supabase);
+    expect(filter).toContain("status.in.(pending,drafting,drafted)");
+    expect(filter).toContain("and(status.eq.snoozed,snoozed_until.lte.");
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+  });
+
+  it("bounds the inbox load so a long-running workspace can't pull an unbounded list", async () => {
+    const supabase = createSupabaseQueryMock({ opportunities: { data: [], error: null } });
+
+    await listOpenOpportunities(supabase, "org-1");
+
+    expect(supabase.calls.some(([method]) => method === "limit")).toBe(true);
+  });
+
+  it("counts woken snoozes too, so the /arc chip agrees with the inbox it links to", async () => {
+    const supabase = createSupabaseQueryMock({ opportunities: { data: [], error: null, count: 4 } });
+
+    await expect(countPendingOpportunities(supabase)).resolves.toBe(4);
+    expect(snoozeFilter(supabase)).toContain("and(status.eq.snoozed,snoozed_until.lte.");
   });
 });
 

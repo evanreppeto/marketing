@@ -59,6 +59,28 @@ type OpportunityRecord = {
 
 export type { OpportunityRecord, OpportunityEvidence };
 
+/** Lifecycle states the inbox treats as open work. */
+const OPEN_STATUSES = ["pending", "drafting", "drafted"] as const;
+
+/**
+ * Hard cap on one inbox load. The inbox is a triage queue, not an archive — a
+ * workspace whose detectors have run for months should not pull thousands of
+ * rows into a server component to render a list the operator scrolls the top of.
+ */
+const INBOX_LIMIT = 500;
+
+/**
+ * PostgREST filter for "open, or snoozed and the snooze has run out".
+ *
+ * Snooze is a promise that the card comes BACK. It used to be a one-way trip:
+ * `snoozeOpportunity` wrote `snoozed_until` and nothing ever read it, so
+ * "Snooze 1 week" was a silent permanent dismissal. Waking a snooze on read
+ * keeps that promise without needing a scheduled job to flip statuses.
+ */
+function openOrWokenFilter(statuses: readonly string[], nowIso: string): string {
+  return `status.in.(${statuses.join(",")}),and(status.eq.snoozed,snoozed_until.lte.${nowIso})`;
+}
+
 const SUBJECT_TO_OBJECT_KEY: Record<string, string> = {
   company: "companies",
   contact: "contacts",
@@ -78,7 +100,10 @@ export function crmRecordHref(subjectType: string, subjectId: string): string | 
   return key && subjectId ? `/crm/${key}/${encodeURIComponent(subjectId)}` : null;
 }
 
-/** Open opportunities (pending/drafting/drafted) for the inbox. Empty when unconfigured. */
+/**
+ * Open opportunities for the inbox — pending/drafting/drafted, plus any snoozed
+ * card whose snooze has expired. Empty when unconfigured.
+ */
 export async function listOpenOpportunities(
   client?: SupabaseClient,
   orgId?: string,
@@ -95,13 +120,17 @@ export async function listOpenOpportunities(
     .from("opportunities")
     .select("id, subject_type, subject_id, title, summary, confidence, urgency, status, recommended_action, campaign_id, evidence")
     .eq("org_id", resolvedOrgId)
-    .in("status", ["pending", "drafting", "drafted"])
-    .order("created_at", { ascending: false });
+    .or(openOrWokenFilter(OPEN_STATUSES, new Date().toISOString()))
+    .order("created_at", { ascending: false })
+    .limit(INBOX_LIMIT);
   if (error) return [];
   return (data ?? []) as OpportunityRecord[];
 }
 
-/** Count of pending (un-triaged) opportunities, for the /arc chip. */
+/**
+ * Count of un-triaged opportunities, for the /arc chip. Counts woken snoozes
+ * alongside pending ones so the chip can't disagree with the inbox it links to.
+ */
 export async function countPendingOpportunities(client?: SupabaseClient): Promise<number> {
   if (!client && !isSupabaseAdminConfigured()) {
     return isDemoDataEnabled() ? buildDemoOpportunities().filter((o) => o.status === "pending").length : 0;
@@ -111,7 +140,7 @@ export async function countPendingOpportunities(client?: SupabaseClient): Promis
     .from("opportunities")
     .select("id", { count: "exact", head: true })
     .eq("org_id", orgId)
-    .eq("status", "pending");
+    .or(openOrWokenFilter(["pending"], new Date().toISOString()));
   return count ?? 0;
 }
 
