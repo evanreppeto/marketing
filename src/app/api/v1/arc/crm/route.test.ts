@@ -87,6 +87,18 @@ describe("Arc CRM routes", () => {
     }
   });
 
+  it("keeps synthetic fixtures out of Arc's live evidence routes", async () => {
+    configure();
+
+    await getLeads(request("leads"));
+    await getJobs(request("jobs"));
+    await getOutcomes(request("outcomes"));
+
+    for (const repo of [listLeadSummariesPage, listJobsPage, listOutcomesPage]) {
+      expect(repo).toHaveBeenCalledWith(expect.objectContaining({ excludeSynthetic: true }));
+    }
+  });
+
   it("rejects invalid bearer tokens before reading CRM data", async () => {
     configure();
 

@@ -25,6 +25,16 @@ describe("ARC_SYSTEM_PROMPT", () => {
     expect(ARC_SYSTEM_PROMPT).toContain("surface the next best action");
   });
 
+  it("keeps live recommendations decision-first and free of fixtures", () => {
+    for (const label of ["Recommendation", "Why now", "Confidence", "Next action"]) {
+      expect(ARC_SYSTEM_PROMPT).toContain(label);
+    }
+    expect(ARC_SYSTEM_PROMPT).toContain("metadata.seed_batch");
+    expect(ARC_SYSTEM_PROMPT).toContain("DEMO-*");
+    expect(ARC_SYSTEM_PROMPT).toContain("minimum sufficient tool calls");
+    expect(ARC_SYSTEM_PROMPT).toContain("Do not repeat the opening recommendation");
+  });
+
   it("preserves the load-bearing tool + output mechanics", () => {
     for (const token of [
       "create_campaign_draft",

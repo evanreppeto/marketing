@@ -72,6 +72,7 @@ export default async function ArcPage({
       brandName={brandName}
       operatorName={operatorName}
       live={live}
+      historyLoadError={chat.status === "error" ? chat.message : null}
       threadGroups={chat.status === "live" ? chat.threadGroups : []}
       messages={chat.status === "live" ? chat.messages : []}
       activeConversationId={chat.status === "live" ? chat.activeConversationId : null}

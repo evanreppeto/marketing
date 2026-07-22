@@ -11,4 +11,12 @@ describe("listJobs", () => {
 
     expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
   });
+
+  it("can exclude synthetic seed fixtures before counting or returning rows", async () => {
+    const supabase = createSupabaseQueryMock({ jobs: { data: [], error: null } });
+
+    await listJobs({ excludeSynthetic: true }, supabase);
+
+    expect(supabase.calls).toContainEqual(["is", "metadata->>seed_batch", null]);
+  });
 });

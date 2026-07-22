@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   const limit = readLimit(url);
 
   try {
-    const { leads, total } = await listLeadSummariesPage({ orgId: allowed.scope.orgId, status: status as LeadStatus | undefined, persona, source, q, minScore, maxScore, limit });
+    const { leads, total } = await listLeadSummariesPage({ orgId: allowed.scope.orgId, status: status as LeadStatus | undefined, persona, source, q, minScore, maxScore, limit, excludeSynthetic: true });
     // Names REPLACE the join uuids — Arc quotes these straight to the operator, and
     // a uuid is pure weight once the name is attached. On `limit=0` (count only)
     // the page is empty, so this costs no query.

@@ -18,6 +18,8 @@ export type ListLeadsFilter = {
   status?: LeadStatus;
   persona?: string;
   source?: string;
+  /** Hide synthetic seed fixtures from customer-facing analysis. */
+  excludeSynthetic?: boolean;
   /** Inclusive lead_score bounds (0-100). */
   minScore?: number;
   maxScore?: number;
@@ -38,6 +40,7 @@ function applyLeadFilters(query: FilterChain, filter: ListLeadsFilter, orgId: st
   if (filter.status) q = q.eq("status", filter.status);
   if (filter.persona) q = q.eq("persona", filter.persona);
   if (filter.source) q = q.eq("source", filter.source);
+  if (filter.excludeSynthetic) q = q.is("metadata->>seed_batch", null);
   if (typeof filter.minScore === "number") q = q.gte("lead_score", filter.minScore);
   if (typeof filter.maxScore === "number") q = q.lte("lead_score", filter.maxScore);
   if (filter.q) q = q.ilike("loss_summary", `%${filter.q}%`);
