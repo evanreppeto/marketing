@@ -3,10 +3,8 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { type Property, PropertySchema } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { type FilterChain, queryPage } from "@/lib/repos/paging";
-import { type Database } from "@/lib/supabase/database.types";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
-type PersonaMapping = Database["public"]["Enums"]["persona_mapping"];
 
 export type ListPropertiesFilter = {
   orgId?: string;
@@ -29,7 +27,7 @@ function applyPropertyFilters(
 ): FilterChain {
   let q = query;
   if (orgId) q = q.eq("org_id", orgId);
-  if (filter.persona) q = q.eq("persona", filter.persona as PersonaMapping);
+  if (filter.persona) q = q.eq("persona", filter.persona);
   if (filter.city) q = q.ilike("city", filter.city);
   if (filter.state) q = q.eq("state", filter.state);
   if (filter.postalCode) q = q.eq("postal_code", filter.postalCode);
