@@ -323,6 +323,20 @@ const CONNECTOR_KIND_LABEL: Record<string, string> = {
 type ConfigFieldKind = "text" | "persona" | "csv" | "points" | "feeds" | "queries" | "categories";
 type ConfigField = { key: string; kind: ConfigFieldKind; label: string; placeholder: string; hint: string };
 
+/**
+ * Placeholder for the persona-key fields.
+ *
+ * This used to be `persona_homeowner_emergency` — a real key from one tenant's
+ * taxonomy, which read as a CONFIGURED VALUE rather than an example of the
+ * format. An empty field then looked identical to a set one, so an operator
+ * could believe their audience was chosen when nothing was stored. It is also
+ * one workspace's persona shown to every workspace.
+ *
+ * The replacement is deliberately not a valid key: a placeholder's job is to
+ * show the shape, and it must be impossible to mistake for data.
+ */
+const PERSONA_PLACEHOLDER = "your-persona-key";
+
 // The workspace's own personas, provided once at the SettingsView root so the
 // connector "Default persona" field can render a picker instead of a free-text box
 // (a typo'd key otherwise fails the import late). Empty → the field falls back to a
@@ -356,7 +370,7 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       key: "persona",
       kind: "text",
       label: "Audience persona (optional)",
-      placeholder: "persona_homeowner_emergency",
+      placeholder: PERSONA_PLACEHOLDER,
       hint: "A persona key from your workspace's own taxonomy — who a weather-response campaign should target. Leave blank and the opportunity still carries the weather evidence; you pick the audience when you draft.",
     },
   ],
@@ -399,7 +413,7 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       key: "defaultPersona",
       kind: "persona",
       label: "Default persona",
-      placeholder: "persona_homeowner_emergency",
+      placeholder: PERSONA_PLACEHOLDER,
       hint: "A persona key from your workspace (see the Personas page) assigned to imported contacts — there is no auto-classifier. A per-record override is set with the personaProperty config key.",
     },
   ],
@@ -408,7 +422,7 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       key: "defaultPersona",
       kind: "persona",
       label: "Default persona",
-      placeholder: "persona_homeowner_emergency",
+      placeholder: PERSONA_PLACEHOLDER,
       hint: "A persona key from your workspace (see the Personas page) for imported leads — they carry a required persona. A `persona` column in your CSV overrides it per row. Set this, then paste your CSV below.",
     },
   ],
@@ -424,7 +438,7 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       key: "defaultPersona",
       kind: "persona",
       label: "Default persona",
-      placeholder: "persona_homeowner_emergency",
+      placeholder: PERSONA_PLACEHOLDER,
       hint: "A persona key from your workspace (see the Personas page) assigned to every imported member — they carry a required persona.",
     },
   ],
