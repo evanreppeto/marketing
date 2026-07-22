@@ -116,6 +116,18 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
   const [sub, setSub] = useState("Free assessment · same-week scheduling");
   const [cta, setCta] = useState("Get my free quote");
   const [safe, setSafe] = useState(false);
+  // Per-layer visibility for the canvas. The Layers panel eye toggles drive this;
+  // a hidden layer isn't rendered on the canvas, and a hidden text layer is left
+  // out of the composited generate so the output matches the preview.
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const shown = (layer: string) => !hidden.has(layer);
+  const toggleLayer = (layer: string) =>
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (next.has(layer)) next.delete(layer);
+      else next.add(layer);
+      return next;
+    });
   const [tab, setTab] = useState<"design" | "arc">("design");
   const [tool, setTool] = useState("overlay");
   const [traceOpen, setTraceOpen] = useState(false);
@@ -236,9 +248,11 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
           format: f,
           title: headline || "Studio creative",
           backgroundUrl: bg.url,
-          headline,
-          kicker,
-          ctaLabel: cta,
+          // Hidden text layers are omitted so the composite matches the preview.
+          // (Background/Logo are composited server-side from the media + brand kit.)
+          headline: shown("Headline") ? headline : "",
+          kicker: shown("Kicker") ? kicker : "",
+          ctaLabel: shown("CTA button") ? cta : "",
           campaignId,
         });
         if (res.ok && res.assetId && res.media) {
@@ -381,21 +395,21 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
             <div className="artboard">
               <div className={`canvas${safe ? " szon" : ""}${mode === "video" ? " video" : ""}`} style={{ aspectRatio: FORMATS[fmt].ar }}>
                 <div className="cbg">
-                  {bg ? (
-                    <ItemMedia item={bg} />
-                  ) : (
+                  {!bg ? (
                     <div className="cbg-empty">No approved media yet — pick a source, upload, or generate to set a background.</div>
-                  )}
+                  ) : shown("Background") ? (
+                    <ItemMedia item={bg} />
+                  ) : null}
                 </div>
                 <div className="cveil" />
                 <div className="cplay"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></div>
-                <div className="clogo"><span className="lm" style={{ background: accent }}>{logoInitial}</span> {brandName}</div>
+                {shown("Logo") && <div className="clogo"><span className="lm" style={{ background: accent }}>{logoInitial}</span> {brandName}</div>}
                 {bg && <div className="cprov">{PVLABEL[bg.p]}</div>}
                 <div className="ctext">
-                  <div className="ckick" style={{ color: accent === "#f1ede2" ? "#f1ede2" : accent }}>{kicker}</div>
-                  <div className="chead">{headline}</div>
+                  {shown("Kicker") && <div className="ckick" style={{ color: accent === "#f1ede2" ? "#f1ede2" : accent }}>{kicker}</div>}
+                  {shown("Headline") && <div className="chead">{headline}</div>}
                   <div className="csub">{sub}</div>
-                  <div className="ccta" style={{ background: accent, color: accent === "#f1ede2" ? "#201808" : "#1a1505" }}>{cta}</div>
+                  {shown("CTA button") && <div className="ccta" style={{ background: accent, color: accent === "#f1ede2" ? "#201808" : "#1a1505" }}>{cta}</div>}
                 </div>
                 <div className="safez"><div className="szb szt"><span className="szl">caption / UI safe area</span></div><div className="szb szbo" /></div>
               </div>
@@ -451,9 +465,9 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
 
                 <div className="psec">
                   <h3 className="ph2">Layers</h3>
-                  <div className="layer sel"><span className="li"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M4 15l4-3 3 2 4-3 5 4" /></svg></span><div style={{ minWidth: 0 }}><div className="lt">Background</div><div className="ld">{bg ? `${bg.l} · ${provShort(bg.p)}` : "No media selected"}</div></div><span className="eye">◉</span></div>
+                  <div className="layer sel" style={shown("Background") ? undefined : { opacity: 0.5 }}><span className="li"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M4 15l4-3 3 2 4-3 5 4" /></svg></span><div style={{ minWidth: 0 }}><div className="lt">Background</div><div className="ld">{bg ? `${bg.l} · ${provShort(bg.p)}` : "No media selected"}</div></div><span className="eye" role="button" tabIndex={0} title={shown("Background") ? "Hide layer" : "Show layer"} aria-label={`${shown("Background") ? "Hide" : "Show"} Background layer`} onClick={() => toggleLayer("Background")} style={{ cursor: "pointer" }}>{shown("Background") ? "◉" : "◎"}</span></div>
                   {[["Kicker", kicker], ["Headline", headline], ["CTA button", cta], ["Logo", brandName]].map(([lt, ld]) => (
-                    <div className="layer" key={lt}><span className="li"><svg viewBox="0 0 24 24"><path d="M5 8h14M5 12h9" /></svg></span><div style={{ minWidth: 0 }}><div className="lt">{lt}</div><div className="ld">{ld}</div></div><span className="eye">◉</span></div>
+                    <div className="layer" key={lt} style={shown(lt) ? undefined : { opacity: 0.5 }}><span className="li"><svg viewBox="0 0 24 24"><path d="M5 8h14M5 12h9" /></svg></span><div style={{ minWidth: 0 }}><div className="lt">{lt}</div><div className="ld">{ld}</div></div><span className="eye" role="button" tabIndex={0} title={shown(lt) ? "Hide layer" : "Show layer"} aria-label={`${shown(lt) ? "Hide" : "Show"} ${lt} layer`} onClick={() => toggleLayer(lt)} style={{ cursor: "pointer" }}>{shown(lt) ? "◉" : "◎"}</span></div>
                   ))}
                 </div>
 

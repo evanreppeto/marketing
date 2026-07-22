@@ -221,3 +221,32 @@ export async function updateCrmRecordFields(
   await mirrorToBrainBestEffort(objectKey, data.id, scopedOrgId);
   return { ok: true, id: data.id };
 }
+
+/**
+ * Set one persona on many records of a single object in a single org-scoped update.
+ * Skips optimistic/local ids (never persisted). Validates the persona against the
+ * workspace's own taxonomy. Returns how many rows the DB actually matched.
+ */
+export async function bulkUpdateCrmPersona(
+  objectKey: CrmObjectKey,
+  ids: string[],
+  persona: string,
+  orgId?: string,
+): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
+  const cleanIds = [...new Set(ids.map((id) => id.trim()).filter((id) => id && !id.startsWith("local-")))];
+  if (cleanIds.length === 0) return { ok: true, count: 0 };
+  const scopedOrgId = orgId ?? (await getCurrentOrgId());
+  if (!isAllowedPersona(persona, await getOrgPersonaKeys(scopedOrgId))) return { ok: false, error: "Choose a valid persona." };
+
+  const { data, error } = await getSupabaseAdminClient()
+    .from(objectKey)
+    .update({ persona } as never)
+    .in("id", cleanIds)
+    .eq("org_id", scopedOrgId)
+    .select("id");
+  if (error) return { ok: false, error: error.message };
+  const updated = (data as { id: string }[] | null) ?? [];
+  await Promise.all(updated.map((r) => mirrorToBrainBestEffort(objectKey, r.id, scopedOrgId)));
+  return { ok: true, count: updated.length };
+}

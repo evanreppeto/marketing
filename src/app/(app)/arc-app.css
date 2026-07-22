@@ -1267,10 +1267,18 @@
 
 .arc-app .selbar { display: none; align-items: center; gap: 12px; height: 0; overflow: hidden; border: 1px solid var(--accent-border); border-radius: 9px; background: linear-gradient(180deg, var(--accent-soft), transparent); padding: 0 14px; margin-bottom: 0; transition: 0.18s var(--ease); }
 .arc-app .selbar.show { display: flex; height: 46px; margin-bottom: 11px; }
+/* Lift the collapse clip only while a menu is open (the bar is already expanded),
+   so the persona picker can drop below without a grow-animation glitch. */
+.arc-app .selbar.menuopen { overflow: visible; }
 .arc-app .selbar .sc { font-size: 12.5px; font-weight: 600; color: var(--accent-contrast); }
-.arc-app .selbar .sa { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--text-2); cursor: pointer; padding: 5px 9px; border-radius: 7px; transition: 0.14s; }
+.arc-app .selbar .sa { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--text-2); cursor: pointer; padding: 5px 9px; border-radius: 7px; transition: 0.14s; border: none; background: none; font-family: inherit; }
 .arc-app .selbar .sa:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
 .arc-app .selbar .sa svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-app .selbar .sa-wrap { position: relative; display: inline-flex; }
+.arc-app .selbar .sa-backdrop { position: fixed; inset: 0; z-index: 40; background: none; border: none; cursor: default; }
+.arc-app .selbar .sa-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 41; min-width: 200px; max-height: 300px; overflow-y: auto; padding: 5px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 1px; }
+.arc-app .selbar .sa-opt { display: block; width: 100%; text-align: left; padding: 7px 10px; border: none; border-radius: 7px; background: none; color: var(--text-2); font-size: 12.5px; font-family: inherit; cursor: pointer; transition: 0.12s; }
+.arc-app .selbar .sa-opt:hover { background: var(--inset); color: var(--text); }
 .arc-app .selbar .clr { margin-left: auto; color: var(--muted); font-size: 11.5px; cursor: pointer; }
 .arc-app .selbar .clr:hover { color: var(--text); }
 .arc-app .pager .rpp { display: flex; align-items: center; gap: 7px; }
