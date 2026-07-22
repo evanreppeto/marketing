@@ -48,6 +48,10 @@ function formatDate(iso: string): string {
 function statusLabel(status: string): string | null {
   if (status === "drafting") return "Drafting…";
   if (status === "drafted") return "Drafted";
+  // The read model wakes a snooze once it expires, so a card can come back with
+  // its stored status still "snoozed". Say so, rather than letting it reappear
+  // looking like a brand-new signal the operator has never seen.
+  if (status === "snoozed") return "Back from snooze";
   return null;
 }
 

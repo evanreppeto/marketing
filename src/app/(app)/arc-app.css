@@ -1267,10 +1267,25 @@
 
 .arc-app .selbar { display: none; align-items: center; gap: 12px; height: 0; overflow: hidden; border: 1px solid var(--accent-border); border-radius: 9px; background: linear-gradient(180deg, var(--accent-soft), transparent); padding: 0 14px; margin-bottom: 0; transition: 0.18s var(--ease); }
 .arc-app .selbar.show { display: flex; height: 46px; margin-bottom: 11px; }
+/* Lift the collapse clip only while a menu is open (the bar is already expanded),
+   so the persona picker can drop below without a grow-animation glitch. */
+.arc-app .selbar.menuopen { overflow: visible; }
 .arc-app .selbar .sc { font-size: 12.5px; font-weight: 600; color: var(--accent-contrast); }
-.arc-app .selbar .sa { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--text-2); cursor: pointer; padding: 5px 9px; border-radius: 7px; transition: 0.14s; }
+.arc-app .selbar .sa { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--text-2); cursor: pointer; padding: 5px 9px; border-radius: 7px; transition: 0.14s; border: none; background: none; font-family: inherit; }
 .arc-app .selbar .sa:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
 .arc-app .selbar .sa svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-app .selbar .sa-wrap { position: relative; display: inline-flex; }
+.arc-app .selbar .sa-backdrop { position: fixed; inset: 0; z-index: 40; background: none; border: none; cursor: default; }
+.arc-app .selbar .sa-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 41; min-width: 200px; max-height: 300px; overflow-y: auto; padding: 5px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 1px; }
+.arc-app .selbar .sa-opt { display: block; width: 100%; text-align: left; padding: 7px 10px; border: none; border-radius: 7px; background: none; color: var(--text-2); font-size: 12.5px; font-family: inherit; cursor: pointer; transition: 0.12s; }
+.arc-app .selbar .sa-opt:hover { background: var(--inset); color: var(--text); }
+.arc-app .selbar .sa-taskmenu { flex-direction: row; align-items: center; gap: 6px; min-width: 300px; padding: 7px; }
+.arc-app .selbar .sa-taskinput { flex: 1; min-width: 0; height: 30px; padding: 0 9px; border: 1px solid var(--line-2); border-radius: 7px; background: var(--inset); color: var(--text); font-size: 12.5px; font-family: inherit; outline: none; }
+.arc-app .selbar .sa-taskinput:focus { border-color: var(--accent-border); }
+.arc-app .selbar .sa-taskinput::placeholder { color: var(--muted); }
+.arc-app .selbar .sa-taskbtn { flex: none; height: 30px; padding: 0 12px; border: none; border-radius: 7px; background: var(--accent-soft); color: var(--accent-contrast); font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; transition: 0.12s; }
+.arc-app .selbar .sa-taskbtn:hover:not(:disabled) { filter: brightness(1.08); }
+.arc-app .selbar .sa-taskbtn:disabled { opacity: 0.5; cursor: default; }
 .arc-app .selbar .clr { margin-left: auto; color: var(--muted); font-size: 11.5px; cursor: pointer; }
 .arc-app .selbar .clr:hover { color: var(--text); }
 .arc-app .pager .rpp { display: flex; align-items: center; gap: 7px; }
@@ -1295,6 +1310,19 @@
 .arc-app .arc-opps .olisthd { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px 12px; }
 .arc-app .arc-opps .olisthd .h { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); }
 .arc-app .arc-opps .olisthd .c { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.arc-app .arc-opps .ofilter { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 4px 10px; }
+.arc-app .arc-opps .ochip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--inset); color: var(--text-2); font: inherit; font-size: 10.5px; cursor: pointer; transition: background .15s var(--ease), border-color .15s, color .15s; }
+.arc-app .arc-opps .ochip:hover { background: rgba(255, 255, 255, .04); }
+.arc-app .arc-opps .ochip.on { border-color: var(--accent-border); background: var(--accent-soft); color: var(--accent-contrast); }
+.arc-app .arc-opps .ochip .n { font-family: var(--mono); font-size: 9.5px; color: var(--muted); }
+.arc-app .arc-opps .ochip.on .n { color: var(--accent-contrast); }
+.arc-app .arc-opps .osort { display: flex; align-items: center; gap: 6px; padding: 0 8px 10px; }
+.arc-app .arc-opps .osort .l { font-size: 10px; letter-spacing: .04em; color: var(--muted); margin-right: 2px; }
+.arc-app .arc-opps .osortb { height: 22px; padding: 0 8px; border-radius: 5px; border: 1px solid transparent; background: transparent; color: var(--muted); font: inherit; font-size: 10.5px; cursor: pointer; transition: color .15s, background .15s; }
+.arc-app .arc-opps .osortb:hover { color: var(--text-2); }
+.arc-app .arc-opps .osortb.on { color: var(--accent-contrast); background: var(--accent-soft); border-color: var(--accent-border); font-weight: 600; }
+.arc-app .arc-opps .omore { width: 100%; margin-top: 6px; height: 32px; border-radius: 8px; border: 1px dashed var(--line-2); background: transparent; color: var(--muted); font: inherit; font-size: 11px; cursor: pointer; transition: color .15s, border-color .15s; }
+.arc-app .arc-opps .omore:hover { color: var(--text-2); border-color: var(--line); }
 .arc-app .arc-opps .orow { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 11px; align-items: center; padding: 12px 12px; border-radius: 10px; cursor: pointer; border: 1px solid transparent; transition: background .15s var(--ease), border-color .15s; width: 100%; text-align: left; background: transparent; font: inherit; color: inherit; }
 .arc-app .arc-opps .orow:hover { background: rgba(255, 255, 255, .03); }
 .arc-app .arc-opps .orow.on { background: var(--accent-soft); border-color: var(--accent-border); }

@@ -234,6 +234,11 @@ export function JourneysView({
   // when you switch — the point of having lenses at all.
   const baseByChannel = new Map((channelCreditByModel[defaultModel] ?? []).map((c) => [c.channel, c.valueCents]));
   const defaultLabel = ATTRIBUTION_MODELS.find((m) => m.key === defaultModel)?.label ?? "last touch";
+  // The list is capped server-side (MAX_JOURNEYS) while the KPI tile shows the true
+  // total; restate the cap on the list so 60 rows beside a larger total doesn't read
+  // as "all of them" (and so the stage filter isn't mistaken for the whole book).
+  const loadedCount = model.journeys.length;
+  const capped = kpis.total > loadedCount;
 
   return (
     <div className="journeys">
@@ -306,6 +311,11 @@ export function JourneysView({
             Journeys
             <span className="jr-sub2">{filtered.length} shown · newest first · click to open the timeline</span>
           </h2>
+          {capped && (
+            <div className="jr-sub" style={{ marginBottom: 10 }}>
+              Showing the {loadedCount} most recent of {kpis.total.toLocaleString()} journeys{stageFilter !== "all" ? " — the stage filter applies within these" : ""}.
+            </div>
+          )}
           <div className="jr-list">
             {filtered.length === 0 ? (
               <div className="jr-sub">No journeys in this stage.</div>

@@ -114,6 +114,20 @@ function ScanButton({ subtle }: { subtle?: boolean }) {
   );
 }
 
+/** Urgency ordering for the priority sort — high first, then medium, then low. */
+const URGENCY_RANK: Record<OpportunityVM["urgencyTone"], number> = { red: 0, amber: 1, info: 2 };
+
+type SortKey = "priority" | "newest";
+
+/**
+ * Rows rendered before the list offers "Show all". A busy workspace's detectors
+ * produce hundreds of signals — mostly one high-volume kind — and an unbounded
+ * list buries the rare, valuable ones (a weather alert, a competitor move) under
+ * a wall of routine inactivity cards. The cap plus the type filters below are
+ * what make the queue scannable; nothing is hidden that a click can't reach.
+ */
+const INITIAL_ROWS = 25;
+
 export function OpportunityInbox({
   opps,
   personaOptions,
@@ -125,10 +139,12 @@ export function OpportunityInbox({
   /** Opportunity selected by a contextual deep link from Home or Arc. */
   selectedId?: string;
 }) {
-  const [cur, setCur] = useState(() => {
-    const selectedIndex = selectedId ? opps.findIndex((op) => op.id === selectedId) : -1;
-    return selectedIndex >= 0 ? selectedIndex : 0;
-  });
+  // Selection is held by id, not list index: filtering, sorting and triage all
+  // reorder the list, and an index would silently point at a different card.
+  const [curId, setCurId] = useState<string | null>(selectedId ?? null);
+  const [sort, setSort] = useState<SortKey>("priority");
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const [draftOpen, setDraftOpen] = useState(false);
   const [mode, setMode] = useState<DraftMode>("operator");
   const [notice, setNotice] = useState<string | null>(null);
@@ -140,6 +156,22 @@ export function OpportunityInbox({
   const router = useRouter();
 
   const visible = opps.filter((op) => !removed.has(op.id));
+
+  // Type counts come from everything still open, not the current filter, so the
+  // chips keep showing what else is in the queue while one type is selected.
+  const typeCounts = new Map<string, number>();
+  for (const op of visible) typeCounts.set(op.typeLabel, (typeCounts.get(op.typeLabel) ?? 0) + 1);
+  const types = [...typeCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+  const filtered = typeFilter ? visible.filter((op) => op.typeLabel === typeFilter) : visible;
+  // `opps` arrives newest-first from the server, and sort is stable, so "newest"
+  // is the incoming order and the priority sort breaks ties by recency.
+  const ordered =
+    sort === "newest"
+      ? filtered
+      : [...filtered].sort(
+          (a, b) => URGENCY_RANK[a.urgencyTone] - URGENCY_RANK[b.urgencyTone] || b.confidence - a.confidence,
+        );
 
   if (visible.length === 0) {
     return (
@@ -154,14 +186,24 @@ export function OpportunityInbox({
     );
   }
 
-  const o = visible[Math.min(cur, visible.length - 1)];
+  // The focused card, resolved by id against the current ordering. Falls back to
+  // the head of the list when the selection has been filtered or triaged away.
+  const o = ordered.find((op) => op.id === curId) ?? ordered[0] ?? visible[0];
 
-  // Triage the focused opportunity out of the inbox. Optimistic: hide it now
-  // (which advances to the next via the clamp above), then persist + refetch. On
-  // failure, restore it and surface the error. Never sends or contacts anything.
+  // Rows the list actually renders. The focused card is always among them, so a
+  // deep link (or a selection made before collapsing) never highlights nothing.
+  const capped = expanded ? ordered : ordered.slice(0, INITIAL_ROWS);
+  const shown = capped.some((op) => op.id === o.id) ? capped : [o, ...capped];
+  const hiddenCount = ordered.length - capped.length;
+
+  // Triage the focused opportunity out of the inbox. Optimistic: advance to the
+  // next card and hide this one now, then persist + refetch. On failure, restore
+  // it and surface the error. Never sends or contacts anything.
   const triage = (kind: "dismiss" | "snooze", days?: number) => {
     if (triaging) return;
     const id = o.id;
+    const at = ordered.findIndex((op) => op.id === id);
+    setCurId(ordered[at + 1]?.id ?? ordered[at - 1]?.id ?? null);
     setTriaging(true);
     setSnoozeOpen(false);
     setNotice(null);
@@ -170,6 +212,7 @@ export function OpportunityInbox({
       setTriaging(false);
       if (!res.ok) {
         setRemoved((prev) => { const next = new Set(prev); next.delete(id); return next; });
+        setCurId(id);
         setNotice(res.error);
         return;
       }
@@ -210,20 +253,67 @@ export function OpportunityInbox({
         <div className="olisthd">
           <span className="h">OPEN OPPORTUNITIES</span>
           <span className="c">
-            {visible.length} open{highCount > 0 ? ` · ${highCount} high` : ""} · {avgConf}% avg
+            {typeFilter
+              ? `${ordered.length} of ${visible.length}`
+              : `${visible.length} open${highCount > 0 ? ` · ${highCount} high` : ""} · ${avgConf}% avg`}
           </span>
         </div>
         <form action={scanForOpportunitiesAction} style={{ padding: "2px 4px 12px" }}>
           <ScanButton />
         </form>
+
+        {types.length > 1 && (
+          <div className="ofilter" role="group" aria-label="Filter by signal type">
+            <button
+              type="button"
+              className={`ochip${typeFilter === null ? " on" : ""}`}
+              aria-pressed={typeFilter === null}
+              onClick={() => setTypeFilter(null)}
+            >
+              All <span className="n">{visible.length}</span>
+            </button>
+            {types.map(([label, count]) => (
+              <button
+                key={label}
+                type="button"
+                className={`ochip${typeFilter === label ? " on" : ""}`}
+                aria-pressed={typeFilter === label}
+                onClick={() => setTypeFilter(typeFilter === label ? null : label)}
+              >
+                {label} <span className="n">{count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="osort">
+          <span className="l">Sort</span>
+          <button
+            type="button"
+            className={`osortb${sort === "priority" ? " on" : ""}`}
+            aria-pressed={sort === "priority"}
+            onClick={() => setSort("priority")}
+          >
+            Priority
+          </button>
+          <button
+            type="button"
+            className={`osortb${sort === "newest" ? " on" : ""}`}
+            aria-pressed={sort === "newest"}
+            onClick={() => setSort("newest")}
+          >
+            Newest
+          </button>
+        </div>
+
         <div>
-          {visible.map((it, i) => (
+          {shown.map((it) => (
             <button
               key={it.id}
               type="button"
-              className={`orow${i === cur ? " on" : ""}`}
+              className={`orow${it.id === o.id ? " on" : ""}`}
               onClick={() => {
-                setCur(i);
+                setCurId(it.id);
                 setNotice(null);
               }}
             >
@@ -241,6 +331,11 @@ export function OpportunityInbox({
               </div>
             </button>
           ))}
+          {hiddenCount > 0 && (
+            <button type="button" className="omore" onClick={() => setExpanded(true)}>
+              Show {hiddenCount} more
+            </button>
+          )}
         </div>
       </aside>
 

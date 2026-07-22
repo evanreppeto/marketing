@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyConfidenceFloor,
+  confidenceFloorForKind,
   detectColdLeadOpportunities,
   detectCompetitorOpportunities,
   detectNextIterationOpportunities,
@@ -269,5 +271,58 @@ describe("detectNextIterationOpportunities", () => {
   it("skips campaigns with no delivered signal and rows missing an id", () => {
     expect(detectNextIterationOpportunities([input({ bookedJobs: 0, leads: 0 })])).toEqual([]);
     expect(detectNextIterationOpportunities([input({ campaignId: "" })])).toEqual([]);
+  });
+});
+
+describe("applyConfidenceFloor", () => {
+  const c = (confidence: number, kind = "weather_event") => ({ confidence, kind });
+
+  it("keeps candidates at or above the floor and drops the rest", () => {
+    const kept = applyConfidenceFloor([c(49), c(50), c(51)]);
+    // Boundary is inclusive: a candidate scoring exactly the floor cleared it.
+    expect(kept.map((k) => k.confidence)).toEqual([50, 51]);
+  });
+
+  it("holds the flood-prone crm_inactivity kind to a higher bar than the baseline", () => {
+    const mixed = [c(55, "crm_inactivity"), c(60, "crm_inactivity"), c(55, "weather_event")];
+    const kept = applyConfidenceFloor(mixed);
+    expect(kept).toEqual([c(60, "crm_inactivity"), c(55, "weather_event")]);
+  });
+
+  it("treats a non-finite or non-positive base as no floor rather than guessing", () => {
+    expect(applyConfidenceFloor([c(1), c(99)], Number.NaN)).toHaveLength(2);
+    expect(applyConfidenceFloor([c(1), c(99)], 0)).toHaveLength(2);
+  });
+
+  it("lets a raised base lift every kind, including ones with their own floor", () => {
+    // A per-kind entry must never undercut an operator who raises the base.
+    expect(confidenceFloorForKind("crm_inactivity", 80)).toBe(80);
+    expect(confidenceFloorForKind("weather_event", 80)).toBe(80);
+  });
+
+  it("filters by quality, never by volume", () => {
+    // A floor must never behave like a cap: 200 strong signals all survive.
+    const many = Array.from({ length: 200 }, () => c(90, "crm_inactivity"));
+    expect(applyConfidenceFloor(many)).toHaveLength(200);
+  });
+
+  // The regression this shape exists to prevent: a flat 60 floor deleted every
+  // weather ADVISORY (they score exactly 55) — and Freezing Rain / Hard Freeze
+  // advisories burst pipes, which is real restoration work.
+  it("does not silently delete a whole severity tier of a selective detector", () => {
+    for (const severity of ["advisory", "watch", "warning", "emergency"] as const) {
+      const out = detectWeatherEventOpportunities([weather({ severity })], { now: NOW });
+      expect(applyConfidenceFloor(out), `weather ${severity} was filtered out`).toHaveLength(1);
+    }
+  });
+
+  it("does not reject the cold-lead detector's own high-urgency output", () => {
+    // Guards the floor against drifting above what real detectors emit.
+    const candidates = detectColdLeadOpportunities(
+      [lead({ leadScore: 95, lastActivityAt: "2026-01-01T00:00:00.000Z" })],
+      { now: NOW },
+    );
+    expect(candidates).toHaveLength(1);
+    expect(applyConfidenceFloor(candidates)).toHaveLength(1);
   });
 });

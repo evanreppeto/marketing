@@ -2,9 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 
+import { entityTypeFromCrmObjectKey, parseTaskInput } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
-import { type CreateCrmInput, insertCrmRecord } from "@/lib/crm/create";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { bulkUpdateCrmPersona, type CreateCrmInput, insertCrmRecord } from "@/lib/crm/create";
+import { insertTask } from "@/lib/interactions/persistence";
 import { type CrmObjectKey } from "@/lib/crm/read-model";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -30,6 +33,77 @@ const VALID_KEYS = new Set<CrmObjectKey>([
 
 const LEAD_PARENTS = new Set(["company", "contact", "property"]);
 const OUTCOME_PARENTS = new Set(["job", "lead"]);
+
+export type BulkPersonaResult =
+  | { ok: true; persisted: boolean; count?: number }
+  | { ok: false; error: string };
+
+/**
+ * Bulk-assign one persona to the selected records (the CRM board's selection bar).
+ * Internal only — never outbound. requireOperator() + org-scoped, and the persona
+ * is validated against the workspace's taxonomy. `persisted: false` is the honest
+ * offline/demo signal so the board can reflect it optimistically.
+ */
+export async function bulkAssignPersona(objectKey: string, ids: string[], persona: string): Promise<BulkPersonaResult> {
+  await requireOperator();
+  if (!VALID_KEYS.has(objectKey as CrmObjectKey)) return { ok: false, error: "Unknown record type." };
+  if (!persona?.trim()) return { ok: false, error: "Choose a persona." };
+  if (!ids?.length) return { ok: false, error: "Select at least one record." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const orgId = await getCurrentOrgId();
+  const res = await bulkUpdateCrmPersona(objectKey as CrmObjectKey, ids, persona.trim(), orgId);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath("/crm");
+  return { ok: true, persisted: true, count: res.count };
+}
+
+export type BulkTaskResult =
+  | { ok: true; persisted: boolean; count?: number }
+  | { ok: false; error: string };
+
+/**
+ * Add the same follow-up task to each selected record (the CRM board's selection
+ * bar). Internal only — tasks never go outbound. requireOperator() + org-scoped
+ * per insert. Optimistic/local ids are skipped (they aren't saved yet). Loops the
+ * single-record insert — the selection is a handful of records, low frequency.
+ */
+export async function bulkAddTask(objectKey: string, ids: string[], title: string): Promise<BulkTaskResult> {
+  await requireOperator();
+  if (!VALID_KEYS.has(objectKey as CrmObjectKey)) return { ok: false, error: "Unknown record type." };
+  const entityType = entityTypeFromCrmObjectKey(objectKey);
+  if (!entityType) return { ok: false, error: "Unknown record type." };
+  const body = title?.trim();
+  if (!body) return { ok: false, error: "Enter a task." };
+  const cleanIds = [...new Set(ids.map((id) => id.trim()).filter((id) => id && !id.startsWith("local-")))];
+  if (cleanIds.length === 0) return { ok: false, error: "Select at least one saved record." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const ctx = await getCurrentWorkspaceContext();
+  const scope = { orgId: ctx.orgId, workspaceId: ctx.workspaceId ?? undefined };
+  const actor = await getOperatorActor();
+
+  let count = 0;
+  for (const recordId of cleanIds) {
+    const parsed = parseTaskInput({
+      entityType,
+      entityId: recordId,
+      title: body,
+      authorKind: "human",
+      authorName: actor,
+      assigneeKind: "human",
+      assigneeName: actor,
+    });
+    if (!parsed.ok) continue;
+    const result = await insertTask(parsed.value, scope);
+    if (result.ok) count += 1;
+  }
+  if (count === 0) return { ok: false, error: "Could not add the task." };
+  revalidatePath("/crm");
+  return { ok: true, persisted: true, count };
+}
 
 export async function createCrmRecord(input: CreateCrmInput): Promise<CreateResult> {
   await requireOperator();
