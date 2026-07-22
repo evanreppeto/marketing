@@ -20,6 +20,7 @@ export type FilterChain = {
   gte(column: string, value: unknown): FilterChain;
   lte(column: string, value: unknown): FilterChain;
   ilike(column: string, pattern: string): FilterChain;
+  is(column: string, value: boolean | null): FilterChain;
   or(filters: string): FilterChain;
 };
 

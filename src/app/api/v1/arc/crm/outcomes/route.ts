@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   const limit = readLimit(url);
 
   try {
-    const { outcomes, total } = await listOutcomesPage({ orgId: allowed.scope.orgId, status: status as OutcomeStatus | undefined, persona, companyId, limit });
+    const { outcomes, total } = await listOutcomesPage({ orgId: allowed.scope.orgId, status: status as OutcomeStatus | undefined, persona, companyId, limit, excludeSynthetic: true });
     // Dollars not cents (_lib/money) and names not uuids (lib/crm/names) — Arc
     // quotes both of these straight to the operator. On `limit=0` (count only)
     // the page is empty, so neither costs a query.

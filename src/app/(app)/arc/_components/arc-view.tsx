@@ -24,6 +24,7 @@ import {
   ChevronRight,
   ChevronDown,
   Circle,
+  CircleAlert,
   ClipboardCheck,
   CloudLightning,
   Download,
@@ -687,7 +688,7 @@ function ThreadDrawer({
 
       {view === "conversations" ? <section className="arc-drawer-view" aria-labelledby="arc-conversations-title">
         <header className="arc-drawer-view-head"><h2 id="arc-conversations-title">Conversations</h2><p>Return to active work, reviews, and saved context.</p></header>
-        {live ? <Link href="/arc?new=1" className="arc-new-chat" onClick={onStartNew}><Plus size={16} /> New conversation</Link> : <button type="button" className="arc-new-chat" onClick={() => onSelectDemo("new")}><Plus size={16} /> New conversation</button>}
+        {live ? <Link href="/arc?new=1" className="arc-new-chat" prefetch={false} scroll={false} onClick={onStartNew}><Plus size={16} /> New conversation</Link> : <button type="button" className="arc-new-chat" onClick={() => onSelectDemo("new")}><Plus size={16} /> New conversation</button>}
         <label className="arc-history-search"><Search size={15} /><input type="search" aria-label="Search conversations" placeholder="Search conversations" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
         <div className="arc-history-filters" role="group" aria-label="Filter conversations">
           {([
@@ -965,6 +966,7 @@ export function ArcView({
   brandName,
   operatorName,
   live = false,
+  historyLoadError = null,
   threadGroups = [],
   messages = [],
   activeConversationId = null,
@@ -983,6 +985,7 @@ export function ArcView({
   brandName: string;
   operatorName?: string;
   live?: boolean;
+  historyLoadError?: string | null;
   threadGroups?: ArcThreadGroupVM[];
   messages?: ArcMessage[];
   activeConversationId?: string | null;
@@ -1680,6 +1683,7 @@ export function ArcView({
 
       <main className="arc-conversation-scroll" ref={scrollRef}>
         <div className="arc-conversation-column">
+          {live && historyLoadError ? <div className="arc-history-load-error" role="status"><CircleAlert size={15} /><span><b>History is temporarily unavailable.</b>{historyLoadError}</span></div> : null}
           {live ? <LiveConversation messages={renderedMessages} optimisticTurn={optimisticTurn} operatorName={greetName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={updateDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : showDemoLauncher ? <ArcLauncher greetName={greetName} waiting={DEMO_WAITING} onPick={updateDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} includeSeed={selectedDemoId !== "new"} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
           <div ref={endRef} />
         </div>

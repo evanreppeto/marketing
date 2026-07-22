@@ -42,4 +42,10 @@ describe("Arc UI accessibility contract", () => {
     expect(CSS_SOURCE).toContain("width: min(272px, calc(100% - 56px));");
     expect(CSS_SOURCE).toContain("width: min(190px, calc(100vw - 28px));");
   });
+
+  it("never prefetches the blank-chat transition and explains live history failures", () => {
+    expect(VIEW_SOURCE).toContain('href="/arc?new=1" className="arc-new-chat" prefetch={false}');
+    expect(VIEW_SOURCE).toContain("History is temporarily unavailable.");
+    expect(VIEW_SOURCE).toContain("live && historyLoadError");
+  });
 });

@@ -25,8 +25,10 @@ const RUN_FRESHNESS_MS = 120_000;
  * - "live"        — real conversations exist; render them.
  * - "empty"       — backend is configured but the workspace has no Arc chats yet
  *                   (fresh workspace) → the UI shows its illustrative mock.
- * - "unavailable" — no Supabase backend (local demo preview) or a read error →
- *                   the UI shows its illustrative mock.
+ * - "error"       — a configured workspace could not load chat history. Keep
+ *                   the real composer visible; never masquerade as demo data.
+ * - "unavailable" — no Supabase backend (local demo preview) → the UI shows
+ *                   its illustrative mock.
  */
 export type ArcChatModel =
   | {
@@ -40,6 +42,7 @@ export type ArcChatModel =
       threadGroups: ArcThreadGroupVM[];
     }
   | { status: "empty"; operator: string }
+  | { status: "error"; message: string }
   | { status: "unavailable" };
 
 export async function getArcChatModel(
@@ -91,7 +94,10 @@ export async function getArcChatModel(
       threadGroups: groupThreadsForRail(conversations, active.id, nowMs, runningIds),
     };
   } catch {
-    return { status: "unavailable" };
+    return {
+      status: "error",
+      message: "We couldn't load conversation history. No chats were changed; refresh to try again.",
+    };
   }
 }
 
