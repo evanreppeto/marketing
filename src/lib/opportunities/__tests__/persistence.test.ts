@@ -101,6 +101,33 @@ describe("upsertOpportunities", () => {
     expect(inserted).toEqual([]);
   });
 
+  it("drops below-floor candidates and reports how many, rather than silently", async () => {
+    const res = await upsertOpportunities([
+      { ...candidate("lead-weak"), confidence: 45 },
+      { ...candidate("lead-strong"), confidence: 85 },
+    ]);
+    expect(res).toEqual({ ok: true, count: 1, filtered: 1 });
+    expect(inserted.map((r) => r.subject_id)).toEqual(["lead-strong"]);
+  });
+
+  it("skips the dedup round-trip entirely when nothing clears the floor", async () => {
+    const res = await upsertOpportunities([{ ...candidate("lead-weak"), confidence: 10 }]);
+    expect(res).toEqual({ ok: true, count: 0, filtered: 1 });
+    expect(inserted).toEqual([]);
+  });
+
+  it("omits `filtered` when the floor rejected nothing", async () => {
+    const res = await upsertOpportunities([{ ...candidate("lead-A"), confidence: 90 }]);
+    expect(res).toEqual({ ok: true, count: 1 });
+  });
+
+  it("honours ARC_OPPORTUNITY_CONFIDENCE_FLOOR so a noisy workspace can tighten without a deploy", async () => {
+    vi.stubEnv("ARC_OPPORTUNITY_CONFIDENCE_FLOOR", "95");
+    const res = await upsertOpportunities([{ ...candidate("lead-A"), confidence: 90 }]);
+    expect(res).toEqual({ ok: true, count: 0, filtered: 1 });
+    vi.unstubAllEnvs();
+  });
+
   it("scopes inserts to the explicit token org when provided (not the cookie/default org)", async () => {
     const res = await upsertOpportunities([candidate("lead-Z")], undefined as never, { orgId: "org-2" });
     expect(res.ok).toBe(true);

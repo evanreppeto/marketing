@@ -64,6 +64,54 @@ export type OpportunityCandidate = {
   recommendedCampaignType: string;
 };
 
+/**
+ * Baseline confidence an opportunity needs to reach the inbox.
+ *
+ * Deliberately low: it is a safety net against a genuinely broken score, not
+ * the noise filter. Every detector except cold-lead already emits 54+ at its
+ * weakest (a weather *advisory* scores exactly 55), so a higher global bar
+ * would silently delete an entire severity tier — Freezing Rain and Hard Freeze
+ * advisories are advisories, and burst pipes are real work.
+ */
+export const DEFAULT_CONFIDENCE_FLOOR = 50;
+
+/**
+ * Per-kind floors, for detectors whose weakest output isn't worth an operator's
+ * attention. Only `crm_inactivity` needs one: it scores essentially off lead
+ * score, bottoms out at 47, and produces far more cards than every other kind
+ * combined. Measured against the live inbox, 60 cuts its weak tail without
+ * touching a single high-urgency card; 65 starts discarding legitimate medium
+ * signals and 70 discards a high one.
+ *
+ * A floor filters by quality, never by volume — a workspace with 200 genuinely
+ * strong signals still sees all 200.
+ */
+export const CONFIDENCE_FLOOR_BY_KIND: Readonly<Record<string, number>> = {
+  crm_inactivity: 60,
+};
+
+/** The floor a given opportunity kind must clear. */
+export function confidenceFloorForKind(kind: string, base: number = DEFAULT_CONFIDENCE_FLOOR): number {
+  // Never let a per-kind entry sit BELOW the configured base — an operator who
+  // raises the base expects it to apply everywhere.
+  return Math.max(base, CONFIDENCE_FLOOR_BY_KIND[kind] ?? 0);
+}
+
+/**
+ * Drop candidates scoring below their kind's floor. Applied once at the
+ * persistence chokepoint so every producer — the deterministic detectors,
+ * signal-source connectors, and Arc's own proposals — is held to the same bar.
+ */
+export function applyConfidenceFloor<T extends { confidence: number; kind?: string }>(
+  candidates: readonly T[],
+  base: number = DEFAULT_CONFIDENCE_FLOOR,
+): T[] {
+  // A non-finite or negative base would silently pass everything; treat it as
+  // "no floor configured" rather than guessing.
+  const safeBase = Number.isFinite(base) && base > 0 ? base : 0;
+  return candidates.filter((c) => c.confidence >= confidenceFloorForKind(c.kind ?? "", safeBase));
+}
+
 const DEFAULT_COLD_DAYS = 30;
 const TERMINAL_STATUSES = new Set(["converted", "lost", "archived"]);
 const DAY_MS = 24 * 60 * 60 * 1000;
