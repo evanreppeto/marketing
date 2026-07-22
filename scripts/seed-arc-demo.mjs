@@ -242,7 +242,7 @@ async function seedArcDemo() {
     campaign_id: campaignId,
     asset_type: "email",
     channel: "email",
-    title: "Initial plumbing partner referral email",
+    title: `Initial ${s.company} referral email`,
     status: "pending_approval",
     source_system: sourceSystem,
     external_asset_id: `arc-demo-email-${runId}`,
@@ -320,7 +320,10 @@ async function seedArcDemo() {
     workspace_id: workspaceId,
     status: "needs_approval",
     priority: "high",
-    objective: "Prepare a plumbing partner lead and first-touch campaign draft for human review.",
+    // Names the partner. This is the string a human scans in the task queue, and
+    // an un-personalized template made nine DISTINCT seeded tasks (nine companies,
+    // nine campaigns, nine approval items) read as one duplicated row.
+    objective: `Prepare the ${s.company} partner lead and first-touch campaign draft for human review.`,
     task_type: "lead_discovery_campaign_draft",
     source_type: "company",
     source_id: companyId,
@@ -340,7 +343,7 @@ async function seedArcDemo() {
     input_type: "lead_discovery_signal",
     source_table: "leads",
     source_id: leadId,
-    summary: "High-fit plumbing partner in priority Chicago ZIPs.",
+    summary: `${s.company} — high-fit plumbing partner in priority Chicago ZIPs.`,
     payload: {
       persona,
       score: 88,
@@ -354,7 +357,7 @@ async function seedArcDemo() {
     approval_item_id: approvalItemId,
     campaign_asset_id: campaignAssetId,
     output_type: "approval_card",
-    title: "Review plumbing partner outreach draft",
+    title: `Review the ${s.company} outreach draft`,
     body: draftBody,
     structured_payload: {
       company_id: companyId,
