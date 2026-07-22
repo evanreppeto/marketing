@@ -52,7 +52,7 @@ const OPPORTUNITY_SUBJECT_TYPES = [
 export function proposeOpportunityTool(client: ArcClient, step: StepFn) {
   return tool(
     "propose_opportunity",
-    "Propose a source-backed opportunity into the inbox (status pending — the operator approves it before anything happens). Use during an opportunity scan after reviewing CRM / personas / brand / activity. Give concrete evidence/source refs and a STABLE subject id (CRM id, persona key, competitor id) so duplicates of an existing open opportunity are skipped. Pick the closest `kind` from the list rather than coining a new one: kind is part of the dedup key, so a synonym re-files the same finding as a new card.",
+    "Propose a source-backed opportunity into the inbox (status pending — the operator approves it before anything happens). Use during an opportunity scan after reviewing CRM / personas / brand / activity. Give concrete evidence/source refs and a STABLE subject id (CRM id, persona key, competitor id) so duplicates of an existing open opportunity are skipped. Pick the closest `kind` from the list rather than coining a new one: kind is part of the dedup key, so a synonym re-files the same finding as a new card. Set `persona` whenever the opportunity targets an audience — without it the opportunity cannot become a campaign draft on its own.",
     {
       kind: z.enum(OPPORTUNITY_KINDS).describe("Closest canonical kind — part of the dedup key"),
       subject_type: z.enum(OPPORTUNITY_SUBJECT_TYPES),
@@ -62,6 +62,12 @@ export function proposeOpportunityTool(client: ArcClient, step: StepFn) {
       confidence: z.number().min(0).max(100).optional(),
       urgency: z.enum(["low", "medium", "high"]).optional(),
       evidence: z.record(z.string(), z.unknown()).optional().describe("Source links / refs / signals backing it"),
+      persona: z
+        .string()
+        .optional()
+        .describe(
+          "Persona key this opportunity targets, from the workspace's own persona list (e.g. persona_property_manager). Set it whenever the opportunity plausibly has one: an opportunity with no persona CANNOT be turned into a campaign draft automatically and will sit in the inbox until a human picks one. Leave it unset only when the finding genuinely targets no audience — a data-quality or attribution gap, say — rather than guessing.",
+        ),
       recommended_action: z.string().optional(),
       recommended_campaign_type: z.string().optional(),
     },

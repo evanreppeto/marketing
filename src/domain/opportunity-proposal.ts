@@ -46,7 +46,18 @@ export function parseOpportunityProposal(raw: unknown): ProposalParseResult {
   const confidence = Number.isFinite(confNum) ? Math.min(100, Math.max(0, Math.round(confNum))) : 60;
   const u = str(r.urgency).toLowerCase();
   const urgency = (URGENCIES.has(u) ? u : "medium") as OpportunityCandidate["urgency"];
-  const evidence = (r.evidence && typeof r.evidence === "object" ? r.evidence : {}) as Record<string, unknown>;
+  const evidence = { ...((r.evidence && typeof r.evidence === "object" ? r.evidence : {}) as Record<string, unknown>) };
+
+  // Persona is read back from `evidence.persona` by the drafting path, which
+  // needs one to create a campaign at all. It used to only ever arrive because
+  // Arc happened to nest it in the free-form evidence blob — on real data that
+  // was ~10% of generative proposals, which left scheduled auto-drafting unable
+  // to touch most kinds. Accept it as a first-class arg and normalize it into
+  // the one place the consumer looks, so producer and consumer agree.
+  const persona = str(r.persona) || str(evidence.persona);
+  if (persona) evidence.persona = persona;
+  else delete evidence.persona;
+
   return {
     ok: true,
     candidate: {
