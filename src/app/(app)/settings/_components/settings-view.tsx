@@ -804,7 +804,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
           </Panel>
         ) : (
           <Panel title="Operator" tag={TGEST}>
-            <Row label="Signed in as"><span className="pillrow"><span style={{ display: "flex", alignItems: "center", gap: 9 }}><span style={{ width: 30, height: 30, borderRadius: 8, display: "grid", placeItems: "center", fontFamily: "var(--serif)", fontWeight: 600, color: "var(--accent)", background: "var(--accent-soft)", border: "1px solid var(--accent-border)" }}>{(email || "O").charAt(0).toUpperCase()}</span><span><span style={{ fontSize: "12.5px", fontWeight: 600, display: "block" }}>{email.split("@")[0] || "Operator"}</span><span style={{ fontSize: 11, color: "var(--muted)" }}>{email}</span></span></span><button className="btn sm">Edit</button></span></Row>
+            <Row label="Signed in as"><span className="pillrow"><span style={{ display: "flex", alignItems: "center", gap: 9 }}><span style={{ width: 30, height: 30, borderRadius: 8, display: "grid", placeItems: "center", fontFamily: "var(--serif)", fontWeight: 600, color: "var(--accent)", background: "var(--accent-soft)", border: "1px solid var(--accent-border)" }}>{(email || "O").charAt(0).toUpperCase()}</span><span><span style={{ fontSize: "12.5px", fontWeight: 600, display: "block" }}>{email.split("@")[0] || "Operator"}</span><span style={{ fontSize: 11, color: "var(--muted)" }}>{email || "No email on this session"}</span></span></span><button className="btn sm">Edit</button></span></Row>
             <Row label="Profile photo" desc="Shown on your account and across the app. Square works best.">
               <ImageUploadField
                 currentUrl={avatarUrl}
