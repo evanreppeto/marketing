@@ -1,6 +1,11 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { applyConfidenceFloor, DEFAULT_CONFIDENCE_FLOOR, type OpportunityCandidate } from "@/domain";
+import {
+  applyConfidenceFloor,
+  DEFAULT_CONFIDENCE_FLOOR,
+  dismissCooldownDays,
+  type OpportunityCandidate,
+} from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -35,17 +40,6 @@ const OPEN_STATUSES = ["pending", "drafting", "drafted"];
 /** Statuses that can suppress a re-detected candidate. */
 const SUPPRESSING_STATUSES = [...OPEN_STATUSES, "dismissed", "snoozed"];
 
-/**
- * How long a dismissal suppresses re-detection of the same (kind, subject).
- *
- * Dismissing used to mean nothing to the detector — dedup checked only OPEN
- * statuses, so the very next scan re-inserted an identical card and the operator
- * could never actually clear the queue. A cooldown rather than a permanent block
- * because "not relevant right now" is a statement about now: if a lead is still
- * cold in a month, that is worth raising again, but not tomorrow.
- */
-const DISMISS_COOLDOWN_DAYS = 30;
-
 type SuppressionRow = {
   subject_id: string;
   status: string;
@@ -53,8 +47,18 @@ type SuppressionRow = {
   snoozed_until: string | null;
 };
 
-/** True when an existing row should block re-inserting a candidate for its subject. */
-function suppresses(row: SuppressionRow, now: number): boolean {
+/**
+ * True when an existing row should block re-inserting a candidate for its subject.
+ *
+ * Dismissing used to mean nothing to the detector — dedup checked only OPEN
+ * statuses, so the very next scan re-inserted an identical card and the operator
+ * could never actually clear the queue. A cooldown rather than a permanent block
+ * because "not relevant right now" is a statement about now: if a lead is still
+ * cold in a month, that is worth raising again, but not tomorrow. The cooldown is
+ * jittered per-subject so a batch cleared in one sitting doesn't all come back on
+ * the same day — see dismissCooldownDays.
+ */
+function suppresses(row: SuppressionRow, kind: string, now: number): boolean {
   if (OPEN_STATUSES.includes(row.status)) return true;
   // A snooze always suppresses, expired or not: while it runs the operator has
   // asked not to see it, and once it expires the read model wakes the ORIGINAL
@@ -63,7 +67,7 @@ function suppresses(row: SuppressionRow, now: number): boolean {
   if (row.status === "dismissed") {
     if (!row.dismissed_at) return true;
     const elapsed = now - Date.parse(row.dismissed_at);
-    return elapsed < DISMISS_COOLDOWN_DAYS * 86_400_000;
+    return elapsed < dismissCooldownDays(kind, row.subject_id) * 86_400_000;
   }
   return false;
 }
@@ -111,7 +115,7 @@ export async function upsertOpportunities(
 
   const now = Date.now();
   const suppressed = new Set(
-    ((existing ?? []) as SuppressionRow[]).filter((row) => suppresses(row, now)).map((row) => row.subject_id),
+    ((existing ?? []) as SuppressionRow[]).filter((row) => suppresses(row, kind, now)).map((row) => row.subject_id),
   );
   const fresh = qualified.filter((c) => !suppressed.has(c.subjectId));
   if (fresh.length === 0) return persisted(0, filtered);

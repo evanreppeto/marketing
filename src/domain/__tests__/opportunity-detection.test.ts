@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   applyConfidenceFloor,
   confidenceFloorForKind,
+  dismissCooldownDays,
+  DISMISS_COOLDOWN_DAYS,
+  DISMISS_COOLDOWN_JITTER_DAYS,
   detectColdLeadOpportunities,
   detectCompetitorOpportunities,
   detectNextIterationOpportunities,
@@ -324,5 +327,64 @@ describe("applyConfidenceFloor", () => {
     );
     expect(candidates).toHaveLength(1);
     expect(applyConfidenceFloor(candidates)).toHaveLength(1);
+  });
+});
+
+describe("dismissCooldownDays", () => {
+  const KIND = "crm_inactivity";
+  const LO = DISMISS_COOLDOWN_DAYS - DISMISS_COOLDOWN_JITTER_DAYS;
+  const HI = DISMISS_COOLDOWN_DAYS + DISMISS_COOLDOWN_JITTER_DAYS;
+
+  it("is deterministic — the same subject always resolves to the same expiry", () => {
+    // If this drifted, a card's return date would wander between scans and a row
+    // could re-appear early just by being re-evaluated.
+    const first = dismissCooldownDays(KIND, "lead-abc");
+    for (let i = 0; i < 50; i += 1) expect(dismissCooldownDays(KIND, "lead-abc")).toBe(first);
+  });
+
+  it("stays inside the base +/- jitter window", () => {
+    for (let i = 0; i < 500; i += 1) {
+      const d = dismissCooldownDays(KIND, `lead-${i}`);
+      expect(d).toBeGreaterThanOrEqual(LO);
+      expect(d).toBeLessThanOrEqual(HI);
+    }
+  });
+
+  // The whole point: 39 cards cleared in one sitting must not all come back on
+  // the same day, which is exactly what a fixed cooldown produced.
+  it("spreads a batch dismissed together across the window", () => {
+    const days = Array.from({ length: 39 }, (_, i) => dismissCooldownDays(KIND, `batch-lead-${i}`));
+    const distinct = new Set(days);
+    // A 15-day window over 39 subjects should occupy most of it, and certainly
+    // must not collapse onto one date.
+    expect(distinct.size).toBeGreaterThan(10);
+    const perDay = Math.max(...[...distinct].map((d) => days.filter((x) => x === d).length));
+    expect(perDay).toBeLessThan(days.length / 2);
+  });
+
+  it("separates the same subject id across different kinds", () => {
+    // Kind is in the hash key, so one subject carrying two kinds of signal does
+    // not resurface both at once.
+    const a = Array.from({ length: 40 }, (_, i) => dismissCooldownDays("crm_inactivity", `s${i}`));
+    const b = Array.from({ length: 40 }, (_, i) => dismissCooldownDays("account_expansion", `s${i}`));
+    expect(a).not.toEqual(b);
+  });
+
+  it("averages out to roughly the base, so jitter shifts timing not policy", () => {
+    const days = Array.from({ length: 2000 }, (_, i) => dismissCooldownDays(KIND, `lead-${i}`));
+    const mean = days.reduce((s, d) => s + d, 0) / days.length;
+    expect(Math.abs(mean - DISMISS_COOLDOWN_DAYS)).toBeLessThan(1);
+  });
+
+  it("never yields a non-positive cooldown, even if jitter would swamp the base", () => {
+    // A zero/negative cooldown makes a dismissal instantly re-raisable — the very
+    // bug the cooldown exists to prevent.
+    for (let i = 0; i < 200; i += 1) {
+      expect(dismissCooldownDays(KIND, `lead-${i}`, 2, 30)).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("collapses to the base when jitter is disabled", () => {
+    expect(dismissCooldownDays(KIND, "lead-abc", 30, 0)).toBe(30);
   });
 });

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpportunityCandidate } from "@/domain";
+import { dismissCooldownDays, DISMISS_COOLDOWN_DAYS, type OpportunityCandidate } from "@/domain";
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -87,6 +87,38 @@ describe("upsertOpportunities", () => {
     const res = await upsertOpportunities([candidate("lead-A")]);
     expect(res.ok).toBe(true);
     expect(inserted.map((r) => r.subject_id)).toEqual(["lead-A"]);
+  });
+
+  // The cooldown is jittered per-subject, so the boundary is that subject's own
+  // expiry rather than a shared date — asserted against the same pure function
+  // the suppression check uses.
+  it("honours each subject's jittered cooldown at its own boundary", async () => {
+    const cooldown = dismissCooldownDays("crm_inactivity", "lead-A");
+
+    openRows = [{ subject_id: "lead-A", status: "dismissed", dismissed_at: daysFromNow(-(cooldown - 1)) }];
+    expect(await upsertOpportunities([candidate("lead-A")])).toEqual({ ok: true, count: 0 });
+    expect(inserted).toEqual([]);
+
+    inserted = [];
+    openRows = [{ subject_id: "lead-A", status: "dismissed", dismissed_at: daysFromNow(-(cooldown + 1)) }];
+    await upsertOpportunities([candidate("lead-A")]);
+    expect(inserted.map((r) => r.subject_id)).toEqual(["lead-A"]);
+  });
+
+  // The reason jitter exists: a batch cleared in one sitting must not all become
+  // eligible again on the same day.
+  it("does not re-raise a batch dismissed together all at once", async () => {
+    const subjects = Array.from({ length: 39 }, (_, i) => `batch-lead-${i}`);
+    // Every row dismissed on the same day, exactly like a bulk triage pass.
+    const dismissedAt = daysFromNow(-DISMISS_COOLDOWN_DAYS);
+    openRows = subjects.map((subject_id) => ({ subject_id, status: "dismissed", dismissed_at: dismissedAt }));
+
+    await upsertOpportunities(subjects.map(candidate));
+
+    // Some are past their jittered expiry and some aren't — the batch comes back
+    // staggered, not in one wave.
+    expect(inserted.length).toBeGreaterThan(0);
+    expect(inserted.length).toBeLessThan(subjects.length);
   });
 
   it("suppresses a snoozed subject whether or not the snooze has expired", async () => {
