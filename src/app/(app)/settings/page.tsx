@@ -36,7 +36,11 @@ export default async function SettingsPage() {
   // The workspace's own personas, for the connector "Default persona" picker.
   const personaOptions = await getOrgPersonaOptions(ctx?.orgId ?? undefined).catch(() => []);
   const brandName = ctx?.orgName?.trim() || "Your workspace";
-  const email = user?.email || "owner@bsr.test";
+  // No fabricated fallback. This renders under "Signed in as" in a panel whose
+  // own copy says the email is live, so inventing one ("owner@bsr.test", a test
+  // account) told a real operator they were signed in as someone they weren't.
+  // Empty is honest, and the view says so in place of showing a blank line.
+  const email = user?.email ?? "";
   const avatarUrl = await getViewerAvatarUrl(user);
   // The deployment-level send kill-switch. Read here (server-side env) so the
   // email card can tell the truth: an enabled Resend connection still sends
