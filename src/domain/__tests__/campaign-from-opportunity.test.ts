@@ -90,3 +90,64 @@ describe("buildCampaignSeedFromOpportunity", () => {
     expect(seed.name.endsWith("…")).toBe(true);
   });
 });
+
+describe("campaign naming", () => {
+  function nameFor(title: string, recommendedCampaignType = "") {
+    return buildCampaignSeedFromOpportunity(
+      { title, summary: "", recommendedAction: "", urgency: "medium", persona: null, recommendedCampaignType },
+      ["persona_landlord"],
+    ).name;
+  }
+
+  it("reads <theme> — <subject> instead of restating the opportunity headline", () => {
+    // Real prod titles. As campaign names the trigger ("quiet 53 days") is noise;
+    // the subject is the company.
+    expect(nameFor("Dana Whitfield (Southside Water & Gas) — quiet 53 days", "re_engagement")).toBe(
+      "Re-engagement — Southside Water & Gas",
+    );
+    expect(nameFor("Ravenswood Rooter — partner referral opportunity", "referral_outreach")).toBe(
+      "Referral outreach — Ravenswood Rooter",
+    );
+  });
+
+  it("takes the head before the dash when there is no parenthetical", () => {
+    expect(
+      nameFor("North Shore Property Group — 14-building PM account, only deal was lost", "account_reengagement"),
+    ).toBe("Account reengagement — North Shore Property Group");
+  });
+
+  it("hyphenates a prefix rather than emitting \"Re engagement\"", () => {
+    expect(nameFor("Acme Co — dormant", "re_engagement")).toContain("Re-engagement");
+  });
+
+  it("leaves an in-word hyphen alone when splitting", () => {
+    // "Insurance-agent" must not be split at its hyphen — only a *spaced* dash
+    // separates subject from rationale.
+    expect(nameFor("Insurance-agent lane — empty", "partner_recruitment")).toBe(
+      "Partner recruitment — Insurance-agent lane",
+    );
+  });
+
+  it("ignores a parenthetical that is a date rather than a name", () => {
+    // Real regression: "(Jun 14)" produced "Storm rapid response — Jun 14".
+    expect(
+      nameFor("Naperville hail swath (Jun 14) — 142 homes, storm-response window still open", "storm_rapid_response"),
+    ).toBe("Storm rapid response — Naperville hail swath");
+  });
+
+  it("falls back to the title when no subject can be pulled out confidently", () => {
+    // No parenthetical, no dash: a confidently wrong name is worse than a long one.
+    const title = "Won-customer base has no reactivation motion";
+    expect(nameFor(title, "reactivation")).toBe(title);
+  });
+
+  it("does not use an over-long head as a subject", () => {
+    const title = `${"x".repeat(60)} — short reason`;
+    expect(nameFor(title, "re_engagement")).toBe(title);
+  });
+
+  it("caps the name and marks the truncation", () => {
+    const name = nameFor(`Acme (${"y".repeat(40)}) — reason`, "re_engagement");
+    expect(name.length).toBeLessThanOrEqual(96);
+  });
+});
