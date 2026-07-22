@@ -43,6 +43,11 @@ import { enqueueArcOpportunityTask } from "./enqueue";
 import { markOpportunityDrafted, markOpportunityDrafting } from "./persistence";
 import { getOpportunityForCampaign } from "./read-model";
 
+/** `persona_property_manager` -> `Property Manager`; also fine for focus keys. */
+function humanizePersonaKey(key: string): string {
+  return (key || "").replace(/^persona_/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /** The actor recorded on scheduled drafts, so they're distinguishable in the audit log. */
 export const AUTO_DRAFT_ACTOR = "Arc (scheduled)";
 
@@ -306,8 +311,12 @@ export async function runScheduledAutoDraft(
             brief: {
               title: opp.title,
               angle: opp.recommendedAction,
-              personaLabel: seed.persona,
-              focusLabel: seed.campaignTheme || seed.restorationFocus,
+              // Labels, not keys, and the restoration focus rather than the
+              // campaign theme. Passing the raw persona key printed
+              // "helps persona_homeowner_preventative like you" into customer
+              // copy; passing the theme produced "When re engagement hits".
+              personaLabel: humanizePersonaKey(seed.persona),
+              focusLabel: humanizePersonaKey(seed.restorationFocus),
               urgency: opp.urgency,
               subjectLabel: opp.subjectType,
             },

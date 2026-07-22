@@ -58,9 +58,55 @@ export type OpportunityPackageContext = {
   proofPoints?: string[];
 };
 
+/**
+ * Humanize defensively. Callers are supposed to pass a label, but one passed the
+ * raw key and "helps persona_homeowner_preventative like you" shipped into
+ * customer-facing drafts. A key is trivially recognizable, so recover here
+ * rather than trusting every call site forever.
+ */
 function audience(personaLabel: string): string {
   const p = personaLabel.trim();
-  return p ? p.toLowerCase() : "property owners";
+  if (!p) return "property owners";
+  if (/^persona_/.test(p) || (/_/.test(p) && !/\s/.test(p))) {
+    return p.replace(/^persona_/, "").replace(/_/g, " ").toLowerCase();
+  }
+  return p.toLowerCase();
+}
+
+/**
+ * Clauses an opportunity's `recommended_action` carries because it is an
+ * instruction to *us*, not a message to a customer. They were being printed
+ * verbatim into email, SMS, ads, and landing copy — including, memorably,
+ * "no outbound until approved" sent to the recipient.
+ */
+const INTERNAL_CLAUSE = /(;|,)?\s*(and\s+)?(no\s+(outbound|send|record\s+edits?|ad\s+spend)[^.;]*|for\s+human\s+approval|until\s+approved|pending\s+approval)[^.;]*/gi;
+
+/**
+ * Verbs that mark an angle as a work order aimed at the agent or operator
+ * ("Queue a package…", "Assemble a prospect list…"). Copy built from one reads
+ * as internal chatter leaking to the customer, so we drop it entirely rather
+ * than trying to rewrite it deterministically.
+ */
+const WORK_ORDER = /^\s*(queue|prepare|assemble|build|draft|review|activate|identify|create|compile|flag|verify|recommend)\b/i;
+
+/**
+ * Vocabulary that only exists inside the tool. "Re-engage with a persona-tailored
+ * campaign" is not a work order and cleared the verb check, yet it still tells the
+ * recipient about our personas and campaigns. Customers do not know these words.
+ */
+const INTERNAL_VOCAB = /\b(campaign|package|persona|prospect list|outreach|handoff process|back-?fill|rollup|attribution|segment|lookalike|CRM|inbox|draft)\b/i;
+
+/**
+ * A customer-safe angle, or "" when the recommended action is an internal work
+ * order. Returning "" is deliberate: a generic-but-clean line beats a specific
+ * line that tells the recipient about our approval workflow.
+ */
+export function customerSafeAngle(angle: string): string {
+  const stripped = (angle || "").replace(INTERNAL_CLAUSE, "").replace(/\s+/g, " ").trim().replace(/[.,;!]+$/, "");
+  if (!stripped) return "";
+  if (WORK_ORDER.test(stripped)) return "";
+  if (INTERNAL_VOCAB.test(stripped)) return "";
+  return stripped;
 }
 
 function focusPhrase(focusLabel: string): string {
@@ -71,7 +117,9 @@ function focusPhrase(focusLabel: string): string {
 /** A clean, sentence-cased angle without a trailing period (we add our own). */
 function cleanAngle(angle: string): string {
   const a = angle.replace(/\s+/g, " ").trim().replace(/[.!]+$/, "");
-  return a || "Re-engage this account with a timely, relevant offer";
+  // Addressed to the reader. The old default ("Re-engage this account…") was
+  // written from our side of the table.
+  return a || "We're here when you need fast, professional help";
 }
 
 function urgencyOpener(urgency: OpportunityPackageBrief["urgency"], focusLabel: string): string {
@@ -79,6 +127,26 @@ function urgencyOpener(urgency: OpportunityPackageBrief["urgency"], focusLabel: 
   if (urgency === "high") return `When ${focus} hits, every hour counts.`;
   if (urgency === "medium") return `Staying ahead of ${focus} protects your property and your budget.`;
   return `A quick check-in about ${focus} at your property.`;
+}
+
+/**
+ * A subject line written for the recipient. The opportunity title is an internal
+ * headline — "Dana Whitfield (Southside Water & Gas) — quiet 53 days" tells an
+ * operator why the card surfaced and tells a customer that we have been counting
+ * the days since they last replied.
+ */
+/** Customer-facing headline for ads and landing pages — never the internal title. */
+function headline(brief: OpportunityPackageBrief, businessName: string): string {
+  const focus = brief.focusLabel.trim();
+  if (focus) return `${focus} help, when you need it`;
+  return businessName ? `${businessName} — here when you need us` : "Here when you need us";
+}
+
+function emailSubject(brief: OpportunityPackageBrief, businessName: string): string {
+  const focus = brief.focusLabel.trim();
+  if (focus) return `A quick note about ${focus.toLowerCase()} at your property`;
+  const aud = audience(brief.personaLabel);
+  return businessName ? `A quick note from ${businessName}` : `A quick note for ${aud}`;
 }
 
 /**
@@ -90,8 +158,10 @@ export function buildOpportunityPackageDrafts(
   brief: OpportunityPackageBrief,
   context: OpportunityPackageContext = {},
 ): PackageAssetDraft[] {
-  const angle = cleanAngle(brief.angle);
-  const aud = audience(brief.personaLabel);
+  // The opportunity's recommended action is an instruction to Arc; only use it
+  // as copy when it survives the internal-work-order filter.
+  const safeAngle = customerSafeAngle(brief.angle);
+  const angle = safeAngle || cleanAngle("");
   const opener = urgencyOpener(brief.urgency, brief.focusLabel);
   // "the business" is getBusinessContext's own empty-name fallback — treat it as
   // absent so the copy degrades to a pronoun rather than printing a placeholder.
@@ -106,11 +176,17 @@ export function buildOpportunityPackageDrafts(
     channel: "Email",
     title: `Email — ${brief.title}`,
     body: [
-      `Subject: ${brief.title}`,
+      // NOT the opportunity title: that is an internal inbox headline
+      // ("… — quiet 53 days") and reads as surveillance in a subject line.
+      `Subject: ${emailSubject(brief, name)}`,
       "",
       `Hi there,`,
       "",
-      `${opener} ${angle} — that's exactly where ${name ? `${name} helps` : "we help"} ${aud} like you.`,
+      // Only tack on the "that's where we help" clause when there is a real
+      // angle to attach it to; with the fallback it reads "help … can help".
+      safeAngle
+        ? `${opener} ${angle} — that's exactly where ${name ? name : "we"} can help.`
+        : `${opener} ${name ? `${name} is` : "We're"} here when you need fast, professional help.`,
       "",
       "Why teams call us first:",
       ...proofTop3.map((p) => `• ${p}`),
@@ -134,7 +210,7 @@ export function buildOpportunityPackageDrafts(
     channel: "Paid social",
     title: `Paid social — ${brief.title}`,
     body: [
-      `${brief.title}`,
+      `${headline(brief, name)}`,
       "",
       `${angle}. ${proofTop3[0]}.`,
       "",
@@ -147,8 +223,8 @@ export function buildOpportunityPackageDrafts(
     channel: "Landing page",
     title: `Landing page — ${brief.title}`,
     body: [
-      `# ${brief.title}`,
-      `## ${angle} — with a team ${aud} trust.`,
+      `# ${headline(brief, name)}`,
+      `## ${angle}`,
       "",
       opener,
       "",
