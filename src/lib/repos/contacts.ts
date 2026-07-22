@@ -3,10 +3,8 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { type Contact, ContactSchema, type ContactStatus } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { type FilterChain, queryPage } from "@/lib/repos/paging";
-import { type Database } from "@/lib/supabase/database.types";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
-type PersonaMapping = Database["public"]["Enums"]["persona_mapping"];
 
 export type ListContactsFilter = {
   orgId?: string;
@@ -27,7 +25,7 @@ function applyContactFilters(
   let q = query;
   if (orgId) q = q.eq("org_id", orgId);
   if (filter.status) q = q.eq("status", filter.status);
-  if (filter.persona) q = q.eq("persona", filter.persona as PersonaMapping);
+  if (filter.persona) q = q.eq("persona", filter.persona);
   if (filter.companyId) q = q.eq("company_id", filter.companyId);
   if (filter.q) q = q.or(`full_name.ilike.%${filter.q}%,email.ilike.%${filter.q}%`);
   return q;

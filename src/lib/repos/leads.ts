@@ -10,10 +10,8 @@ import {
 } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { type FilterChain, queryPage } from "@/lib/repos/paging";
-import { type Database } from "@/lib/supabase/database.types";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
-type PersonaMapping = Database["public"]["Enums"]["persona_mapping"];
 
 export type ListLeadsFilter = {
   orgId?: string;
@@ -38,7 +36,7 @@ function applyLeadFilters(query: FilterChain, filter: ListLeadsFilter, orgId: st
   let q = query;
   if (orgId) q = q.eq("org_id", orgId);
   if (filter.status) q = q.eq("status", filter.status);
-  if (filter.persona) q = q.eq("persona", filter.persona as PersonaMapping);
+  if (filter.persona) q = q.eq("persona", filter.persona);
   if (filter.source) q = q.eq("source", filter.source);
   if (typeof filter.minScore === "number") q = q.gte("lead_score", filter.minScore);
   if (typeof filter.maxScore === "number") q = q.lte("lead_score", filter.maxScore);

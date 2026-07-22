@@ -117,7 +117,7 @@ function buildInsert(
   persona: string | null,
   metadata: Record<string, unknown>,
   detail: string | null,
-): { table: string; row: Record<string, unknown> } {
+): { table: CrmObjectKey; row: Record<string, unknown> } {
   const name = input.name.trim();
   // Only write `persona` when we actually have one. Some tables (companies,
   // contacts) have persona NOT NULL WITH a default — explicitly inserting null
