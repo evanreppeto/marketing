@@ -30,4 +30,16 @@ describe("Arc UI accessibility contract", () => {
     expect(CSS_SOURCE).toContain(".arc-history-menu-btn { width: 44px; height: 44px; margin-right: 0; opacity: 1; }");
     expect(CSS_SOURCE).toContain(".arc-drawer-nav button { font-size: 10.5px; }");
   });
+
+  it("keeps mobile safety visible while shrinking the context ring inside its tap target", () => {
+    expect(CSS_SOURCE).toContain(".arc-mode-button small { display: inline; font-size: 8px; }");
+    expect(CSS_SOURCE).toContain(".arc-context-meter { --arc-context-ring: 21px; min-height: 44px; }");
+    expect(VIEW_SOURCE).toContain("Automatic → {capabilityLabel}");
+  });
+
+  it("uses compact composer popovers", () => {
+    expect(CSS_SOURCE).toContain("width: min(310px, calc(100% - 22px));");
+    expect(CSS_SOURCE).toContain("width: min(272px, calc(100% - 56px));");
+    expect(CSS_SOURCE).toContain("width: min(190px, calc(100vw - 28px));");
+  });
 });

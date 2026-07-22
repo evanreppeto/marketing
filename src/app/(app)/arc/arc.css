@@ -1244,6 +1244,7 @@
 }
 .arc-context-control { position: relative; display: flex; align-items: center; }
 .arc-context-meter {
+  --arc-context-ring: 24px;
   position: relative;
   width: 32px;
   padding: 0;
@@ -1253,11 +1254,15 @@
 .arc-context-meter::before {
   content: "";
   position: absolute;
-  inset: 1px;
+  left: 50%;
+  top: 50%;
+  width: var(--arc-context-ring);
+  height: var(--arc-context-ring);
   border: 1px solid color-mix(in srgb, var(--text) 11%, transparent);
   border-radius: 50%;
+  transform: translate(-50%, -50%);
 }
-.arc-context-progress { position: absolute !important; inset: 1px; color: var(--text-2); pointer-events: none; }
+.arc-context-progress { position: absolute !important; left: 50%; top: 50%; width: var(--arc-context-ring) !important; height: var(--arc-context-ring) !important; color: var(--text-2); pointer-events: none; transform: translate(-50%, -50%); }
 .arc-context-progress .MuiCircularProgress-circle { stroke-linecap: round; transition: stroke-dashoffset var(--arc-base) var(--arc-curve); }
 .arc-context-meter[data-level="warn"] .arc-context-progress { color: var(--accent); }
 .arc-context-meter[data-level="full"] .arc-context-progress { color: var(--priority); }
@@ -1266,13 +1271,13 @@
   right: -8px;
   bottom: calc(100% + 8px);
   z-index: 82;
-  width: 226px;
+  width: 202px;
   transform-origin: bottom right;
   border: 1px solid var(--line-2);
   border-radius: 12px;
   background: color-mix(in srgb, var(--panel) 96%, var(--canvas));
   color: var(--text-2);
-  padding: 11px 12px;
+  padding: 9px 10px;
   box-shadow: 0 18px 42px -22px rgba(0, 0, 0, .98);
 }
 .arc-context-popover b { color: var(--text); font-size: 11.5px; font-weight: 650; }
@@ -1331,42 +1336,43 @@
   left: 11px;
   bottom: calc(100% + 9px);
   z-index: 45;
-  width: min(340px, calc(100% - 22px));
-  max-height: 390px;
+  width: min(310px, calc(100% - 22px));
+  max-height: 350px;
   overflow: auto;
   border: 1px solid var(--line-3);
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--panel);
-  padding: 6px;
-  box-shadow: 0 20px 55px rgba(0, 0, 0, .58);
+  padding: 5px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .54);
 }
 .arc-composer-menu[data-menu="model"],
 .arc-composer-menu[data-menu="mode"] {
   left: 44px;
   bottom: 50px;
   z-index: 80;
-  width: min(300px, calc(100% - 56px));
+  width: min(272px, calc(100% - 56px));
   max-height: none;
   overflow: visible;
   border-color: color-mix(in srgb, var(--text) 13%, var(--line-3));
   border-radius: 12px;
   background: color-mix(in srgb, var(--panel) 97%, var(--text) 1.5%);
-  padding: 6px;
+  padding: 5px;
   transform-origin: 36px 100%;
   box-shadow: 0 28px 72px -24px rgba(0, 0, 0, .98), 0 10px 24px -18px rgba(0, 0, 0, .9), inset 0 1px rgba(255, 255, 255, .03);
   backdrop-filter: blur(18px);
 }
-.arc-composer-menu[data-menu="commands"] { width: min(390px, calc(100% - 22px)); border-color: rgba(91, 183, 232, .24); }
-.arc-model-menu-label { padding: 5px 9px 4px; color: var(--muted); font-size: 10.5px; font-weight: 520; }
+.arc-composer-menu[data-menu="commands"] { width: min(350px, calc(100% - 22px)); border-color: rgba(91, 183, 232, .24); }
+.arc-model-menu-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px 3px; color: var(--muted); font-size: 10px; font-weight: 520; }
+.arc-model-menu-label span { color: var(--text-2); font-family: var(--mono); font-size: 8.5px; }
 .arc-model-options { display: flex; flex-direction: column; gap: 3px; }
-.arc-composer-menu-head { min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 5px 8px 7px; border-bottom: 1px solid var(--line); margin-bottom: 3px; }
+.arc-composer-menu-head { min-height: 38px; display: flex; align-items: center; gap: 8px; padding: 4px 7px 5px; border-bottom: 1px solid var(--line); margin-bottom: 3px; }
 .arc-composer-menu-head b { color: var(--text); font-size: 11.5px; font-weight: 650; }
 .arc-composer-menu-head small { margin-left: auto; color: var(--muted); font-size: 9px; text-align: right; }
 .arc-composer-menu-head button { width: 26px; height: 26px; margin-left: auto; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; }
 .arc-composer-menu-head button:hover { color: var(--text); background: rgba(255, 255, 255, .05); }
 .arc-composer-menu > button {
   width: 100%;
-  min-height: 48px;
+  min-height: 42px;
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr) auto;
   align-items: center;
@@ -1375,23 +1381,23 @@
   border-radius: 8px;
   background: transparent;
   color: var(--muted);
-  padding: 7px 9px;
+  padding: 5px 8px;
   text-align: left;
   cursor: pointer;
 }
 .arc-composer-menu > button:hover { color: var(--text-2); background: rgba(255, 255, 255, .05); }
 .arc-composer-menu .arc-model-option {
   width: 100%;
-  min-height: 54px;
+  min-height: 48px;
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 22px;
+  grid-template-columns: 28px minmax(0, 1fr) 20px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   border: 1px solid transparent;
   border-radius: 9px;
   background: transparent;
   color: var(--muted);
-  padding: 8px 9px;
+  padding: 6px 7px;
   text-align: left;
   cursor: pointer;
   transition: border-color var(--arc-fast), background var(--arc-fast), transform var(--arc-fast);
@@ -1402,15 +1408,15 @@
   background: linear-gradient(90deg, var(--accent-soft), color-mix(in srgb, var(--accent-soft) 28%, transparent));
 }
 .arc-model-option > span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.arc-model-option b { color: var(--text); font-size: 11.5px; font-weight: 620; }
-.arc-model-option small { color: color-mix(in srgb, var(--text-2) 78%, var(--muted)); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arc-model-option b { color: var(--text); font-size: 11px; font-weight: 620; }
+.arc-model-option small { color: color-mix(in srgb, var(--text-2) 78%, var(--muted)); font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arc-model-symbol {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   display: grid;
   place-items: center;
   border: 1px solid var(--line-2);
-  border-radius: 10px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--inset) 82%, var(--panel));
   color: var(--muted);
   font-style: normal;
@@ -1422,15 +1428,15 @@
   color: var(--accent-contrast);
 }
 .arc-model-option:hover .arc-model-symbol { color: var(--text-2); border-color: var(--line-3); }
-.arc-model-check { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; color: var(--accent-contrast); font-style: normal; }
+.arc-model-check { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; color: var(--accent-contrast); font-style: normal; }
 .arc-composer-menu > button > span { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .arc-composer-menu > button b { color: var(--text); font-size: 11.5px; font-weight: 580; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arc-composer-menu > button small { color: var(--muted); font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.arc-composer-menu > button.arc-composer-skill-option { min-height: 62px; grid-template-columns: 34px minmax(0, 1fr) 14px; border: 1px solid transparent; padding: 8px; transition: border-color var(--arc-fast), background var(--arc-fast), transform var(--arc-fast); }
+.arc-composer-menu > button.arc-composer-skill-option { min-height: 54px; grid-template-columns: 30px minmax(0, 1fr) 14px; border: 1px solid transparent; padding: 6px 7px; transition: border-color var(--arc-fast), background var(--arc-fast), transform var(--arc-fast); }
 .arc-composer-menu > button.arc-composer-skill-option:hover,
 .arc-composer-menu > button.arc-composer-skill-option:focus-visible { border-color: rgba(91, 183, 232, .42); outline: 0; background: rgba(91, 183, 232, .14); transform: translateX(1px); }
 .arc-composer-menu > button.arc-composer-skill-option[data-source="system"] { margin-bottom: 4px; border-color: rgba(91, 183, 232, .2); background: rgba(91, 183, 232, .055); }
-.arc-composer-menu > button.arc-composer-skill-option > .arc-composer-skill-icon { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid rgba(91, 183, 232, .28); border-radius: 9px; background: rgba(91, 183, 232, .11); color: #5bb7e8; }
+.arc-composer-menu > button.arc-composer-skill-option > .arc-composer-skill-icon { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid rgba(91, 183, 232, .28); border-radius: 8px; background: rgba(91, 183, 232, .11); color: #5bb7e8; }
 .arc-composer-menu > button.arc-composer-skill-option > span:nth-child(2) { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 8px; align-items: center; }
 .arc-composer-skill-option > span:nth-child(2) b { color: var(--text); }
 .arc-composer-skill-option > span:nth-child(2) small { grid-column: 1 / -1; }
@@ -2140,18 +2146,20 @@
   .arc-composer-send { gap: 2px; }
   .arc-composer-pill { padding: 0 6px; gap: 4px; }
   .arc-composer-pill small { display: none; }
+  .arc-mode-button small { display: inline; font-size: 8px; }
   .arc-model-button { width: 44px; padding: 0; }
   .arc-model-button span,
   .arc-model-button > svg:last-child { display: none; }
   .arc-composer-add,
   .arc-composer-pill,
-  .arc-context-meter { min-height: 44px; }
+  .arc-context-meter { --arc-context-ring: 21px; min-height: 44px; }
   .arc-composer-add,
   .arc-context-meter { width: 44px; }
   .arc-send-button { width: 44px; height: 44px; }
   .arc-jump { top: -40px; height: 30px; }
-  .arc-context-popover { width: min(214px, calc(100vw - 28px)); }
-  .arc-composer-menu { left: 7px; width: calc(100% - 14px); bottom: calc(100% + 7px); }
+  .arc-context-popover { width: min(190px, calc(100vw - 28px)); }
+  .arc-composer-menu { left: 7px; width: min(300px, calc(100% - 14px)); bottom: calc(100% + 7px); }
+  .arc-composer-menu > button { min-height: 44px; }
   .arc-history-topline .arc-icon-button { width: 44px; height: 44px; }
   .arc-drawer-nav button,
   .arc-new-chat,
