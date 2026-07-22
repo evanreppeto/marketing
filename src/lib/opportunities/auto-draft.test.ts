@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { runScheduledAutoDraft } from "./auto-draft";
+import { formatAutoDraftLog, runScheduledAutoDraft } from "./auto-draft";
+import type { AutoDraftRunSummary } from "./auto-draft";
 
 const ORIGINAL = { ...process.env };
 
@@ -68,5 +69,69 @@ describe("runScheduledAutoDraft — safety guards", () => {
     const result = await runScheduledAutoDraft();
     // A caller logging this must never read a skipped pass as a successful one.
     expect(result).toMatchObject({ ran: false, drafted: 0, failed: 0, selected: 0, considered: 0 });
+  });
+});
+
+describe("formatAutoDraftLog", () => {
+  const base: AutoDraftRunSummary = {
+    ran: true,
+    dryRun: true,
+    considered: 69,
+    selected: 2,
+    drafted: 0,
+    failed: 0,
+    unusable: 0,
+    campaignIds: [],
+    wouldDraft: [],
+    skips: {
+      not_pending: 0,
+      already_drafted: 0,
+      snoozed: 0,
+      no_persona: 7,
+      below_confidence_floor: 49,
+      duplicate_subject: 0,
+      kind_quota: 2,
+      over_limit: 0,
+    },
+  };
+
+  it("says plainly that a dry run wrote nothing", () => {
+    expect(formatAutoDraftLog(base)).toContain("DRY RUN — nothing written");
+  });
+
+  it("prints one readable line per planned draft", () => {
+    // The whole point: a reviewer skims these instead of a JSON blob.
+    const out = formatAutoDraftLog({
+      ...base,
+      wouldDraft: [
+        { opportunityId: "o1", title: "t", kind: "storm_response", confidence: 78, urgency: "high",
+          name: "Naperville hail response", persona: "persona_homeowner_emergency", theme: "Storm rapid response" },
+      ],
+    });
+    expect(out).toContain("would draft: storm_response (78/high)");
+    expect(out).toContain("persona=persona_homeowner_emergency");
+    expect(out).toContain('name="Naperville hail response"');
+  });
+
+  it("reports only the skip reasons that actually fired", () => {
+    const out = formatAutoDraftLog(base);
+    expect(out).toContain("no_persona=7");
+    expect(out).toContain("below_confidence_floor=49");
+    expect(out).not.toContain("snoozed=0");
+  });
+
+  it("lists created campaigns on a live run", () => {
+    const out = formatAutoDraftLog({ ...base, dryRun: false, drafted: 1, campaignIds: ["cmp-1"] });
+    expect(out).toContain("LIVE");
+    expect(out).toContain("created campaign cmp-1");
+  });
+
+  it("distinguishes a disabled pass from one that found nothing", () => {
+    const out = formatAutoDraftLog({ ...base, ran: false, skipped: "disabled" });
+    expect(out).toContain("skipped (disabled)");
+  });
+
+  it("surfaces a thrown error rather than looking like a quiet pass", () => {
+    expect(formatAutoDraftLog({ ran: false, error: "boom" })).toBe("[auto-draft] FAILED: boom");
   });
 });
