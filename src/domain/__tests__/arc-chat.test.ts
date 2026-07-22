@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   ArcMessageError,
+  cleanApprovableDrafts,
   deriveThreadTitle,
+  parseActions,
   parseMedia,
   parseMentions,
   serializeMentions,
@@ -77,5 +79,72 @@ describe("serializeMentions / parseMentions", () => {
     expect(parseMentions("not json")).toEqual([]);
     expect(parseMentions(null)).toEqual([]);
     expect(parseMentions([{ nope: true }])).toEqual([]);
+  });
+});
+
+describe("parseActions — one asset, one card", () => {
+  const ASSET = "f477ea65-7b16-4056-8c77-a35931825cf6";
+  const draft = (title: string, assetId = ASSET, status?: string) => ({
+    kind: "draft",
+    title,
+    channel: "Email",
+    ...(status ? { status } : {}),
+    approval: { kind: "campaign", campaignId: "camp-1", assetId },
+  });
+
+  // The exact shape Arc emitted on prod: it saved the asset, then restated it,
+  // producing two cards with the SAME assetId. DraftPackageCard renders
+  // cards.length, so one asset read as "2 assets ready for review · 0/2 approved".
+  it("collapses a restated draft into a single card", () => {
+    const cards = parseActions([
+      draft("Send-pipeline verification email"),
+      draft("Send-pipeline verification email — pending approval"),
+    ]);
+
+    expect(cards).toHaveLength(1);
+  });
+
+  it("keeps the later payload — it carries the settled status", () => {
+    const cards = parseActions([draft("Draft"), draft("Draft — pending approval", ASSET, "approved")]);
+
+    expect(cards[0].title).toBe("Draft — pending approval");
+    expect(cards[0].status).toBe("approved");
+  });
+
+  it("keeps the original position so a restatement can't reorder the deck", () => {
+    const cards = parseActions([
+      draft("A", "asset-a"),
+      draft("B", "asset-b"),
+      draft("A again", "asset-a"),
+    ]);
+
+    expect(cards.map((c) => c.title)).toEqual(["A again", "B"]);
+  });
+
+  it("never merges cards for different assets", () => {
+    const cards = parseActions([draft("One", "asset-1"), draft("Two", "asset-2")]);
+
+    expect(cards).toHaveLength(2);
+  });
+
+  // A result/navigate card has no assetId, so there is no stable identity to key
+  // on — guessing one would collapse genuinely distinct cards.
+  it("leaves approval-less cards alone, even when they look alike", () => {
+    const cards = parseActions([
+      { kind: "result", title: "Same title" },
+      { kind: "result", title: "Same title" },
+    ]);
+
+    expect(cards).toHaveLength(2);
+  });
+
+  // The real hazard beyond the miscount: bulk-approve reads the same card list.
+  it("stops bulk-approve seeing one asset twice", () => {
+    const cards = parseActions([
+      draft("Send-pipeline verification email"),
+      draft("Send-pipeline verification email — pending approval"),
+    ]);
+
+    expect(cleanApprovableDrafts(cards)).toEqual([{ campaignId: "camp-1", assetId: ASSET }]);
   });
 });

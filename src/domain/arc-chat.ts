@@ -261,8 +261,46 @@ function parseAppState(value: unknown): ArcAppState | undefined {
   return { href, filters };
 }
 
+/**
+ * One asset, one card.
+ *
+ * Arc sometimes narrates the same draft twice in a single turn — once as it
+ * saves the asset and again to restate the settled state, e.g. "Send-pipeline
+ * verification email" followed by "Send-pipeline verification email — pending
+ * approval", both carrying the SAME approval.assetId. Nothing deduped them, so
+ * DraftPackageCard rendered `cards.length` as "2 assets ready for review ·
+ * 0/2 approved" for one asset, and cleanApprovableDrafts handed the same asset
+ * to bulk-approve twice.
+ *
+ * The later emission wins because it carries the settled status, but it keeps
+ * the earlier one's POSITION so a restatement can't reorder the deck.
+ *
+ * Only approval-bearing cards are deduped: a result/navigate card has no stable
+ * identity to key on, and guessing one would collapse genuinely distinct cards.
+ */
+function dedupeByAsset(cards: ArcActionCard[]): ArcActionCard[] {
+  const positionByAsset = new Map<string, number>();
+  const out: ArcActionCard[] = [];
+  for (const card of cards) {
+    const assetId = card.approval?.assetId;
+    if (!assetId) {
+      out.push(card);
+      continue;
+    }
+    const seenAt = positionByAsset.get(assetId);
+    if (seenAt === undefined) {
+      positionByAsset.set(assetId, out.length);
+      out.push(card);
+    } else {
+      out[seenAt] = card;
+    }
+  }
+  return out;
+}
+
 /** Parse Arc's structured action cards from message metadata. Defensive: drops
- *  malformed entries (must have a valid kind + title), never throws. */
+ *  malformed entries (must have a valid kind + title), dedupes repeated cards
+ *  for one asset, never throws. */
 export function parseActions(value: unknown): ArcActionCard[] {
   if (!Array.isArray(value)) return [];
   const out: ArcActionCard[] = [];
@@ -296,7 +334,7 @@ export function parseActions(value: unknown): ArcActionCard[] {
       ...(appState ? { appState } : {}),
     });
   }
-  return out;
+  return dedupeByAsset(out);
 }
 
 /** The approval ids of draft cards safe to bulk-approve: a draft, with an
