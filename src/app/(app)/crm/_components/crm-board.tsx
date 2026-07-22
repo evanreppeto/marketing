@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { OFFICIAL_PERSONA_MAPPINGS } from "@/domain";
 import { type CrmObjectKey } from "@/lib/crm/read-model";
 
-import { createCrmRecord } from "../actions";
+import { bulkAssignPersona, createCrmRecord } from "../actions";
 import { AddRecordModal, type AddRecordValue, type LinkOption } from "./add-record-modal";
 import { KpiStrip, type KpiCell } from "../../_components/kpi-strip";
 
@@ -348,6 +349,10 @@ export function CrmBoard({
   const [activeKey, setActiveKey] = useState(defaultKey);
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [personaMenuOpen, setPersonaMenuOpen] = useState(false);
+  // Optimistic persona overlay by row id — a bulk assign flips the chips at once,
+  // reverting if the write fails.
+  const [personaEdits, setPersonaEdits] = useState<Record<string, { persona: string; dot: string }>>({});
   // Client-only rows for records created this session, keyed by object. They sit
   // on top of the server rows until a real DB write revalidates the page.
   const [localByKey, setLocalByKey] = useState<Record<string, CrmRowVM[]>>({});
@@ -372,9 +377,44 @@ export function CrmBoard({
     (localByKey[o.key]?.length ?? 0);
 
   const allActiveRows = useMemo(
-    () => [...(localByKey[active.key] ?? []), ...(rowsByKey[active.key] ?? [])],
-    [localByKey, rowsByKey, active.key],
+    () =>
+      [...(localByKey[active.key] ?? []), ...(rowsByKey[active.key] ?? [])].map((r) =>
+        personaEdits[r.id] ? { ...r, persona: personaEdits[r.id].persona, dot: personaEdits[r.id].dot } : r,
+      ),
+    [localByKey, rowsByKey, active.key, personaEdits],
   );
+
+  // The workspace's personas for the bulk picker; falls back to the official set
+  // offline/demo, exactly like the Add-record modal.
+  const personaChoices = personaOptions?.length
+    ? personaOptions
+    : OFFICIAL_PERSONA_MAPPINGS.map((key) => ({ key, label: personaLabelOf(key) }));
+
+  const assignPersona = (opt: { key: string; label: string }) => {
+    const ids = [...selected];
+    setPersonaMenuOpen(false);
+    if (ids.length === 0) return;
+    setError(null);
+    const dot = personaDotOf(opt.label);
+    const prev = personaEdits;
+    setPersonaEdits((e) => {
+      const next = { ...e };
+      for (const id of ids) next[id] = { persona: opt.label, dot };
+      return next;
+    });
+    setSelected(new Set());
+    bulkAssignPersona(active.key, ids, opt.key)
+      .then((res) => {
+        if (!res.ok) {
+          setPersonaEdits(prev);
+          setError(res.error);
+        }
+      })
+      .catch(() => {
+        setPersonaEdits(prev);
+        setError("Could not assign persona.");
+      });
+  };
 
   // Parent records a lead/outcome can link to, from the loaded rows. Leads link
   // to a company/contact/property; outcomes link to a job/lead.
@@ -576,10 +616,24 @@ export function CrmBoard({
         </span>
       </div>
 
-      <div className={`selbar${selected.size ? " show" : ""}`}>
+      <div className={`selbar${selected.size ? " show" : ""}${personaMenuOpen ? " menuopen" : ""}`}>
         <span className="sc">{selected.size} selected</span>
         <span className="sa" data-soon="Bulk add to campaign is coming soon"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to campaign</span>
-        <span className="sa" data-soon="Bulk persona assignment is coming soon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>Assign persona</span>
+        <div className="sa-wrap">
+          <button type="button" className="sa" onClick={() => setPersonaMenuOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={personaMenuOpen}>
+            <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>Assign persona
+          </button>
+          {personaMenuOpen && (
+            <>
+              <button type="button" className="sa-backdrop" aria-hidden onClick={() => setPersonaMenuOpen(false)} tabIndex={-1} />
+              <div className="sa-menu" role="listbox" aria-label="Assign a persona to the selected records">
+                {personaChoices.map((o) => (
+                  <button type="button" key={o.key} role="option" aria-selected={false} className="sa-opt" onClick={() => assignPersona(o)}>{o.label}</button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
         <span className="sa" data-soon="Bulk tasks are coming soon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M4 12v7a1 1 0 001 1h14" /></svg>Add task</span>
         <span className="sa" data-soon="Arc enrichment is coming soon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-6.2-8.6" /><path d="M21 4v5h-5" /></svg>Ask Arc to enrich</span>
         <span className="clr" onClick={() => setSelected(new Set())}>Clear</span>
