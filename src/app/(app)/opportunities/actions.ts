@@ -127,6 +127,8 @@ type PreparedDraft =
         urgency: "low" | "medium" | "high";
         recommendedAction: string;
         title: string;
+        /** Carried so the package builder can tell a partner from a customer. */
+        recommendedCampaignType: string | null;
       };
     };
 
@@ -212,7 +214,14 @@ async function createDraftCampaign(input: DraftCampaignFromOpportunityInput): Pr
       actor,
       persona,
       focus,
-      opp: { id: opp.id, subjectType: opp.subjectType, urgency: opp.urgency, recommendedAction: opp.recommendedAction, title: name },
+      opp: {
+        id: opp.id,
+        subjectType: opp.subjectType,
+        urgency: opp.urgency,
+        recommendedAction: opp.recommendedAction,
+        title: name,
+        recommendedCampaignType: opp.recommendedCampaignType,
+      },
     };
   } catch (error) {
     return { status: "error", error: error instanceof Error ? error.message : "Could not create the campaign." };
@@ -269,6 +278,7 @@ export async function askArcToDraftFromOpportunityAction(
     focusLabel: humanizeKey(focus),
     urgency: opp.urgency,
     subjectLabel: opp.subjectType ? humanizeKey(opp.subjectType) : undefined,
+    campaignType: opp.recommendedCampaignType ?? undefined,
   };
 
   try {
