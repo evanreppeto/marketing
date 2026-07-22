@@ -60,3 +60,41 @@ export function normalizeCampaignAssetType(value: unknown): CampaignAssetType | 
   if (CAMPAIGN_ASSET_TYPE_SET.has(v)) return v as CampaignAssetType;
   return CAMPAIGN_ASSET_TYPE_ALIASES[v] ?? null;
 }
+
+/**
+ * The delivery channel each asset type is sent on.
+ *
+ * `promoteAssetToCampaign` — the path Arc uses to attach a draft to a campaign —
+ * wrote `asset_type` and left `channel` null. That looks harmless, but the
+ * dispatch enqueue keys off `channel`, NOT `asset_type`: `addressableChannel`
+ * tests the channel string for /email|mail/, so a null channel took the
+ * non-addressable branch and produced a dispatch with no recipient and no
+ * subject. Every email Arc drafted was therefore unsendable, and the failure was
+ * invisible — the campaign looked complete and the Outbox row looked real.
+ *
+ * Deriving it here keeps the two columns from disagreeing: an asset that calls
+ * itself an email is now addressable as one.
+ */
+export const CAMPAIGN_ASSET_CHANNELS: Readonly<Record<CampaignAssetType, string>> = {
+  email: "email",
+  sms: "sms",
+  landing_page: "web",
+  one_pager: "doc",
+  referral_packet: "doc",
+  review_response: "web",
+  google_business_post: "web",
+  search_ad: "google_ads",
+  social_ad: "meta_ad",
+  display_ad: "meta_ad",
+  // Creative prompts produce media that a paid channel later carries; they are
+  // never addressable themselves.
+  video_prompt: "media",
+  image_prompt: "media",
+  script: "media",
+  other: "other",
+};
+
+/** The channel an asset of this type is delivered on. */
+export function channelForAssetType(assetType: CampaignAssetType): string {
+  return CAMPAIGN_ASSET_CHANNELS[assetType];
+}
