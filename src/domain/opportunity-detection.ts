@@ -65,6 +65,53 @@ export type OpportunityCandidate = {
 };
 
 /**
+ * How long a dismissal suppresses re-detection of the same (kind, subject), and
+ * how far either side of that the actual expiry is spread.
+ *
+ * A fixed cooldown synchronises the queue: clear 39 cards in one sitting and all
+ * 39 become eligible again on the same day, so the flood the cooldown prevents
+ * arrives a month later in one batch instead. The spread staggers them across a
+ * ~4-week window while keeping the average at the base.
+ */
+export const DISMISS_COOLDOWN_DAYS = 30;
+export const DISMISS_COOLDOWN_JITTER_DAYS = 7;
+
+/** FNV-1a (32-bit). Small, dependency-free, and well-distributed over short keys. */
+function hash32(text: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    h ^= text.charCodeAt(i);
+    // 32-bit FNV prime multiply, via shifts to stay inside int32.
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h >>> 0;
+}
+
+/**
+ * Days a dismissal of `(kind, subjectId)` suppresses re-detection: the base
+ * offset by a deterministic per-subject amount in [-jitter, +jitter].
+ *
+ * Deterministic, not random: the same subject must resolve to the same expiry on
+ * every scan, or a card's return date would wander and a row could re-appear
+ * early simply by being re-evaluated. Derived from the subject rather than the
+ * clock so it is stable across processes and testable without freezing time.
+ */
+export function dismissCooldownDays(
+  kind: string,
+  subjectId: string,
+  base: number = DISMISS_COOLDOWN_DAYS,
+  jitter: number = DISMISS_COOLDOWN_JITTER_DAYS,
+): number {
+  const spread = Math.max(0, Math.trunc(jitter));
+  if (spread === 0) return base;
+  // hash % (2*spread + 1) - spread  =>  an integer in [-spread, +spread].
+  const offset = (hash32(`${kind}:${subjectId}`) % (spread * 2 + 1)) - spread;
+  // Never let jitter push the cooldown to zero or negative — that would make a
+  // dismissal instantly re-raisable, which is the bug the cooldown exists for.
+  return Math.max(1, base + offset);
+}
+
+/**
  * Baseline confidence an opportunity needs to reach the inbox.
  *
  * Deliberately low: it is a safety net against a genuinely broken score, not
