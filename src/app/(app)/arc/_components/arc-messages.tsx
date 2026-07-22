@@ -58,6 +58,7 @@ import type {
   ArcToolCall,
 } from "@/lib/arc-chat/persistence";
 import type { ArcRunContract } from "@/lib/arc-chat/run-contract";
+import { visibleRecallCount } from "@/lib/arc-chat/recall-visibility";
 
 import {
   decideArcDraftAction,
@@ -932,16 +933,30 @@ export function SourcesRow({ mentions }: { mentions: ArcMention[] }) {
 /** Recalled Brain memory used for this reply — each chip links to its node in the
  *  Brain (via `?node=`), so a citation lands on the exact fact. */
 export function RecallRow({ recall }: { recall: ArcRecall[] }) {
+  const [expanded, setExpanded] = useState(false);
   if (recall.length === 0) return null;
+  const visibleCount = visibleRecallCount(recall.length, expanded);
+  const remaining = recall.length - visibleCount;
   return (
     <div className="arc-recall">
       <span><Brain size={14} /> Recalled</span>
-      {recall.map((item, index) => {
+      {recall.slice(0, visibleCount).map((item, index) => {
         const inner = <>{item.label}{item.confidence != null ? <small>{Math.round(item.confidence * 100)}%</small> : null}</>;
         return item.nodeId
           ? <Link key={`${item.label}-${index}`} href={`/brain?node=${encodeURIComponent(item.nodeId)}`} className="arc-recall-chip">{inner}</Link>
           : <span key={`${item.label}-${index}`} className="arc-recall-chip is-static">{inner}</span>;
       })}
+      {recall.length > visibleCount || expanded ? (
+        <button
+          type="button"
+          className="arc-recall-toggle"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? "Show less" : `Show ${remaining} more`}
+          <ChevronDown size={12} aria-hidden="true" />
+        </button>
+      ) : null}
     </div>
   );
 }
