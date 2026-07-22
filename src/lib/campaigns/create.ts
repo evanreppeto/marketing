@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type ParsedCampaignDraft, type ViralityScore, deriveCampaignTheme, normalizeRestorationFocus, resolveCampaignCta } from "@/domain";
+import { type ParsedCampaignDraft, type ViralityScore, channelForAssetType, deriveCampaignTheme, normalizeCampaignAssetType, normalizeRestorationFocus, resolveCampaignCta } from "@/domain";
 
 import { getSupabaseAdminClient, type TypedSupabaseClient } from "../supabase/server";
 import { type AgentTaskTenantFields } from "../agent-tasks/scope";
@@ -546,6 +546,10 @@ export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<
     ...orgTenantFields(input.tenant),
     campaign_id: input.campaignId,
     asset_type: input.assetType,
+    // Derived, never omitted: the dispatch enqueue keys off `channel`, so an
+    // email asset with a null channel enqueues as non-addressable — a dispatch
+    // with no recipient and no subject, which looks real and can never send.
+    channel: channelForAssetType(normalizeCampaignAssetType(input.assetType) ?? "other"),
     title: input.title,
     status: screen.status,
     draft_body: bodyToPersist,
