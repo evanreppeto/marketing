@@ -246,6 +246,11 @@ export type WeatherDetectionConfig = {
    * opportunity carries the weather facts either way.
    */
   persona?: string | null;
+  /**
+   * Which weather this workspace wants surfaced. Omitted keeps the historical
+   * behaviour (property damage only) rather than widening it silently.
+   */
+  categories?: readonly WeatherCategory[];
 };
 
 /**
@@ -272,6 +277,122 @@ const PROPERTY_DAMAGE_EVENT =
 export function isPropertyDamageWeather(eventType: string | null | undefined): boolean {
   return PROPERTY_DAMAGE_EVENT.test((eventType ?? "").trim());
 }
+
+// ---------------------------------------------------------------------------
+// Weather categories (per-workspace opt-in)
+// ---------------------------------------------------------------------------
+
+/**
+ * What kind of demand an alert drives — the axis a workspace actually cares about.
+ *
+ * `property_damage` was the only category the connector supported, which made the
+ * rest of NWS's catalogue unreachable rather than merely filtered. That was right
+ * for a roofer and wrong for an HVAC business: an Excessive Heat Warning drives
+ * real, urgent cooling work and was being discarded as "no property in play".
+ *
+ * Categories are trades-agnostic on purpose. They describe the WEATHER and the
+ * demand it creates, never who gets called — Arc cannot know a workspace's trade,
+ * and the operator opting in is what supplies that knowledge.
+ */
+export type WeatherCategory = "property_damage" | "extreme_heat" | "air_quality" | "marine_coastal";
+
+export const WEATHER_CATEGORIES: readonly WeatherCategory[] = [
+  "property_damage",
+  "extreme_heat",
+  "air_quality",
+  "marine_coastal",
+] as const;
+
+/**
+ * Only property_damage by default.
+ *
+ * A workspace that never opts in keeps exactly today's behaviour. The alternative —
+ * defaulting to everything — would start filing heat and lake-hazard cards into
+ * inboxes that never asked for them, which is the invisible-default failure that
+ * put Illinois storm opportunities in front of tenants in Phoenix.
+ */
+export const DEFAULT_WEATHER_CATEGORIES: readonly WeatherCategory[] = ["property_damage"] as const;
+
+// Matched word-boundaried on the NWS event name, most specific first: an
+// "Excessive Heat Warning" is heat, and must not fall through to anything else.
+const HEAT_EVENT = /\b(heat|hot)\b/i;
+const AIR_QUALITY_EVENT = /\b(air quality|air stagnation|smoke|dust)\b/i;
+const MARINE_EVENT = /\b(beach|rip current|surf|marine|small craft|lakeshore|coastal)\b/i;
+
+/**
+ * The category an NWS event name belongs to, or null when it drives no demand this
+ * connector models (Dense Fog, for instance — real, but not a marketing signal).
+ *
+ * Order matters. `property_damage` is tested LAST despite being the default,
+ * because its regex is broad enough to swallow other categories: "Coastal Flood
+ * Warning" contains "flood", and "Lakeshore Flood Advisory" contains both — those
+ * are marine products, and a workspace that opted into damage-only should not
+ * receive them.
+ */
+export function weatherCategoryOf(eventType: string | null | undefined): WeatherCategory | null {
+  const name = (eventType ?? "").trim();
+  if (!name) return null;
+  if (HEAT_EVENT.test(name)) return "extreme_heat";
+  if (AIR_QUALITY_EVENT.test(name)) return "air_quality";
+  if (MARINE_EVENT.test(name)) return "marine_coastal";
+  if (isPropertyDamageWeather(name)) return "property_damage";
+  return null;
+}
+
+/** Parse an operator's configured categories, falling back to the default set. */
+export function parseWeatherCategories(raw: unknown): WeatherCategory[] {
+  const list = Array.isArray(raw) ? raw : [];
+  const valid = list
+    .map((v) => (typeof v === "string" ? v.trim().toLowerCase() : ""))
+    .filter((v): v is WeatherCategory => (WEATHER_CATEGORIES as readonly string[]).includes(v));
+  const deduped = [...new Set(valid)];
+  // An empty or unparseable list means "not configured", not "watch nothing" —
+  // silently watching nothing would look identical to a quiet weather week.
+  return deduped.length > 0 ? deduped : [...DEFAULT_WEATHER_CATEGORIES];
+}
+
+/**
+ * Per-category card copy. Each states the demand ITS weather actually drives.
+ *
+ * Splitting this is the reason categories can be enabled at all: the single
+ * summary asserted "Damage-response demand typically spikes", so admitting a heat
+ * alert under the old copy would have produced a card claiming an Excessive Heat
+ * Warning damages buildings — genuine NWS evidence wrapped around a false claim,
+ * which is precisely what the category filter was protecting against.
+ */
+const WEATHER_CATEGORY_COPY: Record<
+  WeatherCategory,
+  { demand: (area: string) => string; action: (area: string) => string; campaignType: string }
+> = {
+  property_damage: {
+    demand: (area) =>
+      `Damage-response demand typically spikes in the affected area within days; ` +
+      `a geo-targeted campaign reaches affected property owners before competitors do.`,
+    action: (area) => `Launch a geo-targeted damage-response campaign for ${area}`,
+    campaignType: "storm_response",
+  },
+  extreme_heat: {
+    demand: () =>
+      `Cooling and heat-resilience demand rises sharply while the alert is in effect, ` +
+      `and property owners act during the heat rather than after it.`,
+    action: (area) => `Launch a geo-targeted heat-response campaign for ${area}`,
+    campaignType: "heat_response",
+  },
+  air_quality: {
+    demand: () =>
+      `Indoor air quality becomes an active concern while the alert is in effect, ` +
+      `and property owners look for filtration and ventilation help during the episode.`,
+    action: (area) => `Launch a geo-targeted indoor-air-quality campaign for ${area}`,
+    campaignType: "air_quality_response",
+  },
+  marine_coastal: {
+    demand: () =>
+      `Waterfront and shoreline conditions are hazardous while the alert is in effect, ` +
+      `which drives protective and remediation work for affected owners.`,
+    action: (area) => `Launch a geo-targeted waterfront-response campaign for ${area}`,
+    campaignType: "coastal_response",
+  },
+};
 
 const WEATHER_SEVERITY_RANK: Record<WeatherSeverity, number> = {
   advisory: 1,
@@ -311,6 +432,7 @@ export function detectWeatherEventOpportunities(
 ): OpportunityCandidate[] {
   const now = Date.parse(config.now);
   const persona = typeof config.persona === "string" && config.persona.trim() ? config.persona.trim() : null;
+  const allowed = new Set<WeatherCategory>(config.categories ?? DEFAULT_WEATHER_CATEGORIES);
   const out: OpportunityCandidate[] = [];
   for (const ev of events) {
     if (!ev.id) continue;
@@ -320,7 +442,11 @@ export function detectWeatherEventOpportunities(
     }
     const severity: WeatherSeverity = WEATHER_SEVERITY_RANK[ev.severity] ? ev.severity : "advisory";
     const eventType = ev.eventType?.trim() || "Weather alert";
-    if (!isPropertyDamageWeather(eventType)) continue; // real alert, no property in play
+    // A real alert this workspace hasn't opted into — or one that drives no demand
+    // this connector models at all.
+    const category = weatherCategoryOf(eventType);
+    if (!category || !allowed.has(category)) continue;
+    const copy = WEATHER_CATEGORY_COPY[category];
     const area = ev.area?.trim() || "the coverage area";
     const zips = (ev.zipCodes ?? []).filter((z) => typeof z === "string" && z.trim().length > 0);
 
@@ -329,14 +455,16 @@ export function detectWeatherEventOpportunities(
       subjectType: "weather_event",
       subjectId: ev.id,
       title: `${eventType} — ${area}`,
-      summary:
-        `${eventType} in effect for ${area}. Damage-response demand typically spikes in the affected area within days; ` +
-        `a geo-targeted campaign reaches affected property owners before competitors do.`,
+      summary: `${eventType} in effect for ${area}. ${copy.demand(area)}`,
       confidence: WEATHER_SEVERITY_CONFIDENCE[severity],
       urgency: weatherUrgency(severity),
       evidence: {
         ...(persona ? { persona } : {}),
         eventType,
+        // On the card so a reviewer can see WHY this alert was surfaced — a heat
+        // card and a hail card look alike once rendered, and the claim each makes
+        // is different.
+        category,
         area,
         severity,
         ...(zips.length ? { zipCodes: zips } : {}),
@@ -344,8 +472,8 @@ export function detectWeatherEventOpportunities(
         ...(ev.endsAt ? { endsAt: ev.endsAt } : {}),
         evidence_urls: cleanUrls(ev.sourceUrls),
       },
-      recommendedAction: `Launch a geo-targeted damage-response campaign for ${area}`,
-      recommendedCampaignType: "storm_response",
+      recommendedAction: copy.action(area),
+      recommendedCampaignType: copy.campaignType,
     });
   }
   return out;

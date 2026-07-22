@@ -17,9 +17,12 @@ import {
   parseFeedsInput,
   parseNewsQueriesInput,
   parseServicePointsInput,
+  parseWeatherCategories,
   parseWeatherServiceArea,
+  WEATHER_CATEGORIES,
   type ConnectorCostTier,
   type ConnectorStatus,
+  type WeatherCategory,
 } from "@/domain";
 import type { ConnectorView } from "@/lib/connectors/read-model";
 import type { SettingsConnectorsView } from "@/lib/connectors/settings-connectors";
@@ -315,7 +318,9 @@ const CONNECTOR_KIND_LABEL: Record<string, string> = {
 //            live in a csv field; this is why points were unreachable before)
 //   feeds  — one feed URL per line, optional "kind:" prefix + label (a URL can't
 //            live in a csv field for the same reason)
-type ConfigFieldKind = "text" | "persona" | "csv" | "points" | "feeds" | "queries";
+//   categories — a fixed set of checkboxes (free text can't express a closed
+//            enum: a typo'd category would silently watch nothing)
+type ConfigFieldKind = "text" | "persona" | "csv" | "points" | "feeds" | "queries" | "categories";
 type ConfigField = { key: string; kind: ConfigFieldKind; label: string; placeholder: string; hint: string };
 
 // The workspace's own personas, provided once at the SettingsView root so the
@@ -341,11 +346,18 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       hint: "One lat,lng per line, with an optional label. Only alerts whose area actually covers a point become opportunities — the right choice when you serve a metro, not a whole state. Use either or both.",
     },
     {
+      key: "eventCategories",
+      kind: "categories",
+      label: "Weather worth surfacing",
+      placeholder: "",
+      hint: "Which alerts become opportunities. Property damage is the default and suits most trades; enable the others only if that weather drives work for you — extreme heat for HVAC, air quality for filtration and ventilation, marine for waterfront. Each writes its own claim, so a heat card never says a heatwave damaged a building.",
+    },
+    {
       key: "persona",
       kind: "text",
       label: "Audience persona (optional)",
       placeholder: "persona_homeowner_emergency",
-      hint: "A persona key from your workspace's own taxonomy — who a damage-response campaign should target. Leave blank and the opportunity still carries the weather evidence; you pick the audience when you draft.",
+      hint: "A persona key from your workspace's own taxonomy — who a weather-response campaign should target. Leave blank and the opportunity still carries the weather evidence; you pick the audience when you draft.",
     },
   ],
   "rss-signals": [
@@ -1770,6 +1782,18 @@ function isLineField(kind: ConfigFieldKind): kind is "points" | "feeds" | "queri
 
 // Per-workspace, non-secret config editor inside the connector popup (a signal
 // source's watched locations/feeds, a channel's endpoint, an import's default persona).
+/**
+ * Operator-facing names for the weather categories. The description says what
+ * demand the category claims, because that claim is what ends up on the card —
+ * enabling one is a statement about your business, not a display preference.
+ */
+const WEATHER_CATEGORY_LABELS: Record<WeatherCategory, { label: string; hint: string }> = {
+  property_damage: { label: "Property damage", hint: "Storms, hail, wind, flood, hard freeze, fire weather" },
+  extreme_heat: { label: "Extreme heat", hint: "Heat advisories and warnings — cooling and heat-resilience demand" },
+  air_quality: { label: "Air quality", hint: "Air quality, stagnation, smoke — filtration and ventilation demand" },
+  marine_coastal: { label: "Marine & coastal", hint: "Beach hazards, rip currents, surf, lakeshore flooding" },
+};
+
 function configToInput(config: Record<string, unknown>, field: ConfigField): string {
   const v = config[field.key];
   if (field.kind === "csv") return Array.isArray(v) ? v.filter((x) => typeof x === "string").join(", ") : "";
@@ -1778,7 +1802,14 @@ function configToInput(config: Record<string, unknown>, field: ConfigField): str
 }
 
 function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: ConfigField }) {
+  const isCategories = field.kind === "categories";
   const [value, setValue] = useState(() => configToInput(view.config, field));
+  // Parsed through the same domain function the detector uses, so what the boxes
+  // show is what detection will actually do — including the property-damage
+  // fallback when nothing has been saved yet.
+  const [cats, setCats] = useState<WeatherCategory[]>(() =>
+    isCategories ? parseWeatherCategories(view.config[field.key]) : [],
+  );
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<SaveStatus>(null);
   const personaOptions = useContext(PersonaOptionsContext);
@@ -1794,7 +1825,8 @@ function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: C
   async function save() {
     setPending(true); setStatus(null);
     let next: unknown;
-    if (field.kind === "csv") next = value.split(",").map((s) => s.trim()).filter(Boolean);
+    if (isCategories) next = cats;
+    else if (field.kind === "csv") next = value.split(",").map((s) => s.trim()).filter(Boolean);
     else if (line) next = line.parse(value).value;
     else next = value.trim();
     const res = await saveConnectorConfig({ connectorKey: view.key, config: { [field.key]: next } });
@@ -1806,8 +1838,28 @@ function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: C
     <div className="cxm-sec">
       <div className="cxm-label">{field.label}</div>
       <p className="cxm-hint">{field.hint}</p>
-      <div className={line ? "cxm-field stack" : "cxm-field"}>
-        {line ? (
+      <div className={line || isCategories ? "cxm-field stack" : "cxm-field"}>
+        {isCategories ? (
+          <div className="cxm-checks" role="group" aria-label={field.label}>
+            {WEATHER_CATEGORIES.map((c) => (
+              <label className="cxm-check" key={c}>
+                <input
+                  type="checkbox"
+                  checked={cats.includes(c)}
+                  onChange={(e) =>
+                    setCats((prev) =>
+                      e.target.checked ? [...prev, c] : prev.filter((x) => x !== c),
+                    )
+                  }
+                />
+                <span>
+                  <b>{WEATHER_CATEGORY_LABELS[c].label}</b>
+                  <i>{WEATHER_CATEGORY_LABELS[c].hint}</i>
+                </span>
+              </label>
+            ))}
+          </div>
+        ) : line ? (
           <textarea
             className="inp"
             rows={4}
@@ -1828,10 +1880,22 @@ function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: C
         ) : (
           <input className="inp" placeholder={field.placeholder} value={value} onChange={(e) => setValue(e.target.value)} />
         )}
-        <button className="btn sm gold" disabled={pending || invalid.length > 0} onClick={save}>
+        <button
+          className="btn sm gold"
+          disabled={pending || invalid.length > 0 || (isCategories && cats.length === 0)}
+          onClick={save}
+        >
           {pending ? "Saving…" : "Save"}
         </button>
       </div>
+      {isCategories && cats.length === 0 ? (
+        <div className="cxm-statusline">
+          {/* Saving an empty set would parse back to property-damage-only, so the
+              boxes would say one thing and detection would do another. Refuse it
+              instead: turn the connector off if you want it watching nothing. */}
+          <Status status={{ tone: "err", text: "Pick at least one — to stop all weather alerts, switch the connector off." }} />
+        </div>
+      ) : null}
       {invalid.length > 0 && line ? (
         <div className="cxm-statusline">
           <Status status={{ tone: "err", text: `Can't read: ${invalid.join(" · ")} — ${line.errorHint}.` }} />

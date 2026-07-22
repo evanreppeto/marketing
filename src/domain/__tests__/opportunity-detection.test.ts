@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   applyConfidenceFloor,
   confidenceFloorForKind,
+  parseWeatherCategories,
+  WEATHER_CATEGORIES,
+  weatherCategoryOf,
   dismissCooldownDays,
   DISMISS_COOLDOWN_DAYS,
   DISMISS_COOLDOWN_JITTER_DAYS,
@@ -386,5 +389,108 @@ describe("dismissCooldownDays", () => {
 
   it("collapses to the base when jitter is disabled", () => {
     expect(dismissCooldownDays(KIND, "lead-abc", 30, 0)).toBe(30);
+  });
+});
+
+describe("weatherCategoryOf", () => {
+  it("classifies each category from real NWS product names", () => {
+    expect(weatherCategoryOf("Severe Thunderstorm Warning")).toBe("property_damage");
+    expect(weatherCategoryOf("Hard Freeze Warning")).toBe("property_damage");
+    expect(weatherCategoryOf("Red Flag Warning")).toBe("property_damage");
+    expect(weatherCategoryOf("Excessive Heat Warning")).toBe("extreme_heat");
+    expect(weatherCategoryOf("Heat Advisory")).toBe("extreme_heat");
+    expect(weatherCategoryOf("Air Quality Alert")).toBe("air_quality");
+    expect(weatherCategoryOf("Air Stagnation Advisory")).toBe("air_quality");
+    expect(weatherCategoryOf("Beach Hazards Statement")).toBe("marine_coastal");
+    expect(weatherCategoryOf("Rip Current Statement")).toBe("marine_coastal");
+  });
+
+  // The property-damage regex is broad enough to swallow other categories, so it
+  // must be tested LAST. "Coastal Flood Warning" contains "flood" and "Lakeshore
+  // Flood Advisory" contains both — a damage-only workspace must not get them.
+  it("prefers the specific category when the damage regex would also match", () => {
+    expect(weatherCategoryOf("Coastal Flood Warning")).toBe("marine_coastal");
+    expect(weatherCategoryOf("Lakeshore Flood Advisory")).toBe("marine_coastal");
+    expect(weatherCategoryOf("High Surf Advisory")).toBe("marine_coastal");
+  });
+
+  it("returns null for alerts that drive no demand this connector models", () => {
+    expect(weatherCategoryOf("Dense Fog Advisory")).toBeNull();
+    expect(weatherCategoryOf("")).toBeNull();
+    expect(weatherCategoryOf(null)).toBeNull();
+  });
+});
+
+describe("parseWeatherCategories", () => {
+  it("falls back to property damage when unset, empty, or unparseable", () => {
+    for (const raw of [undefined, null, [], "storms", [""], ["nonsense"], 42]) {
+      expect(parseWeatherCategories(raw)).toEqual(["property_damage"]);
+    }
+  });
+
+  it("keeps valid categories, drops junk, and dedups", () => {
+    expect(parseWeatherCategories(["extreme_heat", "nope", "extreme_heat", "air_quality"]))
+      .toEqual(["extreme_heat", "air_quality"]);
+  });
+});
+
+describe("detectWeatherEventOpportunities — per-workspace categories", () => {
+  const at = (eventType: string) =>
+    weather({ id: `id-${eventType}`, eventType, severity: "warning" });
+
+  // The whole point of the default: an existing workspace that never opts in sees
+  // exactly what it saw before.
+  it("defaults to property damage only, unchanged from before categories existed", () => {
+    expect(detectWeatherEventOpportunities([at("Severe Thunderstorm Warning")], { now: NOW })).toHaveLength(1);
+    expect(detectWeatherEventOpportunities([at("Excessive Heat Warning")], { now: NOW })).toEqual([]);
+    expect(detectWeatherEventOpportunities([at("Air Quality Alert")], { now: NOW })).toEqual([]);
+    expect(detectWeatherEventOpportunities([at("Beach Hazards Statement")], { now: NOW })).toEqual([]);
+  });
+
+  it("surfaces a category once the workspace opts into it", () => {
+    const out = detectWeatherEventOpportunities([at("Excessive Heat Warning")], {
+      now: NOW,
+      categories: ["extreme_heat"],
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0].evidence.category).toBe("extreme_heat");
+  });
+
+  it("opting into heat does not also admit damage", () => {
+    const out = detectWeatherEventOpportunities(
+      [at("Severe Thunderstorm Warning"), at("Excessive Heat Warning")],
+      { now: NOW, categories: ["extreme_heat"] },
+    );
+    expect(out.map((o) => o.evidence.eventType)).toEqual(["Excessive Heat Warning"]);
+  });
+
+  // The reason categories needed their own copy at all: the single summary
+  // asserted damage-response demand, so admitting heat under it would have
+  // produced a card claiming a heatwave damaged buildings — a false claim wrapped
+  // in genuine NWS evidence.
+  it("never claims damage for weather that damages nothing", () => {
+    for (const [eventType, category] of [
+      ["Excessive Heat Warning", "extreme_heat"],
+      ["Air Quality Alert", "air_quality"],
+      ["Beach Hazards Statement", "marine_coastal"],
+    ] as const) {
+      const [o] = detectWeatherEventOpportunities([at(eventType)], { now: NOW, categories: [category] });
+      const copy = `${o.summary} ${o.recommendedAction}`;
+      expect(copy, `${eventType} claimed damage`).not.toMatch(/damage/i);
+      expect(o.recommendedCampaignType).not.toBe("storm_response");
+    }
+    // The damage category still says so — the claim isn't lost, just scoped.
+    const [dmg] = detectWeatherEventOpportunities([at("Severe Thunderstorm Warning")], { now: NOW });
+    expect(`${dmg.summary} ${dmg.recommendedAction}`).toMatch(/damage/i);
+    expect(dmg.recommendedCampaignType).toBe("storm_response");
+  });
+
+  it("stays tenant-neutral in every category — no trade named", () => {
+    for (const c of WEATHER_CATEGORIES) {
+      const events = [at("Severe Thunderstorm Warning"), at("Excessive Heat Warning"), at("Air Quality Alert"), at("Beach Hazards Statement")];
+      for (const o of detectWeatherEventOpportunities(events, { now: NOW, categories: [c] })) {
+        expect(`${o.summary} ${o.recommendedAction}`).not.toMatch(/HVAC|roofer|plumber|BSR|Big Shoulders/i);
+      }
+    }
   });
 });
