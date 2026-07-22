@@ -120,6 +120,33 @@ describe("promoteAssetToCampaign", () => {
     expect(event.org_id).toBe("org-1");
   });
 
+  // The insert wrote asset_type and left channel null. The dispatch enqueue keys
+  // off CHANNEL, not asset_type — so every email Arc promoted enqueued as
+  // non-addressable: a dispatch with no recipient and no subject, which looked
+  // real in the Outbox and could never send.
+  it("sets the channel an email is actually delivered on", async () => {
+    const supabase = promoteMocks({ data: null, error: null });
+
+    await promoteEmail(supabase, "copy");
+
+    const [asset] = inserts(supabase);
+    expect(asset.asset_type).toBe("email");
+    expect(asset.channel).toBe("email");
+    // The exact predicate the enqueue uses to decide addressability.
+    expect(/email|mail/i.test(String(asset.channel))).toBe(true);
+  });
+
+  it("never leaves channel unset, whatever the asset type", async () => {
+    const supabase = promoteMocks({ data: null, error: null });
+
+    await promote(supabase, "copy");
+
+    const [asset] = inserts(supabase);
+    expect(asset.channel).toBeTruthy();
+    // A social ad is not addressable as email — the mapping must not overreach.
+    expect(/email|mail/i.test(String(asset.channel))).toBe(false);
+  });
+
   it("routes copy containing a banned phrase to needs_compliance at blocked risk", async () => {
     const supabase = promoteMocks({ data: profileRow(), error: null });
 

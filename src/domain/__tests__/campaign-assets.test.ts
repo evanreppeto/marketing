@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CAMPAIGN_ASSET_TYPE_VALUES,
+  channelForAssetType,
   isCampaignAssetType,
   normalizeCampaignAssetType,
   normalizeRestorationFocus,
@@ -60,5 +61,30 @@ describe("normalizeRestorationFocus", () => {
   it("returns null for unknown / non-string values", () => {
     expect(normalizeRestorationFocus("lava")).toBeNull();
     expect(normalizeRestorationFocus(undefined)).toBeNull();
+  });
+});
+
+describe("channelForAssetType", () => {
+  it("maps every asset type in the enum — no silent undefined", () => {
+    // An unmapped type would write `channel: undefined`, which is exactly the
+    // null-channel bug this map exists to prevent, just narrower.
+    for (const t of CAMPAIGN_ASSET_TYPE_VALUES) {
+      expect(channelForAssetType(t), `${t} has no channel`).toBeTruthy();
+    }
+  });
+
+  // The bug: promoteAssetToCampaign wrote asset_type but not channel, and the
+  // dispatch enqueue tests the CHANNEL against /email|mail/ — so an email asset
+  // enqueued as non-addressable, producing a dispatch with no recipient and no
+  // subject that could never send.
+  it("gives email a channel the dispatch enqueue recognises as addressable", () => {
+    const addressable = (channel: string) => /email|mail/i.test(channel);
+    expect(addressable(channelForAssetType("email"))).toBe(true);
+  });
+
+  it("keeps non-deliverable types out of the addressable path", () => {
+    for (const t of ["sms", "social_ad", "search_ad", "landing_page", "one_pager", "image_prompt", "video_prompt"] as const) {
+      expect(/email|mail/i.test(channelForAssetType(t)), `${t} must not be addressable as email`).toBe(false);
+    }
   });
 });
