@@ -10,7 +10,13 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/auth/org", () => ({ getCurrentOrgId: async () => "org-1" }));
 
 // Minimal Supabase query-builder stub capturing inserts and returning preset rows.
-let openRows: Array<{ subject_id: string }> = [];
+type ExistingRow = {
+  subject_id: string;
+  status: string;
+  dismissed_at?: string | null;
+  snoozed_until?: string | null;
+};
+let openRows: ExistingRow[] = [];
 let inserted: Array<Record<string, unknown>> = [];
 const mockClient = {
   from() {
@@ -32,6 +38,10 @@ const mockClient = {
 } as never;
 
 import { markOpportunityDrafted, upsertOpportunities } from "../persistence";
+
+function daysFromNow(days: number): string {
+  return new Date(Date.now() + days * 86_400_000).toISOString();
+}
 
 function candidate(id: string): OpportunityCandidate {
   return {
@@ -56,10 +66,39 @@ afterEach(() => vi.clearAllMocks());
 
 describe("upsertOpportunities", () => {
   it("inserts new candidates whose subject has no open opportunity", async () => {
-    openRows = [{ subject_id: "lead-A" }]; // already open
+    openRows = [{ subject_id: "lead-A", status: "pending" }]; // already open
     const res = await upsertOpportunities([candidate("lead-A"), candidate("lead-B")]);
     expect(res.ok).toBe(true);
     expect(inserted.map((r) => r.subject_id)).toEqual(["lead-B"]); // A deduped
+  });
+
+  // Dedup used to consider only OPEN statuses, so dismissing a card did nothing
+  // to the detector: the next scan re-inserted an identical one and the operator
+  // could never actually clear the queue.
+  it("does not resurrect a recently dismissed subject on the next scan", async () => {
+    openRows = [{ subject_id: "lead-A", status: "dismissed", dismissed_at: daysFromNow(-2) }];
+    const res = await upsertOpportunities([candidate("lead-A")]);
+    expect(res.ok).toBe(true);
+    expect(inserted).toEqual([]);
+  });
+
+  it("re-raises a subject once the dismissal cooldown has elapsed", async () => {
+    openRows = [{ subject_id: "lead-A", status: "dismissed", dismissed_at: daysFromNow(-45) }];
+    const res = await upsertOpportunities([candidate("lead-A")]);
+    expect(res.ok).toBe(true);
+    expect(inserted.map((r) => r.subject_id)).toEqual(["lead-A"]);
+  });
+
+  it("suppresses a snoozed subject whether or not the snooze has expired", async () => {
+    openRows = [
+      { subject_id: "lead-A", status: "snoozed", snoozed_until: daysFromNow(5) },
+      { subject_id: "lead-B", status: "snoozed", snoozed_until: daysFromNow(-1) },
+    ];
+    const res = await upsertOpportunities([candidate("lead-A"), candidate("lead-B")]);
+    expect(res.ok).toBe(true);
+    // lead-A is still snoozed. lead-B's snooze expired — but the read model wakes
+    // the ORIGINAL card, so re-inserting would show the operator two of it.
+    expect(inserted).toEqual([]);
   });
 
   it("scopes inserts to the explicit token org when provided (not the cookie/default org)", async () => {
