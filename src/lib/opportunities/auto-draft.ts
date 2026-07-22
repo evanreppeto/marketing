@@ -319,6 +319,9 @@ export async function runScheduledAutoDraft(
               focusLabel: humanizePersonaKey(seed.restorationFocus),
               urgency: opp.urgency,
               subjectLabel: opp.subjectType,
+              // Lets the builder tell a referral partner from a prospective
+              // customer — a partner needs a handoff offer, not an assessment.
+              campaignType: opp.recommendedCampaignType ?? undefined,
             },
           },
           client,

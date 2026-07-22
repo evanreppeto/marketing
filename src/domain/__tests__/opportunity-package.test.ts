@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildOpportunityPackageDrafts, type OpportunityPackageBrief , customerSafeAngle } from "../opportunity-package";
+import { buildOpportunityPackageDrafts, type OpportunityPackageBrief , customerSafeAngle, resolveAudienceKind } from "../opportunity-package";
 
 const BRIEF: OpportunityPackageBrief = {
   title: "Re-engage cold property-manager lead",
@@ -178,5 +178,69 @@ describe("customerSafeAngle", () => {
 
   it("returns empty for empty input rather than inventing copy", () => {
     expect(customerSafeAngle("")).toBe("");
+  });
+});
+
+describe("partner recruitment is a different offer", () => {
+  const ctx = { businessName: "Acme Restoration", proofPoints: ["4.9★ across 380 reviews"] };
+  const partnerBrief = {
+    title: "Ravenswood Rooter — partner referral opportunity",
+    angle: "Review the evidence and approve a partner outreach package draft",
+    personaLabel: "Plumbing Partner",
+    focusLabel: "Water Backup",
+    urgency: "medium" as const,
+    campaignType: "referral_outreach",
+  };
+  const bodies = (b = partnerBrief) => buildOpportunityPackageDrafts(b, ctx).map((d) => d.body).join("\n");
+
+  it("never tells a contractor their own property is at risk", () => {
+    // The live bug: a plumbing partner being recruited for referrals was told
+    // "Staying ahead of water backup protects your property and your budget."
+    const body = bodies();
+    expect(body).not.toContain("your property");
+    expect(body).not.toContain("your budget");
+    expect(body).not.toContain("no-obligation assessment");
+  });
+
+  it("offers a referral handoff instead of an assessment", () => {
+    const body = bodies();
+    expect(body).toContain("referral handoff");
+    expect(body.toLowerCase()).toContain("keep the customer");
+  });
+
+  it("agrees subject and verb for a named business", () => {
+    expect(bodies()).toContain("Acme Restoration handles that side");
+  });
+
+  it("uses the plural verb when the workspace is unnamed", () => {
+    expect(buildOpportunityPackageDrafts(partnerBrief).map((d) => d.body).join("\n")).toContain("We handle that side");
+  });
+
+  it("leaves customer campaigns on the customer path", () => {
+    const customer = buildOpportunityPackageDrafts({ ...partnerBrief, personaLabel: "Landlord", campaignType: "re_engagement" }, ctx)
+      .map((d) => d.body)
+      .join("\n");
+    expect(customer).toContain("no-obligation assessment");
+    expect(customer).not.toContain("referral handoff");
+  });
+});
+
+describe("resolveAudienceKind", () => {
+  it("detects a partner from the persona label", () => {
+    expect(resolveAudienceKind("Plumbing Partner")).toBe("partner");
+    expect(resolveAudienceKind("HVAC Roof Electrical Partner")).toBe("partner");
+  });
+
+  it("detects a partner from the campaign type when the persona is silent", () => {
+    // "Insurance Agent" has no "partner" in it, but partner_recruitment does.
+    expect(resolveAudienceKind("Insurance Agent", "partner_recruitment")).toBe("partner");
+    expect(resolveAudienceKind("Listing Agent", "referral_outreach")).toBe("partner");
+  });
+
+  it("defaults to customer", () => {
+    // Keyword-based on purpose: personas are per-org, so a hardcoded roster
+    // would mis-address every workspace but the one it was written for.
+    expect(resolveAudienceKind("Landlord", "re_engagement")).toBe("customer");
+    expect(resolveAudienceKind("")).toBe("customer");
   });
 });

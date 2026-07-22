@@ -32,7 +32,36 @@ export type OpportunityPackageBrief = {
   urgency: "low" | "medium" | "high";
   /** Optional subject label (e.g. "Lead", "Company") for light personalization. */
   subjectLabel?: string;
+  /** Recommended campaign type, e.g. "referral_outreach" — helps resolve audience kind. */
+  campaignType?: string;
 };
+
+/**
+ * Who the copy is addressed to.
+ *
+ * The builder used to assume every recipient was a prospective customer, so a
+ * referral campaign aimed at a plumbing contractor read "Staying ahead of water
+ * backup protects your property and your budget" — pitching a restoration pro as
+ * if their own house had flooded. A partner is not a smaller customer; they have
+ * a different problem (protecting the customer relationship they earned) and a
+ * different ask (a handoff, not an assessment).
+ */
+export type PackageAudienceKind = "customer" | "partner";
+
+/**
+ * Resolve audience kind from the persona and campaign type.
+ *
+ * Deliberately keyword-based rather than an enum of known personas: personas are
+ * per-org and Arc is multi-tenant, so a hardcoded list would silently mis-address
+ * every workspace but the one it was written for. "Partner" and "referral" are
+ * the words tenants actually use for this relationship.
+ */
+export function resolveAudienceKind(personaLabel: string, campaignType?: string): PackageAudienceKind {
+  const haystack = `${personaLabel ?? ""} ${campaignType ?? ""}`.toLowerCase();
+  // Substring, not \b-bounded: campaign types are snake_case and "_" is a word
+  // character, so \breferral\b never matches "referral_outreach".
+  return /(partner|referral|referrer)/.test(haystack) ? "partner" : "customer";
+}
 
 export type PackageAssetDraft = {
   assetType: PackageAssetType;
@@ -130,6 +159,83 @@ function urgencyOpener(urgency: OpportunityPackageBrief["urgency"], focusLabel: 
 }
 
 /**
+ * Partner copy. The offer is a referral handoff: we take the work they do not
+ * want, and hand the customer back. No "your property", no "your budget" — the
+ * damage is their customer's, not theirs.
+ */
+function partnerDrafts(
+  brief: OpportunityPackageBrief,
+  name: string,
+  proofTop3: string[],
+  proofPoints: string[],
+): PackageAssetDraft[] {
+  const focus = focusPhrase(brief.focusLabel);
+  const us = name || "we";
+  const usCap = name || "We";
+  const subject = `A referral handoff for your ${focus} calls`;
+  const headline = `Partner with ${name || "us"} on ${focus} jobs`;
+
+  return [
+    {
+      assetType: "email",
+      channel: "Email",
+      title: `Email — ${brief.title}`,
+      body: [
+        `Subject: ${subject}`,
+        "",
+        "Hi there,",
+        "",
+        `When your team stops the source of a ${focus} problem, the customer still needs mitigation, documentation, and rebuild coordination — and that is where the relationship you earned is easiest to lose.`,
+        "",
+        // A company name is singular ("Acme handles"), the pronoun is not ("We handle").
+        `${usCap} handle${name ? "s" : ""} that side and hand${name ? "s" : ""} the customer back to you.`,
+        "",
+        "Why partners work with us:",
+        ...proofTop3.map((p) => `• ${p}`),
+        "",
+        `Would a simple referral handoff be useful for your ${focus} calls? Reply and we'll set one up — no contract, no exclusivity.`,
+        "",
+        name ? `— The ${name} team` : "— The team",
+      ].join("\n"),
+    },
+    {
+      assetType: "sms",
+      channel: "SMS",
+      title: `SMS — ${brief.title}`,
+      body: `${name ? `${name}: ` : ""}partnering on ${focus} jobs — we handle mitigation and documentation, you keep the customer. ${proofTop3[0]}. Reply INFO for a simple handoff.`,
+    },
+    {
+      assetType: "social_ad",
+      channel: "Paid social",
+      title: `Paid social — ${brief.title}`,
+      body: [
+        headline,
+        "",
+        `You stop the source. ${us === "we" ? "We" : us} handle${us === "we" ? "" : "s"} mitigation, documentation, and rebuild — and the customer stays yours. ${proofTop3[0]}.`,
+        "",
+        "Set up a referral handoff — no contract, no exclusivity.",
+      ].join("\n"),
+    },
+    {
+      assetType: "landing_page",
+      channel: "Landing page",
+      title: `Landing page — ${brief.title}`,
+      body: [
+        `# ${headline}`,
+        `## You stop the source. We handle what comes next.`,
+        "",
+        `Your customer still needs mitigation, documentation, and rebuild coordination after a ${focus} call. We do that work and hand the relationship back to you.`,
+        "",
+        "What partners get:",
+        ...proofPoints.map((p) => `• ${p}`),
+        "",
+        "[ Set up a referral handoff ]",
+      ].join("\n"),
+    },
+  ];
+}
+
+/**
  * A subject line written for the recipient. The opportunity title is an internal
  * headline — "Dana Whitfield (Southside Water & Gas) — quiet 53 days" tells an
  * operator why the card surfaced and tells a customer that we have been counting
@@ -170,6 +276,10 @@ export function buildOpportunityPackageDrafts(
   const proofSource = (context.proofPoints ?? []).map((p) => p.trim()).filter(Boolean);
   const proofPoints = proofSource.length ? proofSource : NEUTRAL_PROOF_POINTS;
   const proofTop3 = proofPoints.slice(0, 3);
+
+  if (resolveAudienceKind(brief.personaLabel, brief.campaignType) === "partner") {
+    return partnerDrafts(brief, name, proofTop3, proofPoints);
+  }
 
   const email: PackageAssetDraft = {
     assetType: "email",
