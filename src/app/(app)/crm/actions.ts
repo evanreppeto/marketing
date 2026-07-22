@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
-import { type CreateCrmInput, insertCrmRecord } from "@/lib/crm/create";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { bulkUpdateCrmPersona, type CreateCrmInput, insertCrmRecord } from "@/lib/crm/create";
 import { type CrmObjectKey } from "@/lib/crm/read-model";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -30,6 +31,31 @@ const VALID_KEYS = new Set<CrmObjectKey>([
 
 const LEAD_PARENTS = new Set(["company", "contact", "property"]);
 const OUTCOME_PARENTS = new Set(["job", "lead"]);
+
+export type BulkPersonaResult =
+  | { ok: true; persisted: boolean; count?: number }
+  | { ok: false; error: string };
+
+/**
+ * Bulk-assign one persona to the selected records (the CRM board's selection bar).
+ * Internal only — never outbound. requireOperator() + org-scoped, and the persona
+ * is validated against the workspace's taxonomy. `persisted: false` is the honest
+ * offline/demo signal so the board can reflect it optimistically.
+ */
+export async function bulkAssignPersona(objectKey: string, ids: string[], persona: string): Promise<BulkPersonaResult> {
+  await requireOperator();
+  if (!VALID_KEYS.has(objectKey as CrmObjectKey)) return { ok: false, error: "Unknown record type." };
+  if (!persona?.trim()) return { ok: false, error: "Choose a persona." };
+  if (!ids?.length) return { ok: false, error: "Select at least one record." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const orgId = await getCurrentOrgId();
+  const res = await bulkUpdateCrmPersona(objectKey as CrmObjectKey, ids, persona.trim(), orgId);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath("/crm");
+  return { ok: true, persisted: true, count: res.count };
+}
 
 export async function createCrmRecord(input: CreateCrmInput): Promise<CreateResult> {
   await requireOperator();
