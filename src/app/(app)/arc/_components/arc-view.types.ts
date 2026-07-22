@@ -30,8 +30,8 @@ export type DemoTurn = {
   command?: string | null;
 };
 
-/** Which composer popover is open (mentions, commands, model, tools) — null closed. */
-export type ComposerMenu = "tools" | "model" | "mentions" | "commands" | null;
+/** Which composer popover is open — null closed. */
+export type ComposerMenu = "tools" | "mode" | "model" | "mentions" | "commands" | null;
 
 /** The three tabs of the conversation work panel. */
 export type WorkPanelTab = "work" | "created" | "audience";

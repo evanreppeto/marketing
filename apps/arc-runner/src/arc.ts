@@ -58,24 +58,42 @@ export type ArcTurnResult = {
  * add CRM-interaction + brain writes). Each tool reports a running -> done step
  * to the chat bubble, producing the live trace. Outbound has no tool in any mode.
  */
+const REPLY_STOP_WORDS = new Set([
+  "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "in", "is", "it", "of", "on", "or", "that", "the", "this", "to", "was", "were", "with",
+]);
+
+function replyTokens(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9_]+/g, " ")
+      .split(/\s+/)
+      .filter((token) => token.length > 1 && !REPLY_STOP_WORDS.has(token)),
+  );
+}
+
+function isSubstantiallyRepeated(text: string, finalText: string): boolean {
+  if (text === finalText) return true;
+  const tokens = replyTokens(text);
+  if (tokens.size === 0) return false;
+  const finalTokens = replyTokens(finalText);
+  let shared = 0;
+  for (const token of tokens) if (finalTokens.has(token)) shared += 1;
+  return shared / tokens.size >= 0.55;
+}
+
 /**
- * The reply body: everything the model said this turn, oldest first.
- *
- * NOT `result`. The SDK's `result` is only the FINAL message's text, so a turn
- * that narrates, calls a tool, then closes ("Here's the count… [tool] …suggested
- * next steps") reports ONLY the closing text — the answer itself is dropped. It
- * hides well because a model usually puts all its prose last, and it is worst
- * exactly when the model behaves well: it looks up, then explains.
- *
- * It's also visibly wrong: the token deltas stream every chunk into the bubble
- * live, so the operator watches the full answer type out and then sees it
- * replaced by the tail when the final body lands.
- *
- * `result` stays the fallback for a turn that emitted no assistant text.
+ * Build one final reply without discarding substantive pre-tool findings or
+ * repeating a confirmation the model restated after its tool call. The SDK's
+ * `result` is the canonical closing message; earlier assistant messages survive
+ * only when they add materially distinct information.
  */
 export function assembleReplyBody(assistantChunks: string[], resultText: string): string {
-  const joined = assistantChunks.join("\n\n").trim();
-  return joined || resultText.trim();
+  const chunks = assistantChunks.map((chunk) => chunk.trim()).filter(Boolean);
+  const finalText = resultText.trim() || chunks.at(-1) || "";
+  if (!finalText) return "";
+  const distinctEarlier = chunks.filter((chunk) => !isSubstantiallyRepeated(chunk, finalText));
+  return [...distinctEarlier, finalText].join("\n\n");
 }
 
 /** Fresh per-turn collectors plus the sink that feeds them. */

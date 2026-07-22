@@ -22,6 +22,18 @@ describe("assembleReplyBody", () => {
     expect(body).not.toContain("up.The");
   });
 
+  it("drops an earlier confirmation that substantially repeats the final answer", () => {
+    const body = assembleReplyBody(
+      [
+        "The CRM contains exactly 200 total leads from search_leads limit=0. No records were created, edited, or sent.",
+        "Confirmed: 200 total leads in the CRM via search_leads limit=0. Nothing was created, edited, or sent.",
+      ],
+      "Confirmed: 200 total leads in the CRM via search_leads limit=0. Nothing was created, edited, or sent.",
+    );
+
+    expect(body).toBe("Confirmed: 200 total leads in the CRM via search_leads limit=0. Nothing was created, edited, or sent.");
+  });
+
   it("is unchanged for the common single-message turn", () => {
     const body = assembleReplyBody(["Just the one answer."], "Just the one answer.");
     expect(body).toBe("Just the one answer.");

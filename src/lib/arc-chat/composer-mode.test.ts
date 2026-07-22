@@ -26,4 +26,13 @@ describe("resolveArcComposerMode", () => {
     expect(resolveArcComposerMode({ request: "Research Acme", commandMode: "ask" })).toBe("act");
     expect(resolveArcComposerMode({ request: "Build the campaign", commandMode: "draft" })).toBe("draft");
   });
+
+  it("lets the operator explicitly choose a read-only or work capability", () => {
+    expect(resolveArcComposerMode({ request: "Find our best leads", preference: "ask" })).toBe("ask");
+    expect(resolveArcComposerMode({ request: "Read-only check", preference: "act" })).toBe("act");
+  });
+
+  it("keeps an explicit draft skill in its required mode", () => {
+    expect(resolveArcComposerMode({ request: "Write it", commandMode: "draft", preference: "ask" })).toBe("draft");
+  });
 });

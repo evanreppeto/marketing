@@ -50,7 +50,8 @@ describe("buildSystemPrompt", () => {
     const out = buildSystemPrompt("BASE", { ...baseCtx, mode: "ask" });
     expect(out.toLowerCase()).toContain("read-only");
     // The dead-end fix: ask mode should guide the operator to Act instead of a bare refusal.
-    expect(out.toLowerCase()).toContain("act mode");
+    expect(out.toLowerCase()).toContain("capability control");
+    expect(out).toContain("Work");
   });
   it("includes the persona taxonomy", () => {
     const out = buildSystemPrompt("BASE", baseCtx);
