@@ -8,6 +8,7 @@ import { getSettingsConnectorsView } from "@/lib/connectors/settings-connectors"
 import { isLiveSendEnabled } from "@/lib/dispatch/live-send";
 import { getWorkspaceArcSkills } from "@/lib/arc-skills/github";
 import { getInstalledArcSkillKeys } from "@/lib/arc-skills/installation";
+import { listGeneratedSkills } from "@/lib/exemplar-skills/persistence";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getWorkspaceSummary } from "@/lib/workspace-summary/read-model";
 
@@ -38,7 +39,7 @@ export default async function ArcPage({
     : "";
   const operatorName = viewerName.trim().split(/\s+/)[0] || brandName;
 
-  const [chat, mentionGroups, summary, connectors, emailConnection, installedSkillKeys, workspaceSkills] = await Promise.all([
+  const [chat, mentionGroups, summary, connectors, emailConnection, installedSkillKeys, workspaceSkills, generatedSkills] = await Promise.all([
     getArcChatModel(sp.c ?? null, { startBlank: Boolean(sp.new) }),
     getMentionables(),
     // Cheap here: getWorkspaceSummary is request-cached and the nav rail already
@@ -49,6 +50,7 @@ export default async function ArcPage({
     getEmailConnection().catch(() => null),
     getInstalledArcSkillKeys(ctx?.orgId).catch(() => []),
     getWorkspaceArcSkills(ctx?.orgId).catch(() => []),
+    listGeneratedSkills(ctx?.orgId).catch(() => []),
   ]);
 
   // `live` = a real backend is present (conversations may still be empty on a
@@ -82,6 +84,8 @@ export default async function ArcPage({
       liveSendEnabled={isLiveSendEnabled()}
       installedSkillKeys={installedSkillKeys}
       workspaceSkills={workspaceSkills}
+      generatedSkills={generatedSkills}
+      workspaceName={ctx?.workspaceName || brandName}
     />
   );
 }
