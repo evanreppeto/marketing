@@ -105,6 +105,8 @@ export async function getArcChatModel(
 export type ArcThreadVM = {
   id: string;
   title: string;
+  /** Compact semantic preview from Arc's rolling conversation summary. */
+  preview?: string | null;
   pinned: boolean;
   active: boolean;
   /** True while an Arc run is genuinely in flight for this thread — drives the
@@ -145,6 +147,18 @@ function bucket(iso: string, nowMs: number): string {
 
 const GROUP_ORDER = ["Pinned", "Today", "Yesterday", "Previous 7 days", "Earlier"];
 
+function summaryPreview(summary: string | null) {
+  if (!summary) return null;
+  const clean = summary
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/[#>*_`[\]()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!clean) return null;
+  const sentence = clean.split(/(?<=[.!?])\s+/)[0] ?? clean;
+  return sentence.length <= 96 ? sentence : `${sentence.slice(0, 95).trimEnd()}…`;
+}
+
 /**
  * Group conversations into the rail's sections (Pinned / Today / Yesterday /
  * Previous 7 days / Earlier). Pure: pass `nowMs` from the caller so the server
@@ -162,6 +176,7 @@ export function groupThreadsForRail(
     const item: ArcThreadVM = {
       id: c.id,
       title: c.title?.trim() || "Untitled chat",
+      preview: summaryPreview(c.summary),
       pinned: Boolean(c.pinnedAt),
       active: c.id === activeConversationId,
       running: runningIds.has(c.id),

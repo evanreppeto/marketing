@@ -8,12 +8,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
-import { ArrowRight, ArrowUpRight, Bookmark, Brain, Check, ClipboardCheck, Copy, CornerUpLeft, Link2, MessageSquareText, PanelRightOpen, PencilLine, RefreshCcw, RotateCcw, ShieldCheck, Target, X, Zap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bookmark, Brain, Check, CircleAlert, ClipboardCheck, Copy, CornerUpLeft, Database, Link2, MessageSquareText, PanelRightOpen, PencilLine, RefreshCcw, RotateCcw, ShieldCheck, Target, X, Zap } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 import type { ArcActionCard, ArcAssetStatus, ArcMention, ArcMode, ArcRecall, ArcRoute } from "@/domain";
 import type { ArcMessage, ArcStep } from "@/lib/arc-chat/persistence";
 import { buildArcLauncherRecommendation } from "@/lib/arc-chat/launcher-state";
+import { buildArcOutcomeView, type ArcOutcomeBadge } from "@/lib/arc-chat/outcome-view";
 import { buildArcRunContract, type ArcRunContract } from "@/lib/arc-chat/run-contract";
 import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
 
@@ -61,6 +62,13 @@ export type OptimisticArcTurn = {
   route: ArcRoute;
   contextScopes: string[];
 };
+
+function OutcomeBadgeIcon({ badge }: { badge: ArcOutcomeBadge }) {
+  if (badge.kind === "sources") return <Database size={12} />;
+  if (badge.kind === "memory") return <Brain size={12} />;
+  if (badge.kind === "created") return <ClipboardCheck size={12} />;
+  return <CircleAlert size={12} />;
+}
 
 /* ── Right-click item builders shared by the live and demo conversations ── */
 
@@ -387,11 +395,14 @@ export function LiveConversation({
           toolCount: message.toolCalls?.length ?? 0,
           agentTaskId: message.agentTaskId,
         });
-        const runProfile = buildArcRunProfile({
+        const outcomeView = buildArcOutcomeView({
           request: operatorMessage?.body,
+          response: message.body,
           mode: operatorMessage?.mode,
           command: operatorMessage?.command,
-          sources: contract.readScopes,
+          sourceCount: message.mentions.length,
+          recallCount: message.recall?.length ?? 0,
+          actions: message.actions,
         });
         const failed = message.status === "failed";
         return (
@@ -401,12 +412,20 @@ export function LiveConversation({
               failed ? (
                 <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div>
               ) : (
-                <div className="arc-live-result" data-intent={runProfile.intent}>
+                <div className="arc-live-result" data-intent={outcomeView.intent}>
                   <div className="arc-live-result-kicker">
-                    <span><Check size={13} />{runProfile.resultLabel}</span>
-                    <em>{operatorMessage?.mode === "ask" ? "Read only" : "Nothing sent"}</em>
+                    <span><Check size={13} />{outcomeView.label}</span>
+                    <em>{outcomeView.safetyLabel}</em>
                   </div>
-                  <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div>
+                  <div className="arc-live-result-head">
+                    <h2>{outcomeView.headline}</h2>
+                    {outcomeView.badges.length > 0 ? (
+                      <div className="arc-outcome-badges" aria-label="Result details">
+                        {outcomeView.badges.map((badge) => <span key={`${badge.kind}-${badge.label}`} data-kind={badge.kind}><OutcomeBadgeIcon badge={badge} />{badge.label}</span>)}
+                      </div>
+                    ) : null}
+                  </div>
+                  {outcomeView.body ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{outcomeView.body}</ReactMarkdown></div> : null}
                 </div>
               )
             ) : null}

@@ -62,6 +62,11 @@ import type { ArcRunContract } from "@/lib/arc-chat/run-contract";
 import { visibleRecallCount } from "@/lib/arc-chat/recall-visibility";
 import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
 import { resolveArcRunViewState } from "@/lib/arc-chat/run-view-state";
+import {
+  collectArcWorkspaceCards,
+  selectArcWorkspaceMessages,
+  type ArcWorkspaceScope,
+} from "@/lib/arc-chat/workspace-scope";
 
 import {
   decideArcDraftAction,
@@ -514,6 +519,7 @@ export function DraftReceiptCard({ card, status, onReview, onContextMenu }: { ca
 
 export function ArcWorkPanel({
   message,
+  messages,
   cards,
   statuses,
   demoSeed,
@@ -525,6 +531,7 @@ export function ArcWorkPanel({
   onClose,
 }: {
   message?: ArcMessage;
+  messages?: ArcMessage[];
   cards: ArcActionCard[];
   statuses: Record<string, ArcAssetStatus>;
   demoSeed: boolean;
@@ -537,6 +544,7 @@ export function ArcWorkPanel({
 }) {
   const reduceMotion = useReducedMotion();
   const [tab, setTab] = useState<WorkPanelTab>("work");
+  const [scope, setScope] = useState<ArcWorkspaceScope>("latest");
   const [showAllActivity, setShowAllActivity] = useState(false);
   const [demoActiveIndex, setDemoActiveIndex] = useState(0);
 
@@ -565,7 +573,21 @@ export function ArcWorkPanel({
     request: demoRequest,
     sources: ["Workspace knowledge", "CRM records", "Campaign context"],
   }) : null;
-  const reasoning = message?.reasoning?.trim()
+  const conversationArcMessages = messages?.filter((item) => item.role === "arc") ?? [];
+  const canUseConversationScope = conversationArcMessages.length > 1;
+  const activeScope: ArcWorkspaceScope = canUseConversationScope ? scope : "latest";
+  const scopedMessages = messages
+    ? selectArcWorkspaceMessages(messages, activeScope)
+    : message
+      ? [message]
+      : [];
+  const activeMessage = scopedMessages.at(-1) ?? message;
+  const scopedCards = messages
+    ? collectArcWorkspaceCards(messages, activeScope, cards)
+    : cards;
+  const reasoning = activeScope === "conversation" && scopedMessages.length > 1
+    ? `${scopedMessages.length} Arc runs are collected here. Review the full activity trail, created work, and audience context from this conversation.`
+    : activeMessage?.reasoning?.trim()
     || (demoPending ? demoWork?.commentary : demoOutcome === "canceled" ? "The run ended at your request. Completed work remains visible, and no external action was taken." : demoProfile?.completedSummary)
     || (demoSeed ? "Arc matched storm exposure against CRM history, ranked the strongest opportunities, and used those signals to shape a review-ready campaign package." : null);
 
@@ -579,23 +601,28 @@ export function ArcWorkPanel({
     return () => window.clearInterval(interval);
   }, [demoPending, demoRequest, demoWork?.rows.length, reduceMotion]);
 
-  const rawActivityRows: RunRow[] = message
-    ? [
-        ...message.steps.map((step, index) => ({
-          id: `panel-step-${index}`,
-          label: step.label,
-          detail: step.detail?.join(" · "),
-          status: step.status === "done" ? "done" as const : "running" as const,
-          kind: step.kind ?? "think",
-        })),
-        ...(message.toolCalls ?? []).map((tool, index) => ({
-          id: `panel-tool-${index}`,
-          label: formatToolName(tool.name),
-          detail: tool.output ?? tool.input,
-          status: tool.status === "complete" ? "done" as const : tool.status === "error" ? "error" as const : "running" as const,
-          kind: getToolKind(tool.name),
-        })),
-      ]
+  const rawActivityRows: RunRow[] = scopedMessages.length > 0
+    ? scopedMessages.flatMap((run) => {
+        const rows: RunRow[] = [
+          ...run.steps.map((step, index) => ({
+            id: `panel-${run.id}-step-${index}`,
+            label: step.label,
+            detail: step.detail?.join(" · "),
+            status: step.status === "done" ? "done" as const : "running" as const,
+            kind: step.kind ?? "think",
+          })),
+          ...(run.toolCalls ?? []).map((tool, index) => ({
+            id: `panel-${run.id}-tool-${index}`,
+            label: formatToolName(tool.name),
+            detail: tool.output ?? tool.input,
+            status: tool.status === "complete" ? "done" as const : tool.status === "error" ? "error" as const : "running" as const,
+            kind: getToolKind(tool.name),
+          })),
+        ];
+        return run.status === "complete"
+          ? rows.map((row) => row.status === "running" || row.status === "queued" ? { ...row, status: "done" as const } : row)
+          : rows;
+      })
     : demoOutcome === "canceled"
       ? [{ id: "demo-panel-canceled", label: "Stopped before remaining work was applied", detail: "Completed work remains available", status: "done" as const, kind: "think" as const }]
       : !demoPending && demoProfile
@@ -610,18 +637,19 @@ export function ArcWorkPanel({
             ...DEMO_TOOLS.map((tool, index) => ({ id: `demo-panel-tool-${index}`, label: formatToolName(tool.name), detail: tool.output, status: "done" as const, kind: getToolKind(tool.name) })),
           ]
         : []);
-  const activityRows = message?.status === "complete"
-    ? rawActivityRows.map((row) => row.status === "running" || row.status === "queued" ? { ...row, status: "done" as const } : row)
-    : rawActivityRows;
-  const audienceRows = cards.flatMap((card) => card.rows
+  const activityRows = rawActivityRows;
+  const audienceRows = scopedCards.flatMap((card) => card.rows
     .filter((row) => /(audience|persona|segment)/i.test(row.name))
     .map((row) => ({ label: card.channel ?? card.title, value: row.meta ?? row.badge ?? row.name })));
-  const reviewableCards = cards.filter((card) => card.approval);
+  const reviewableCards = scopedCards.filter((card) => card.approval);
   const statusOf = (card: ArcActionCard) => statuses[card.approval?.assetId ?? ""] ?? card.status ?? null;
-  const approvedCount = cards.filter((card) => statusOf(card) === "approved").length;
+  const approvedCount = scopedCards.filter((card) => statusOf(card) === "approved").length;
+  const scopedMessageStatus = scopedMessages.some((item) => item.status === "pending")
+    ? "pending"
+    : activeMessage?.status;
   const runView = resolveArcRunViewState({
-    pending: demoPending,
-    messageStatus: message?.status,
+    pending: demoPending || scopedMessageStatus === "pending",
+    messageStatus: scopedMessageStatus,
     outcome: demoOutcome,
     rows: activityRows,
     hasContent: Boolean(reasoning),
@@ -652,13 +680,19 @@ export function ArcWorkPanel({
       <div className="arc-artifact-shell">
         <div className="arc-artifact-tabs" role="tablist" aria-label="Conversation workspace views">
           {tabs.map(({ id, label, icon: Icon }) => (
-            <button type="button" role="tab" id={`arc-work-tab-${id}`} aria-controls={`arc-work-panel-${id}`} key={id} aria-selected={tab === id} aria-label={id === "created" && cards.length > 0 ? `${label}, ${cards.length} items` : label} className={tab === id ? "is-active" : ""} onClick={() => selectTab(id)}>
+            <button type="button" role="tab" id={`arc-work-tab-${id}`} aria-controls={`arc-work-panel-${id}`} key={id} aria-selected={tab === id} aria-label={id === "created" && scopedCards.length > 0 ? `${label}, ${scopedCards.length} items` : label} className={tab === id ? "is-active" : ""} onClick={() => selectTab(id)}>
               <Icon size={17} />
               <span>{label}</span>
-              {id === "created" && cards.length > 0 ? <i aria-hidden="true" className="arc-work-count">{cards.length}</i> : null}
+              {id === "created" && scopedCards.length > 0 ? <i aria-hidden="true" className="arc-work-count">{scopedCards.length}</i> : null}
             </button>
           ))}
         </div>
+        {canUseConversationScope ? (
+          <div className="arc-work-scope" role="group" aria-label="Workspace history scope">
+            <button type="button" aria-pressed={activeScope === "latest"} className={activeScope === "latest" ? "is-active" : ""} onClick={() => { setScope("latest"); setShowAllActivity(false); }}>Latest run</button>
+            <button type="button" aria-pressed={activeScope === "conversation"} className={activeScope === "conversation" ? "is-active" : ""} onClick={() => { setScope("conversation"); setShowAllActivity(false); }}>Entire conversation <span>{conversationArcMessages.length}</span></button>
+          </div>
+        ) : null}
         <div className="arc-artifact-content">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div key={tab} role="tabpanel" id={`arc-work-panel-${tab}`} aria-labelledby={`arc-work-tab-${tab}`} className="arc-work-view" initial={reduceMotion ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: 0.16 }}>
@@ -689,12 +723,12 @@ export function ArcWorkPanel({
 
               {tab === "created" ? (
                 <>
-                  <div className="arc-work-heading"><span>Created</span><h3>{cards.length > 0 ? `${cards.length} deliverable${cards.length === 1 ? "" : "s"}` : "No deliverables yet"}</h3></div>
-                  {cards.length > 0 ? (
+                  <div className="arc-work-heading"><span>Created</span><h3>{scopedCards.length > 0 ? `${scopedCards.length} deliverable${scopedCards.length === 1 ? "" : "s"}` : "No deliverables yet"}</h3></div>
+                  {scopedCards.length > 0 ? (
                     <div className="arc-created-wrap">
-                      <div className="arc-created-progress"><span><b>{approvedCount} of {cards.length}</b> approved</span><div><i style={{ width: `${cards.length > 0 ? (approvedCount / cards.length) * 100 : 0}%` }} /></div></div>
+                      <div className="arc-created-progress"><span><b>{approvedCount} of {scopedCards.length}</b> approved</span><div><i style={{ width: `${scopedCards.length > 0 ? (approvedCount / scopedCards.length) * 100 : 0}%` }} /></div></div>
                       <div className="arc-created-list">
-                      {cards.map((card, index) => {
+                      {scopedCards.map((card, index) => {
                         const status = statusOf(card);
                         const meta = assetStatusMeta(status);
                         const cardContent = <><span className="arc-created-icon"><ChannelIcon channel={card.channel} size={15} /></span><span><b>{card.title}</b><small>{[card.channel, card.format].filter(Boolean).join(" · ")}</small></span><em className={`is-${meta.tone}`}>{meta.label}</em></>;
