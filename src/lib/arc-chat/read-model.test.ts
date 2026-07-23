@@ -82,4 +82,16 @@ describe("getArcChatModel", () => {
     expect(model.status === "live" ? model.threadGroups[0]?.items[0]?.id : null).toBe(conversation.id);
     expect(mocks.listMessages).not.toHaveBeenCalled();
   });
+
+  it("adds a compact semantic summary preview to conversation rows", async () => {
+    mocks.listConversations.mockResolvedValue([{
+      ...conversation,
+      summary: "## Homeowner outreach\nDrafted a storm follow-up sequence. Awaiting review.",
+    }]);
+
+    const model = await getArcChatModel();
+
+    expect(model.status === "live" ? model.threadGroups[0]?.items[0]?.preview : null)
+      .toBe("Homeowner outreach Drafted a storm follow-up sequence.");
+  });
 });

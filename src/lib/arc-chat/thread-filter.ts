@@ -15,7 +15,7 @@ export function filterThreadGroups(
       ...group,
       items: group.items.filter((thread) => {
         const matchesQuery = !normalizedQuery
-          || `${thread.title} ${thread.when} ${group.group}`.toLocaleLowerCase().includes(normalizedQuery);
+          || `${thread.title} ${thread.preview ?? ""} ${thread.when} ${group.group}`.toLocaleLowerCase().includes(normalizedQuery);
         const matchesFilter = filter === "all"
           || (filter === "running" && thread.running)
           || (filter === "pinned" && thread.pinned);

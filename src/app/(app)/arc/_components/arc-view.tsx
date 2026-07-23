@@ -293,12 +293,13 @@ function ThreadRow({ thread, active, live, campaignName, showCampaignLabel, camp
   }
 
   const visibleCampaignName = showCampaignLabel ? campaignName : null;
+  const threadPreview = thread.preview || visibleCampaignName || (thread.pinned ? "Pinned" : "Conversation");
   const label = (
     <span>
       <b>{thread.title}</b>
       {thread.running
         ? <small className="arc-thread-working"><span className="arc-thread-dots" aria-hidden="true"><i /><i /><i /></span>Working…{visibleCampaignName ? <em><Megaphone size={9} />{visibleCampaignName}</em> : null}</small>
-        : <small className="arc-thread-meta" data-campaign={visibleCampaignName ? "true" : "false"}>{visibleCampaignName ? <><Megaphone size={9} /><span>{visibleCampaignName}</span></> : <span>{thread.pinned ? "Pinned" : "Conversation"}</span>}<i aria-hidden="true" />{thread.when}</small>}
+        : <small className="arc-thread-preview" data-campaign={visibleCampaignName ? "true" : "false"}>{visibleCampaignName ? <Megaphone size={9} /> : null}<span>{threadPreview}</span><em>{thread.when}</em></small>}
     </span>
   );
 
@@ -1870,7 +1871,7 @@ export function ArcView({
         {reviewCards && reviewCards.length > 0
           ? <AssetReviewPanel key="asset-review" cards={reviewCards} statuses={assetStatuses} onStatus={recordAssetStatus} onClose={() => setReviewCards(null)} />
           : workPanelOpen
-            ? <ArcWorkPanel key="work-panel" message={latestArcMessage} cards={workCards} statuses={assetStatuses} demoSeed={demoSeed} demoPending={demoPending} demoRequest={latestDemoRequest} demoOutcome={latestDemoArcTurn ? latestDemoArcTurn.outcome ?? "complete" : undefined} onReview={openReview} onRecover={recoverRun} onClose={() => setWorkPanelVisibility(false)} />
+            ? <ArcWorkPanel key="work-panel" message={latestArcMessage} messages={live ? renderedMessages : undefined} cards={workCards} statuses={assetStatuses} demoSeed={demoSeed} demoPending={demoPending} demoRequest={latestDemoRequest} demoOutcome={latestDemoArcTurn ? latestDemoArcTurn.outcome ?? "complete" : undefined} onReview={openReview} onRecover={recoverRun} onClose={() => setWorkPanelVisibility(false)} />
             : null}
       </AnimatePresence>
       <AnimatePresence>
