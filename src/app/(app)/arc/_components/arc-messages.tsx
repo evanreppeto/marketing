@@ -462,11 +462,11 @@ export function assetStatusMeta(status: ArcAssetStatus | null) {
 
 /** The compact package summary shown inline when Arc drafts a multi-asset
  *  campaign — a channel overview + a button into the review workspace. */
-export function DraftPackageCard({ cards, statuses, onReview }: { cards: ArcActionCard[]; statuses: Record<string, ArcAssetStatus>; onReview: () => void }) {
+export function DraftPackageCard({ cards, statuses, onReview, onContextMenu }: { cards: ArcActionCard[]; statuses: Record<string, ArcAssetStatus>; onReview: () => void; onContextMenu?: (event: React.MouseEvent) => void }) {
   const statusOf = (card: ArcActionCard) => statuses[card.approval?.assetId ?? ""] ?? card.status ?? null;
   const approvedCount = cards.filter((card) => statusOf(card) === "approved").length;
   return (
-    <div className="arc-package">
+    <div className="arc-package" onContextMenu={onContextMenu}>
       <div className="arc-package-kicker">Campaign package · {approvedCount}/{cards.length} approved</div>
       <div className="arc-package-row">
         <span className="arc-package-icon"><MessageSquareText size={18} /></span>
@@ -485,10 +485,10 @@ export function DraftPackageCard({ cards, statuses, onReview }: { cards: ArcActi
 
 /** Approval-gated assets stay compact in the conversation; the Workspace owns
  * the detailed preview and decision flow so the same content is not repeated. */
-export function DraftReceiptCard({ card, status, onReview }: { card: ArcActionCard; status: ArcAssetStatus | null; onReview: () => void }) {
+export function DraftReceiptCard({ card, status, onReview, onContextMenu }: { card: ArcActionCard; status: ArcAssetStatus | null; onReview: () => void; onContextMenu?: (event: React.MouseEvent) => void }) {
   const meta = assetStatusMeta(status);
   return (
-    <button type="button" className="arc-created-receipt" data-arc-review-trigger="true" onClick={onReview}>
+    <button type="button" className="arc-created-receipt" data-arc-review-trigger="true" onClick={onReview} onContextMenu={onContextMenu}>
       <span className="arc-created-receipt-icon"><ChannelIcon channel={card.channel} size={16} /></span>
       <span><b>{card.title}</b><small>{[card.channel, card.format].filter(Boolean).join(" · ") || "Created by Arc"}</small></span>
       <em className={`is-${meta.tone}`}><i />{meta.label}</em>
@@ -922,15 +922,17 @@ export function MentionIcon({ type }: { type: ArcMention["type"] }) {
 
 /** "Sources Arc used" — the records Arc referenced for this reply, each a clickable
  *  deep-link to the record. Makes the evidence behind an answer navigable. */
-export function SourcesRow({ mentions }: { mentions: ArcMention[] }) {
+export function SourcesRow({ mentions, onMentionContextMenu }: { mentions: ArcMention[]; onMentionContextMenu?: (event: React.MouseEvent, mention: ArcMention) => void }) {
   if (mentions.length === 0) return null;
+  const menuFor = (mention: ArcMention) =>
+    onMentionContextMenu ? (event: React.MouseEvent) => onMentionContextMenu(event, mention) : undefined;
   return (
     <div className="arc-sources">
       <span><Link2 size={13} /> Sources</span>
       {mentions.slice(0, 8).map((mention, index) => (
         mention.href?.startsWith("/")
-          ? <Link key={`${mention.type}-${mention.id}-${index}`} href={mention.href} className="arc-source"><MentionIcon type={mention.type} />{mention.label}</Link>
-          : <span key={`${mention.type}-${mention.id}-${index}`} className="arc-source is-static"><MentionIcon type={mention.type} />{mention.label}</span>
+          ? <Link key={`${mention.type}-${mention.id}-${index}`} href={mention.href} className="arc-source" onContextMenu={menuFor(mention)}><MentionIcon type={mention.type} />{mention.label}</Link>
+          : <span key={`${mention.type}-${mention.id}-${index}`} className="arc-source is-static" onContextMenu={menuFor(mention)}><MentionIcon type={mention.type} />{mention.label}</span>
       ))}
     </div>
   );
@@ -938,19 +940,21 @@ export function SourcesRow({ mentions }: { mentions: ArcMention[] }) {
 
 /** Recalled Brain memory used for this reply — each chip links to its node in the
  *  Brain (via `?node=`), so a citation lands on the exact fact. */
-export function RecallRow({ recall }: { recall: ArcRecall[] }) {
+export function RecallRow({ recall, onRecallContextMenu }: { recall: ArcRecall[]; onRecallContextMenu?: (event: React.MouseEvent, item: ArcRecall) => void }) {
   const [expanded, setExpanded] = useState(false);
   if (recall.length === 0) return null;
   const visibleCount = visibleRecallCount(recall.length, expanded);
   const remaining = recall.length - visibleCount;
+  const menuFor = (item: ArcRecall) =>
+    onRecallContextMenu ? (event: React.MouseEvent) => onRecallContextMenu(event, item) : undefined;
   return (
     <div className="arc-recall">
       <span><Brain size={14} /> Recalled</span>
       {recall.slice(0, visibleCount).map((item, index) => {
         const inner = <>{item.label}{item.confidence != null ? <small>{Math.round(item.confidence * 100)}%</small> : null}</>;
         return item.nodeId
-          ? <Link key={`${item.label}-${index}`} href={`/brain?node=${encodeURIComponent(item.nodeId)}`} className="arc-recall-chip">{inner}</Link>
-          : <span key={`${item.label}-${index}`} className="arc-recall-chip is-static">{inner}</span>;
+          ? <Link key={`${item.label}-${index}`} href={`/brain?node=${encodeURIComponent(item.nodeId)}`} className="arc-recall-chip" onContextMenu={menuFor(item)}>{inner}</Link>
+          : <span key={`${item.label}-${index}`} className="arc-recall-chip is-static" onContextMenu={menuFor(item)}>{inner}</span>;
       })}
       {recall.length > visibleCount || expanded ? (
         <button
@@ -1076,6 +1080,12 @@ function MessageContextMenu({
   onClose: () => void;
 }) {
   const menuRef = useRef<HTMLDivElement | null>(null);
+  // Some platforms deliver a duplicate contextmenu right after the one that
+  // opened us (observed with synthetic input drivers; long-press can too).
+  // Ignore contextmenu-based dismissal in the first beat after mount so the
+  // duplicate doesn't instantly close the menu it just opened.
+  const mountedAtRef = useRef<number>(0);
+  useEffect(() => { mountedAtRef.current = performance.now(); }, []);
   const [pos, setPos] = useState({ left: x, top: y });
 
   // Clamp to the viewport once the real size is known (flip up/left near edges).
@@ -1093,6 +1103,7 @@ function MessageContextMenu({
     const dismissIfOutside = (event: Event) => {
       const target = event.target as Node | null;
       if (target && menuRef.current?.contains(target)) return;
+      if (event.type === "contextmenu" && performance.now() - mountedAtRef.current < 200) return;
       onClose();
     };
     const onKey = (event: KeyboardEvent) => {
