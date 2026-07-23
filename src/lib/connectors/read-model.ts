@@ -5,13 +5,17 @@ import {
   computeConnectorStatus,
   connectorConfigSatisfied,
   connectorRequiresCredential,
+  effectiveCostTier,
   type ConnectorAccess,
   type ConnectorAuthKind,
   type ConnectorCapability,
   type ConnectorCostTier,
+  type ConnectorCredentialSource,
   type ConnectorKind,
   type ConnectorStatus,
 } from "@/domain";
+
+import { platformCredentialFor } from "./credentials";
 
 export type ConnectorView = {
   key: string;
@@ -25,6 +29,14 @@ export type ConnectorView = {
   credentialPresent: boolean;
   /** True when NO stored credential is needed (public signal source, etc). */
   credentialOptional: boolean;
+  /** The deployment supplies a platform key — works with no stored credential
+   *  (platform-credits mode, metered). */
+  platformCredentialAvailable: boolean;
+  /** Which credential a call would actually use right now. */
+  activeCredentialSource: ConnectorCredentialSource;
+  /** The cost tier that active source runs under (byo bypasses metering;
+   *  platform is metered against the plan). */
+  activeCostTier: ConnectorCostTier;
   /** Non-secret per-workspace config (locations, endpoint URL, …). */
   config: Record<string, unknown>;
   status: ConnectorStatus;
@@ -71,6 +83,12 @@ export async function listWorkspaceConnectors(client: SupabaseClient, workspaceI
     const credentialPresent = Boolean(row?.credential_ref);
     const requiresCredential = connectorRequiresCredential(entry);
     const configPresent = connectorConfigSatisfied(entry, row?.config ?? {});
+    const platformCredentialAvailable = Boolean(platformCredentialFor(entry));
+    const activeCredentialSource: ConnectorCredentialSource = credentialPresent
+      ? "byo"
+      : platformCredentialAvailable
+        ? "platform"
+        : "none";
     return {
       key: entry.key,
       kind: entry.kind,
@@ -82,6 +100,9 @@ export async function listWorkspaceConnectors(client: SupabaseClient, workspaceI
       enabled: row?.enabled ?? false,
       credentialPresent,
       credentialOptional: !requiresCredential,
+      platformCredentialAvailable,
+      activeCredentialSource,
+      activeCostTier: effectiveCostTier(entry, activeCredentialSource),
       config: row?.config ?? {},
       status: computeConnectorStatus({
         credentialPresent,
@@ -90,6 +111,7 @@ export async function listWorkspaceConnectors(client: SupabaseClient, workspaceI
         requiresCredential,
         configPresent,
         availability: entry.availability,
+        platformCredentialAvailable,
       }),
       lastTestedAt: row?.last_tested_at ?? null,
       lastTestOk: row?.last_test_ok ?? null,

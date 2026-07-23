@@ -7,7 +7,7 @@ import { requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config";
-import { readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
+import { platformCredentialFor, readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
 import { listWorkspaceConnectors, resolveConnectorCredentialRef } from "@/lib/connectors/read-model";
 import { checkConnectorCredential } from "@/lib/connectors/health";
 import { runCrmImport, runCsvImport, runMailchimpImport, CSV_IMPORT_CONNECTOR_KEY, MAILCHIMP_IMPORT_CONNECTOR_KEY } from "@/lib/connectors/import";
@@ -166,9 +166,13 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
       .eq("connector_key", connector.key)
       .maybeSingle<{ credential_ref: string | null }>();
     const ref = data?.credential_ref ?? null;
-    if (!ref) return { ok: false, error: "No credential to test — connect the connector first." };
+    // Dual credential model: the workspace's own key wins; otherwise a
+    // platform-credits connector tests against the platform key — "Test" must
+    // work out of the box for exactly the connectors that claim to.
+    const platformKey = ref ? null : platformCredentialFor(connector);
+    if (!ref && !platformKey) return { ok: false, error: "No credential to test — connect the connector first." };
 
-    const plaintext = await readConnectorCredential(client, ref);
+    const plaintext = ref ? await readConnectorCredential(client, ref) : platformKey;
     if (!plaintext) return { ok: false, error: "Stored credential could not be read." };
 
     // CRM import: a real HubSpot probe that also reports how many contacts an

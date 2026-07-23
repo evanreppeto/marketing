@@ -302,6 +302,19 @@ const COST_TIER_BADGE: Record<ConnectorCostTier, { label: string; title: string 
   metered: { label: "Metered", title: "Billed through your Arc usage (BSR-372)." },
 };
 
+/** The badge reflects the credential mode ACTUALLY in effect: a connector
+ *  running on the platform's key reads "Included" (metered against the plan),
+ *  flipping back to "Your key" the moment the workspace stores its own. */
+function costBadgeFor(view: Pick<ConnectorView, "costTier" | "activeCredentialSource" | "activeCostTier">): { label: string; title: string } {
+  if (view.activeCredentialSource === "platform") {
+    return {
+      label: "Included",
+      title: "Runs on platform credits — metered against your plan, spend-capped. Store your own key to use your own account instead.",
+    };
+  }
+  return COST_TIER_BADGE[view.activeCostTier] ?? COST_TIER_BADGE[view.costTier];
+}
+
 const CONNECTOR_KIND_LABEL: Record<string, string> = {
   mcp_tool: "Tool",
   signal_source: "Signal source",
@@ -1500,9 +1513,9 @@ function MediaDefaultsPanel({ settings }: { settings: AppSettings }) {
 function ConnectorCard({ view, onOpen }: { view: ConnectorView; onOpen: () => void }) {
   const meta = CONNECTOR_META[view.key] ?? { c: "#9aa0ac", l: view.label.slice(0, 2), credLabel: "API key", credHint: "" };
   const pill = CONNECTOR_STATUS_PILL[view.status];
-  const cost = COST_TIER_BADGE[view.costTier];
+  const cost = costBadgeFor(view);
   const kindLabel = CONNECTOR_KIND_LABEL[view.kind] ?? view.kind;
-  const cta = view.credentialPresent || view.enabled ? "Manage" : view.credentialOptional ? "Set up" : "Connect";
+  const cta = view.credentialPresent || view.enabled ? "Manage" : view.credentialOptional || view.platformCredentialAvailable ? "Set up" : "Connect";
   return (
     <div className="ccard ccard-btn" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}>
       <div className="ct">
@@ -1529,7 +1542,7 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
   const meta = CONNECTOR_META[view.key] ?? { c: "#9aa0ac", l: view.label.slice(0, 2), credLabel: "API key", credHint: "" };
   const reg = findConnector(view.key);
   const pill = CONNECTOR_STATUS_PILL[view.status];
-  const cost = COST_TIER_BADGE[view.costTier];
+  const cost = costBadgeFor(view);
   // Up-front cost disclosure for metered connectors — shown before you connect /
   // enable (no surprise charges). Rate lives in src/domain/connector-metering.ts.
   const costDisclosure = view.costTier === "metered" ? describeConnectorCost(view.key) : null;
@@ -1596,7 +1609,7 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
             <span className="badge" title={costLine}>{cost.label}</span>
           </span>
           {canTest && (
-            <button className="btn sm" disabled={pending || (!hasConnectivityTest && !view.credentialPresent)} onClick={() => run(() => testConnector({ connectorKey: view.key }), `${view.label} connection is healthy.`)}>
+            <button className="btn sm" disabled={pending || (!hasConnectivityTest && !view.credentialPresent && !view.platformCredentialAvailable)} onClick={() => run(() => testConnector({ connectorKey: view.key }), `${view.label} connection is healthy.`)}>
               {pending ? "Testing…" : "Test connection"}
             </button>
           )}
@@ -1636,6 +1649,22 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
             <div className="cxm-actions">
               <button className="btn sm" disabled={pending} onClick={() => run(() => toggleConnectorEnabled({ connectorKey: view.key, enabled: !view.enabled }), view.enabled ? "Paused." : "Enabled.")}>{view.enabled ? "Pause" : "Enable"}</button>
               <button className="btn sm danger" disabled={pending} onClick={() => run(() => disconnectConnector({ connectorKey: view.key }), `${view.label} disconnected.`)}>Disconnect</button>
+            </div>
+          </div>
+        ) : view.platformCredentialAvailable ? (
+          <div className="cxm-sec">
+            <div className="cxm-label">{view.enabled ? "Included — turned on" : "Included with your plan"}</div>
+            <p className="cxm-hint">
+              Works out of the box on platform credits — usage is metered against your plan and spend-capped, and
+              nothing it produces goes outbound without your approval. Prefer your own {meta.credLabel}? Paste it
+              below and calls run on your account instead (your billing, no metering).
+            </p>
+            <button className="btn gold" disabled={pending} onClick={() => run(() => toggleConnectorEnabled({ connectorKey: view.key, enabled: !view.enabled }), view.enabled ? "Paused." : "Enabled.")}>
+              {view.enabled ? "Pause" : "Enable"}
+            </button>
+            <div className="cxm-field" style={{ marginTop: 12 }}>
+              <input className="inp" type="password" placeholder={`Optional: your own ${meta.credLabel}`} value={credential} onChange={(e) => setCredential(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") connect(); }} />
+              <button className="btn sm" disabled={pending || !credential.trim()} onClick={connect}>Save key</button>
             </div>
           </div>
         ) : view.key === "higgsfield" ? (
