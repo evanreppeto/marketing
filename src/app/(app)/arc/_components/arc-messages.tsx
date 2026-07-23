@@ -234,7 +234,20 @@ export function RunTrace({
           ? `Thought for ${durationLabel}${activityCount > 0 ? ` · ${completeCount || activityCount} ${activityLabel}` : ""}`
           : activityCount > 0 ? `Completed ${completeCount || activityCount} ${activityLabel}` : "Run complete";
     return (
-      <details className="arc-run-summary" data-outcome={outcome}>
+      <details
+        className="arc-run-summary"
+        data-outcome={outcome}
+        onToggle={(event) => {
+          const details = event.currentTarget;
+          if (!details.open) return;
+          // Expanding the last message's receipt grows the feed below the fold,
+          // leaving the details under the composer — nudge the revealed block
+          // minimally into view. "nearest" keeps an already-visible block still.
+          requestAnimationFrame(() => {
+            details.querySelector(".arc-run-details")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          });
+        }}
+      >
         <summary>
           <span className="arc-run-summary-main">{outcome === "complete" ? <CheckCircle2 size={15} /> : outcome === "canceled" ? <Square size={13} /> : <X size={15} />}{summaryLabel}</span>
           <span className="arc-run-summary-meta">View details <ChevronRight size={14} /></span>

@@ -1046,6 +1046,11 @@ export function ArcView({
   const chatRootRef = useRef<HTMLDivElement | null>(null);
   const pinnedRef = useRef(true);
   const [showJump, setShowJump] = useState(false);
+  // Deliberate scroll-to-top calls (opening a thread at its start, a new chat)
+  // move scrollTop up exactly like a reader would — this window keeps the
+  // scroll listener from reading them as "the reader left the bottom".
+  const scrollGuardUntilRef = useRef(0);
+  const lastScrollTopRef = useRef(0);
   // Live reply pushed over SSE (body/reasoning/steps as they land), overlaid onto
   // the pending message for instant streaming without a full server refetch.
   const [streamOverlay, setStreamOverlay] = useState<ArcStreamOverlay | null>(null);
@@ -1095,6 +1100,17 @@ export function ArcView({
     });
   }, []);
 
+  // Deliberate jump to the start of the feed (thread openers, new chat). Guarded
+  // so the pin tracker doesn't read the upward jump as the reader scrolling away.
+  const scrollToStart = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      scrollGuardUntilRef.current = performance.now() + 400;
+      el.scrollTo({ top: 0, behavior: "instant" });
+    });
+  }, []);
+
   // Subscribe to the live reply over SSE while one is in flight — pushes the
   // growing body/reasoning/steps as they land (no interval polling), then a `done`
   // event triggers a single refetch of the canonical message. The overlay is
@@ -1137,13 +1153,16 @@ export function ArcView({
   }, [awaitingReply, router]);
 
   // Track whether the reader is pinned to the bottom, so we only auto-follow the
-  // stream when they haven't scrolled up to read. We unpin on a genuine USER
-  // scroll-up (wheel / touch), not on the `scroll` event — streamed content and
-  // the row animations fire scroll events constantly, and reading those as intent
-  // would unpin us mid-stream. We re-pin when the user returns near the bottom.
+  // stream when they haven't scrolled up to read. Wheel and touch are the
+  // fast-path intent signals; the scroll listener additionally unpins on any
+  // UPWARD movement we didn't initiate, which is the only way to catch scrollbar
+  // drags, keyboard scrolling, and assistive tech. Content growth and our own
+  // bottom-follow can only move scrollTop toward larger values, so streamed
+  // content never trips the upward check. We re-pin near the bottom.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    lastScrollTopRef.current = el.scrollTop;
     // Tight threshold so a deliberate scroll-up reliably breaks the follow (and
     // isn't immediately re-pinned) — you re-pin only by returning to the bottom.
     const nearBottom = () => el.scrollHeight - el.scrollTop - el.clientHeight < 48;
@@ -1162,10 +1181,15 @@ export function ArcView({
       touchY = y;
     };
     const onScroll = () => {
+      const top = el.scrollTop;
+      const previous = lastScrollTopRef.current;
+      lastScrollTopRef.current = top;
       if (nearBottom()) {
         pinnedRef.current = true;
         setShowJump(false); // no-op re-render when already hidden
+        return;
       }
+      if (top < previous - 1 && performance.now() > scrollGuardUntilRef.current) unpin();
     };
     el.addEventListener("wheel", onWheel, { passive: true });
     el.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -1202,13 +1226,11 @@ export function ArcView({
   useEffect(() => {
     pinnedRef.current = true;
     if (getArcConversationScrollTarget({ live, activeConversationId: visibleConversationId, selectedDemoId }) === "start") {
-      window.requestAnimationFrame(() => {
-        scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
-      });
+      scrollToStart();
       return;
     }
     scrollToEnd();
-  }, [visibleConversationId, live, selectedDemoId, scrollToEnd]);
+  }, [visibleConversationId, live, selectedDemoId, scrollToEnd, scrollToStart]);
 
   useEffect(() => () => {
     if (demoTimer.current != null) window.clearTimeout(demoTimer.current);
@@ -1498,10 +1520,8 @@ export function ArcView({
     setDemoTurns([]);
     setDemoPending(false);
     if (id === "new") {
-      window.requestAnimationFrame(() => {
-        scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
-        composerInputRef.current?.focus();
-      });
+      scrollToStart();
+      window.requestAnimationFrame(() => composerInputRef.current?.focus());
     }
   };
 
@@ -1520,10 +1540,8 @@ export function ArcView({
     setAttachments([]);
     setCommand(null);
     pinnedRef.current = true;
-    window.requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
-      composerInputRef.current?.focus();
-    });
+    scrollToStart();
+    window.requestAnimationFrame(() => composerInputRef.current?.focus());
   };
 
   const openReview = (cards: ArcActionCard[]) => {
