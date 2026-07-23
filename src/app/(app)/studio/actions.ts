@@ -17,7 +17,9 @@ import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getBusinessProfile } from "@/lib/brand-kit/persistence";
 import { promoteAssetToCampaign, resolveOrCreateCampaign } from "@/lib/campaigns/create";
-import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
+import { getMediaProviderWithKey, isMediaGenEnabled } from "@/lib/media";
+import { MEDIA_CONNECTOR_KEY, resolveMediaGeneration } from "@/lib/media/enablement";
+import { meterConnectorCall } from "@/lib/connectors/metering";
 import { renderCreative } from "@/lib/media/compose/renderer";
 import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
@@ -80,14 +82,13 @@ export type GenerateStudioAssetResult =
 export async function generateStudioAsset(input: GenerateStudioAssetInput): Promise<GenerateStudioAssetResult> {
   await requireOperator();
 
-  if (!isMediaGenEnabled()) {
-    return {
-      ok: false,
-      code: "disabled",
-      error: "Media generation is off. Set ARC_MEDIA_ENABLED=1 and GEMINI_API_KEY (with billing) to enable.",
-    };
+  // Backend-less preview: the legacy env flag is the only possible signal.
+  if (!isSupabaseAdminConfigured()) {
+    if (!isMediaGenEnabled()) {
+      return { ok: false, code: "disabled", error: "Media generation is off in this preview (legacy env flag unset)." };
+    }
+    return { ok: true, persisted: false };
   }
-  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
   if (!input.campaignId.trim()) {
     return { ok: false, code: "no_campaign", error: "Pick a campaign to attach this draft to." };
   }
@@ -98,6 +99,10 @@ export async function generateStudioAsset(input: GenerateStudioAssetInput): Prom
       getCurrentAgentTaskTenantFields(),
       getOperatorActor(),
     ]);
+    // Per-workspace gate: the gemini-media connector (platform credits or the
+    // workspace's own key), with the legacy env flag as deployment-wide fallback.
+    const access = await resolveMediaGeneration(tenant.workspace_id);
+    if (!access.enabled) return { ok: false, code: "disabled", error: access.reason };
     const settings = await getAppSettings(ctx.orgId);
 
     let media: StudioMedia;
@@ -108,10 +113,16 @@ export async function generateStudioAsset(input: GenerateStudioAssetInput): Prom
       const prompt = (input.prompt ?? "").trim();
       if (!prompt) return { ok: false, code: "failed", error: "Describe the image you want Arc to generate." };
       const level = parseArcRoute(settings.markDefaultRoute);
-      const provider = getMediaProvider({ level, imageModel: settings.imageModel, videoModel: settings.videoModel });
-      if (!provider) return { ok: false, code: "disabled", error: "Media generation is off." };
+      const provider = getMediaProviderWithKey(access.credential, { level, imageModel: settings.imageModel, videoModel: settings.videoModel });
       const aspectRatio = imageAspectFor(input.format);
-      const gen = await provider.generateImage({ prompt: hardenImagePrompt(prompt, { style: input.style }), aspectRatio });
+      // Platform-credit generations are spend-capped; a workspace's own key bypasses.
+      const metered = await meterConnectorCall(
+        undefined,
+        { orgId: ctx.orgId, workspaceId: tenant.workspace_id, connectorKey: MEDIA_CONNECTOR_KEY, estimatedUnits: 1, costTier: access.costTier, context: { surface: "studio", engine: "image" } },
+        () => provider.generateImage({ prompt: hardenImagePrompt(prompt, { style: input.style }), aspectRatio }),
+      );
+      if (!metered.ok) return { ok: false, code: "failed", error: metered.refusal.message };
+      const gen = metered.result;
       const ext = gen.contentType.includes("png") ? "png" : gen.contentType.includes("webp") ? "webp" : "jpg";
       objectPath = `arc-generated/${ctx.orgId}/${tenant.workspace_id}/${randomUUID()}.${ext}`;
       const url = await storeGeneratedImage(objectPath, gen.bytes, gen.contentType);

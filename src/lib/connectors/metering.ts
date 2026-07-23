@@ -103,10 +103,19 @@ export type RecordConnectorUsageResult =
  */
 export async function recordConnectorUsage(
   client: SupabaseClient | undefined,
-  input: { orgId: string | null; workspaceId: string; connectorKey: string; units: number; context?: Record<string, unknown> },
+  input: {
+    orgId: string | null;
+    workspaceId: string;
+    connectorKey: string;
+    units: number;
+    context?: Record<string, unknown>;
+    /** Resolved tier for dual-mode connectors (platform-key calls are metered
+     *  even when the entry's static tier is byo_key). Omitted = static tier. */
+    costTier?: ConnectorCostTier;
+  },
 ): Promise<RecordConnectorUsageResult> {
   const entry = findConnector(input.connectorKey);
-  if (!entry || bypassesMetering(entry.costTier)) {
+  if (!entry || bypassesMetering(input.costTier ?? entry.costTier)) {
     throw new Error(
       `recordConnectorUsage called for non-metered connector "${input.connectorKey}" — free/byo_key connectors must bypass metering.`,
     );
@@ -165,14 +174,29 @@ export type MeteredAuthorization =
  */
 export async function authorizeMeteredCall(
   client: SupabaseClient | undefined,
-  input: { workspaceId: string; connectorKey: string; estimatedUnits: number; now?: Date },
+  input: {
+    workspaceId: string;
+    connectorKey: string;
+    estimatedUnits: number;
+    now?: Date;
+    /** Resolved tier for dual-mode connectors — see recordConnectorUsage. */
+    costTier?: ConnectorCostTier;
+  },
 ): Promise<MeteredAuthorization> {
   const entry = findConnector(input.connectorKey);
-  const tier: ConnectorCostTier = entry?.costTier ?? "free";
+  const tier: ConnectorCostTier = input.costTier ?? entry?.costTier ?? "free";
   const estimatedCostCents = estimateConnectorCostCents(input.connectorKey, input.estimatedUnits);
 
   if (!entry || bypassesMetering(tier)) {
     return { authorized: true, bypassed: true, estimatedCostCents: 0, capCents: 0, spentCents: 0, remainingCents: 0 };
+  }
+
+  // No backend = no ledger to read a cap or spend from, and recordConnectorUsage
+  // no-ops for the same reason. Authorize as bypassed rather than throwing —
+  // mirrors every other graceful-degrade path when Supabase isn't configured.
+  // An explicitly injected client is honored regardless (tests, scoped callers).
+  if (!client && !isSupabaseAdminConfigured()) {
+    return { authorized: true, bypassed: true, estimatedCostCents, capCents: 0, spentCents: 0, remainingCents: 0 };
   }
 
   const now = input.now ?? new Date();
@@ -236,12 +260,19 @@ export async function meterConnectorCall<T>(
     estimatedUnits: number;
     context?: Record<string, unknown>;
     now?: Date;
+    /**
+     * The RESOLVED cost tier for dual-mode connectors (from
+     * resolveConnectorCredential / effectiveCostTier): a call on the platform
+     * key is metered even though the entry's static tier says byo_key.
+     * Omitted = the entry's static tier, the historical behaviour.
+     */
+    costTier?: ConnectorCostTier;
   },
   run: () => Promise<T> | T,
   unitsFromResult?: (result: T) => number,
 ): Promise<MeterCallOutcome<T>> {
   const entry = findConnector(params.connectorKey);
-  const tier: ConnectorCostTier = entry?.costTier ?? "free";
+  const tier: ConnectorCostTier = params.costTier ?? entry?.costTier ?? "free";
 
   // Free / byo_key: no governance, no ledger row — the bypass path.
   if (!entry || bypassesMetering(tier)) {
@@ -253,6 +284,7 @@ export async function meterConnectorCall<T>(
     connectorKey: params.connectorKey,
     estimatedUnits: params.estimatedUnits,
     now: params.now,
+    costTier: tier,
   });
   if (!auth.authorized) {
     return { ok: false, metered: true, refusal: auth };
@@ -266,6 +298,7 @@ export async function meterConnectorCall<T>(
     connectorKey: params.connectorKey,
     units: actualUnits,
     context: params.context,
+    costTier: tier,
   });
   return { ok: true, metered: true, result, costCents: rec.recorded ? rec.costCents : 0 };
 }
