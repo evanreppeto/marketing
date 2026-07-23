@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { OFFICIAL_PERSONA_MAPPINGS } from "@/domain";
+import { OFFICIAL_PERSONA_MAPPINGS, humanizePersonaLabel } from "@/domain";
 import { type CrmObjectKey } from "@/lib/crm/read-model";
 
 import { bulkAddContactsToCampaign, bulkAddTask, bulkAssignPersona, createCrmRecord } from "../actions";
@@ -272,9 +272,8 @@ function initialsOf(name: string): string {
   return (name || "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "•";
 }
 function personaLabelOf(key: string): string {
-  const s = (key || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
-  if (!s || /^unassigned/i.test(s)) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  const label = humanizePersonaLabel(key);
+  return /^unassigned/i.test(label) ? "" : label;
 }
 /** Optimistically add `delta` to a "N open" tasks label (or seed it from 0). */
 function bumpTasksLabel(current: string, delta: number): string {

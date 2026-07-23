@@ -2,7 +2,7 @@ import {
   type ArcPartnerCampaignRequest,
 } from "./contracts";
 import { checkArcGeneratedCopy, type ArcGuardrailResult } from "./guardrails";
-import { type ArcBusinessContext } from "@/domain";
+import { humanizePersonaLabel, type ArcBusinessContext } from "@/domain";
 
 export type ArcDraftPackage = {
   campaignName: string;
@@ -138,5 +138,5 @@ function titleizeChannel(channel: string) {
 }
 
 function humanizePersona(persona: string) {
-  return persona.replace(/^persona_/, "").replaceAll("_", " ");
+  return humanizePersonaLabel(persona);
 }

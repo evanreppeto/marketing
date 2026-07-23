@@ -224,6 +224,8 @@
   & .focal .lab { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; }
   & .focal .row1 { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
   & .focal h2 { font-family: var(--serif); font-weight: 500; font-size: 19px; letter-spacing: -0.01em; margin: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  & .focal .cites { display: inline-flex; align-items: center; gap: 5px; }
+  & .focal .cites-label { font-size: 9.5px; font-weight: 650; letter-spacing: 0.09em; color: var(--muted); text-transform: uppercase; }
   & .focal .cite { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 5px; border: 1px solid var(--line-2); background: var(--inset); font-family: var(--mono); font-size: 10px; color: var(--accent); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
   & .focal .cite:hover { border-color: var(--accent-border); color: var(--accent-contrast); }
   & .focal .conf { margin-left: auto; display: flex; align-items: center; gap: 9px; }

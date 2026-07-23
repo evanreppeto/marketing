@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { OFFICIAL_PERSONA_MAPPINGS } from "@/domain";
+import { OFFICIAL_PERSONA_MAPPINGS, humanizePersonaLabel } from "@/domain";
 
 import { Modal } from "../../_components/modal";
 import { type CrmObjectKey } from "@/lib/crm/read-model";
@@ -83,7 +83,7 @@ function titleize(value: string): string {
 }
 
 function personaLabel(key: string): string {
-  return titleize(key.replace(/^persona_/, ""));
+  return humanizePersonaLabel(key);
 }
 
 export function AddRecordModal({

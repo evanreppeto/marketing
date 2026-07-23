@@ -1,3 +1,4 @@
+import { humanizePersonaLabel as humanizePersona } from "@/domain";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
@@ -9,11 +10,6 @@ import { CampaignsBoard, type CampaignRow, type CampaignTone } from "./_componen
 import { needsOperatorApproval } from "./_components/tone";
 
 export const metadata = { title: "Campaigns — Arc" };
-
-function humanizePersona(persona: string): string {
-  const s = (persona || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
-}
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();

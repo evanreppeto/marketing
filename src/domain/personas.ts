@@ -30,6 +30,28 @@ export type LeadIngestionPersonaMapping = OfficialPersonaMapping;
 
 const OFFICIAL_PERSONA_SET = new Set<string>(OFFICIAL_PERSONA_MAPPINGS);
 
+/** Words in persona keys that are acronyms and must stay fully uppercase in labels. */
+const PERSONA_LABEL_ACRONYMS = new Set(["hoa", "hvac", "gc"]);
+
+/**
+ * Human-readable sentence-case label for a persona key or slug:
+ * `persona_hoa_board` → "HOA board", `persona_property_manager` → "Property manager".
+ * Pure casing only — callers decide how to treat unassigned/empty values.
+ */
+export function humanizePersonaLabel(persona: string): string {
+  const words = (persona || "")
+    .replace(/^persona[\s_-]+/i, "")
+    .split(/[\s_-]+/)
+    .filter(Boolean);
+  return words
+    .map((word, index) => {
+      const lower = word.toLowerCase();
+      if (PERSONA_LABEL_ACRONYMS.has(lower)) return lower.toUpperCase();
+      return index === 0 ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower;
+    })
+    .join(" ");
+}
+
 export function isOfficialPersonaMapping(
   persona: unknown,
 ): persona is OfficialPersonaMapping {

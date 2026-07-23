@@ -1,5 +1,5 @@
 import { type RestorationFocus } from "./campaign-drafts";
-import { isAllowedPersona, OFFICIAL_PERSONA_MAPPINGS } from "./personas";
+import { humanizePersonaLabel, isAllowedPersona, OFFICIAL_PERSONA_MAPPINGS } from "./personas";
 
 /**
  * Pure mapping from a surfaced opportunity to the seed fields for an
@@ -61,13 +61,9 @@ export function inferRestorationFocus(text: string): RestorationFocus | "" {
   return "";
 }
 
-/** Turn a persona enum key into a readable label (e.g. `persona_hoa_board` → "Hoa board"). */
+/** Turn a persona enum key into a readable label (e.g. `persona_hoa_board` → "HOA board"). */
 function personaLabel(persona: string): string {
-  const s = persona
-    .replace(/^persona[\s_-]+/i, "")
-    .replace(/[_-]+/g, " ")
-    .trim();
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+  return humanizePersonaLabel(persona);
 }
 
 function humanize(value: string): string {
