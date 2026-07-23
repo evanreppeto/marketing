@@ -159,8 +159,23 @@ describe("arcAssetStatusFromDb", () => {
     expect(arcAssetStatusFromDb("approved")).toBe("approved");
     expect(arcAssetStatusFromDb("declined")).toBe("rejected");
     expect(arcAssetStatusFromDb("rejected")).toBe("rejected");
-    // Archived is closed, not outstanding.
+  });
+
+  // `archived` says the work is CLOSED, not how it was decided. Mapping it
+  // straight to "rejected" made the chat label an archived-but-approved email
+  // "Declined" — on prod, on an asset that had actually been approved and
+  // DELIVERED with a Resend message id. approved_at is the human's signature, so
+  // it decides which way an archived asset reads.
+  it("resolves archived from approved_at, never assuming a rejection", () => {
+    expect(arcAssetStatusFromDb("archived", "2026-07-22T19:01:27Z")).toBe("approved");
+    expect(arcAssetStatusFromDb("archived", null)).toBe("rejected");
     expect(arcAssetStatusFromDb("archived")).toBe("rejected");
+  });
+
+  it("ignores approved_at for statuses that already state the decision", () => {
+    // A declined asset with a stale approved_at is still declined.
+    expect(arcAssetStatusFromDb("declined", "2026-07-22T19:01:27Z")).toBe("rejected");
+    expect(arcAssetStatusFromDb("pending_approval", "2026-07-22T19:01:27Z")).toBe("draft");
   });
 
   it("keeps genuinely-undecided states as review work", () => {

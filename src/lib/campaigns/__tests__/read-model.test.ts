@@ -268,7 +268,7 @@ describe("selectPendingDeliverables", () => {
 });
 
 describe("getArcAssetStatuses", () => {
-  const client = (rows: Array<{ id: string; status: string }>) =>
+  const client = (rows: Array<{ id: string; status: string; approved_at?: string | null }>) =>
     ({ from: () => ({ select: () => ({ eq: function () { return this; }, in: async () => ({ data: rows, error: null }) }) }) }) as never;
 
   it("returns live chat-facing statuses keyed by asset id", async () => {
@@ -290,6 +290,18 @@ describe("getArcAssetStatuses", () => {
 
     expect(out).toEqual({ a: "approved" });
     expect(out).not.toHaveProperty("b");
+  });
+
+  // Archiving a campaign cascades its assets to `archived`, which says the work is
+  // closed but not how it was decided. Reading that as a rejection labelled a
+  // delivered email "Declined" in the chat.
+  it("reads an archived asset from approved_at, not from the closed-state label", async () => {
+    const out = await getArcAssetStatuses(["a", "b"], "org-1", client([
+      { id: "a", status: "archived", approved_at: "2026-07-22T19:01:27Z" },
+      { id: "b", status: "archived", approved_at: null },
+    ]));
+
+    expect(out).toEqual({ a: "approved", b: "rejected" });
   });
 
   it("skips the query entirely for an empty or blank id list", async () => {

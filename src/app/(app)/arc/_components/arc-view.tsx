@@ -1625,11 +1625,19 @@ export function ArcView({
   const demoSeed = !live && selectedDemoId !== "new";
   const workCards = live ? latestArcMessage?.actions ?? [] : demoSeed ? DEMO_PACKAGE_CARDS : [];
   const reviewableWorkCards = workCards.filter((card) => card.approval);
-  // Stable key for the assets this view references, so the seed below refetches
-  // when the conversation changes but not on every render.
-  const reviewableAssetKey = reviewableWorkCards
-    .map((card) => card.approval?.assetId ?? "")
-    .filter(Boolean)
+  // Stable key for EVERY asset this conversation references — not just the latest
+  // turn's. Receipt cards render per message throughout the thread and all read
+  // the same status map, so seeding only `workCards` (the newest arc message) left
+  // every earlier receipt on its draft-time snapshot: a decided, archived asset
+  // still showing "Needs review" three messages up.
+  const conversationAssetKey = [
+    ...new Set(
+      renderedMessages
+        .flatMap((message) => message.actions ?? [])
+        .map((card) => card.approval?.assetId ?? "")
+        .filter(Boolean),
+    ),
+  ]
     .sort()
     .join(",");
   // Seed the decision map from the LIVE asset records.
@@ -1642,9 +1650,9 @@ export function ArcView({
   //
   // A local decision still wins — it is newer than anything this fetch returned.
   useEffect(() => {
-    if (!live || !reviewableAssetKey) return;
+    if (!live || !conversationAssetKey) return;
     let cancelled = false;
-    getArcAssetStatusesAction(reviewableAssetKey.split(","))
+    getArcAssetStatusesAction(conversationAssetKey.split(","))
       .then((fromDb) => {
         if (cancelled || !fromDb || Object.keys(fromDb).length === 0) return;
         setAssetStatuses((current) => ({ ...fromDb, ...current }));
@@ -1654,7 +1662,7 @@ export function ArcView({
         // than blanking a status the operator is looking at.
       });
     return () => { cancelled = true; };
-  }, [live, reviewableAssetKey]);
+  }, [live, conversationAssetKey]);
 
   const needsReviewCards = reviewableWorkCards.filter((card) => {
     const status = assetStatuses[card.approval?.assetId ?? ""] ?? card.status ?? "draft";

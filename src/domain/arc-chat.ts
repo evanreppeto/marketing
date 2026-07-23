@@ -453,14 +453,28 @@ const DB_ASSET_STATUS_TO_ARC: Readonly<Record<string, ArcAssetStatus>> = {
   approved: "approved",
   declined: "rejected",
   rejected: "rejected",
-  // Archived is a decided, closed state — never outstanding review work.
-  archived: "rejected",
   revision_requested: "revision",
   needs_revision: "revision",
+  // `archived` is deliberately ABSENT — it says the work is closed, not how it
+  // was decided, so it can only be resolved with approved_at. See below.
 };
 
-/** The chat-facing status for a stored asset status; null when unrecognised. */
-export function arcAssetStatusFromDb(status: string | null | undefined): ArcAssetStatus | null {
+/**
+ * The chat-facing status for a stored asset; null when unrecognised.
+ *
+ * `approvedAt` is required to resolve `archived`, which records that work is
+ * CLOSED and says nothing about how it was decided. Mapping it straight to
+ * "rejected" made the chat label a campaign's archived-but-approved email
+ * "Declined" — a confident false claim about a human decision, on an asset that
+ * had actually been approved and delivered. approved_at is that human's
+ * signature (the same field the send path treats as authoritative), so it, not
+ * the closed-state label, decides which way an archived asset reads.
+ */
+export function arcAssetStatusFromDb(
+  status: string | null | undefined,
+  approvedAt?: string | null,
+): ArcAssetStatus | null {
   const key = (status ?? "").trim().toLowerCase();
+  if (key === "archived") return approvedAt ? "approved" : "rejected";
   return DB_ASSET_STATUS_TO_ARC[key] ?? null;
 }

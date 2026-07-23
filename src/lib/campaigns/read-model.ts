@@ -554,11 +554,13 @@ export async function getArcAssetStatuses(
   if (!client && !isSupabaseAdminConfigured()) return {};
   try {
     const supabase = client ?? getSupabaseAdminClient();
-    const { data, error } = await applyOrgScope(supabase.from("campaign_assets").select("id,status"), orgId).in("id", ids);
+    // approved_at comes along because `archived` alone can't say how an asset was
+    // decided — an archived-but-approved email must not read as "Declined".
+    const { data, error } = await applyOrgScope(supabase.from("campaign_assets").select("id,status,approved_at"), orgId).in("id", ids);
     assertSupabaseResult("campaign_assets", error);
     const out: Record<string, ArcAssetStatus> = {};
-    for (const row of (data ?? []) as Array<{ id: string; status: string }>) {
-      const mapped = arcAssetStatusFromDb(row.status);
+    for (const row of (data ?? []) as Array<{ id: string; status: string; approved_at: string | null }>) {
+      const mapped = arcAssetStatusFromDb(row.status, row.approved_at);
       // Unrecognised status: leave the id absent so the caller falls back to the
       // card snapshot rather than inventing a state.
       if (mapped) out[row.id] = mapped;
