@@ -579,7 +579,7 @@ export function ArcWorkPanel({
     return () => window.clearInterval(interval);
   }, [demoPending, demoRequest, demoWork?.rows.length, reduceMotion]);
 
-  const activityRows: RunRow[] = message
+  const rawActivityRows: RunRow[] = message
     ? [
         ...message.steps.map((step, index) => ({
           id: `panel-step-${index}`,
@@ -610,6 +610,9 @@ export function ArcWorkPanel({
             ...DEMO_TOOLS.map((tool, index) => ({ id: `demo-panel-tool-${index}`, label: formatToolName(tool.name), detail: tool.output, status: "done" as const, kind: getToolKind(tool.name) })),
           ]
         : []);
+  const activityRows = message?.status === "complete"
+    ? rawActivityRows.map((row) => row.status === "running" || row.status === "queued" ? { ...row, status: "done" as const } : row)
+    : rawActivityRows;
   const audienceRows = cards.flatMap((card) => card.rows
     .filter((row) => /(audience|persona|segment)/i.test(row.name))
     .map((row) => ({ label: card.channel ?? card.title, value: row.meta ?? row.badge ?? row.name })));
