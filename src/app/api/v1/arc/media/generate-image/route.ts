@@ -5,7 +5,9 @@ import { parseArcRoute } from "@/domain";
 
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import { checkUsageAllowed, formatCentsUsd } from "@/lib/billing/entitlements";
-import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
+import { getMediaProviderWithKey } from "@/lib/media";
+import { MEDIA_CONNECTOR_KEY, resolveMediaGeneration } from "@/lib/media/enablement";
+import { meterConnectorCall } from "@/lib/connectors/metering";
 import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
 import { storeGeneratedImage } from "@/lib/media/storage";
@@ -26,9 +28,8 @@ export async function POST(request: Request) {
   const allowed = await arcGuard(request);
   if (!allowed.ok) return allowed.response;
 
-  if (!isMediaGenEnabled()) {
-    return fail("not_configured", "Image generation isn't enabled (needs ARC_MEDIA_ENABLED and GEMINI_API_KEY).", 503);
-  }
+  const access = await resolveMediaGeneration(allowed.scope.workspaceId);
+  if (!access.enabled) return fail("not_configured", access.reason, 503);
 
   // Pre-flight plan/quota gate (non-blocking until ARC_BILLING_ENFORCEMENT is armed).
   const gate = await checkUsageAllowed(allowed.scope.orgId);
@@ -52,14 +53,20 @@ export async function POST(request: Request) {
   // turn's level mapping, which beats the workspace default level, which beats
   // env/built-in default. The turn's level rides on body.level.
   const level = parseArcRoute(body.level ?? settings.markDefaultRoute);
-  const provider = getMediaProvider({ level, imageModel: settings.imageModel, videoModel: settings.videoModel });
-  if (!provider) return fail("not_configured", "Image generation isn't enabled.", 503);
+  const provider = getMediaProviderWithKey(access.credential, { level, imageModel: settings.imageModel, videoModel: settings.videoModel });
 
   try {
     // Harden the prompt (strip embedded text/branding, add quality + caller style)
     // before sending; risk flags stay on the operator's original intent.
     const finalPrompt = hardenImagePrompt(prompt, { style });
-    const gen = await provider.generateImage({ prompt: finalPrompt, aspectRatio });
+    // Platform-credit generations are spend-capped; a workspace's own key bypasses.
+    const metered = await meterConnectorCall(
+      undefined,
+      { orgId: allowed.scope.orgId, workspaceId: allowed.scope.workspaceId, connectorKey: MEDIA_CONNECTOR_KEY, estimatedUnits: 1, costTier: access.costTier, context: { route: "generate-image" } },
+      () => provider.generateImage({ prompt: finalPrompt, aspectRatio }),
+    );
+    if (!metered.ok) return fail("plan_limit", metered.refusal.message, 402);
+    const gen = metered.result;
     const ext = gen.contentType.includes("png") ? "png" : gen.contentType.includes("webp") ? "webp" : "jpg";
     const objectPath = `arc-generated/${allowed.scope.orgId}/${allowed.scope.workspaceId}/${randomUUID()}.${ext}`;
     // Permanent public URL from the campaign-media bucket — no expiry to re-sign.

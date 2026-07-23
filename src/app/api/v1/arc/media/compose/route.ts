@@ -8,7 +8,7 @@ import {
   type CreativeCopy,
 } from "@/domain";
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
-import { isMediaGenEnabled } from "@/lib/media";
+import { resolveMediaGeneration } from "@/lib/media/enablement";
 import { renderCreative } from "@/lib/media/compose/renderer";
 import { storeGeneratedMedia } from "@/lib/media/storage";
 import { getBusinessProfile } from "@/lib/brand-kit/persistence";
@@ -33,9 +33,10 @@ export async function POST(request: Request) {
   const allowed = await arcGuard(request);
   if (!allowed.ok) return allowed.response;
 
-  if (!isMediaGenEnabled()) {
-    return fail("not_configured", "Creative compositing isn't enabled (needs ARC_MEDIA_ENABLED and GEMINI_API_KEY).", 503);
-  }
+  // Compositing renders locally (no provider call, nothing to meter) but stays
+  // behind the same media connector switch so "media is off" means all of it.
+  const access = await resolveMediaGeneration(allowed.scope.workspaceId);
+  if (!access.enabled) return fail("not_configured", access.reason, 503);
 
   const payload = await readJson(request);
   if (payload === INVALID_JSON || typeof payload !== "object" || payload === null) {

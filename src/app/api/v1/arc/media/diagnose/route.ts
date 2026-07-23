@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { requireOperator } from "@/lib/auth/operator";
-import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
+import { getMediaProviderWithKey, isMediaGenEnabled } from "@/lib/media";
+import { resolveMediaGeneration } from "@/lib/media/enablement";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 
 export const runtime = "nodejs";
 
@@ -19,15 +21,22 @@ export async function GET(request: Request): Promise<NextResponse> {
   const url = new URL(request.url);
   const probe = url.searchParams.get("probe") === "1";
 
+  const ctx = await getCurrentWorkspaceContext().catch(() => null);
+  const access = await resolveMediaGeneration(ctx?.workspaceId ?? null);
   const report: Record<string, unknown> = {
-    mediaEnabled: isMediaGenEnabled(),
+    // Per-workspace truth (the gemini-media connector), plus the legacy env flag.
+    mediaEnabled: access.enabled,
+    credentialSource: access.enabled ? access.source : null,
+    costTier: access.enabled ? access.costTier : null,
+    disabledReason: access.enabled ? null : access.reason,
+    legacyEnvEnabled: isMediaGenEnabled(),
     geminiKeyPresent: Boolean(process.env.GEMINI_API_KEY?.trim()),
     imageModelEnv: process.env.GEMINI_IMAGE_MODEL ?? null,
     videoModelEnv: process.env.GEMINI_VIDEO_MODEL ?? null,
   };
 
-  if (probe && isMediaGenEnabled()) {
-    const provider = getMediaProvider();
+  if (probe && access.enabled) {
+    const provider = getMediaProviderWithKey(access.credential);
     report.imageProbe = await probeImage(provider);
     report.videoProbe = await probeVideoStart(provider);
   }
@@ -42,7 +51,7 @@ function safeError(error: unknown): string {
   return key ? message.split(key).join("***") : message;
 }
 
-async function probeImage(provider: ReturnType<typeof getMediaProvider>) {
+async function probeImage(provider: ReturnType<typeof getMediaProviderWithKey> | null) {
   if (!provider) return { ok: false, error: "provider unavailable" };
   try {
     // ImageGenInput: { prompt: string; aspectRatio?: string }
@@ -54,7 +63,7 @@ async function probeImage(provider: ReturnType<typeof getMediaProvider>) {
   }
 }
 
-async function probeVideoStart(provider: ReturnType<typeof getMediaProvider>) {
+async function probeVideoStart(provider: ReturnType<typeof getMediaProviderWithKey> | null) {
   if (!provider) return { ok: false, error: "provider unavailable" };
   if (!provider.startVideo) return { ok: false, error: "video unsupported by provider" };
   try {
