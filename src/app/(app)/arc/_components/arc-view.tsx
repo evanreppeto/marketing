@@ -1043,6 +1043,7 @@ export function ArcView({
   const composerMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLElement | null>(null);
+  const chatRootRef = useRef<HTMLDivElement | null>(null);
   const pinnedRef = useRef(true);
   const [showJump, setShowJump] = useState(false);
   // Live reply pushed over SSE (body/reasoning/steps as they land), overlaid onto
@@ -1069,7 +1070,11 @@ export function ArcView({
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("arc.workPanelOpen");
-      if (window.matchMedia("(min-width: 1400px)").matches && saved !== "0") {
+      // Auto-open only when the panel will dock beside a usable conversation —
+      // the 1000px threshold mirrors the @container query in arc.css, measured
+      // on the chat area itself (the viewport lies once the nav rail is added).
+      const chatWidth = chatRootRef.current?.clientWidth ?? 0;
+      if (chatWidth >= 1000 && saved !== "0") {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restored after hydration so server and client markup stay identical
         setWorkPanelOpen(true);
       }
@@ -1670,7 +1675,7 @@ export function ArcView({
   };
 
   return (
-    <div className="arc-chat" data-workspace-open={panelVisible ? "true" : "false"} data-new-conversation={live && !visibleConversationId && visibleMessages.length === 0 && !optimisticTurn ? "true" : "false"}>
+    <div className="arc-chat" ref={chatRootRef} data-workspace-open={panelVisible ? "true" : "false"} data-new-conversation={live && !visibleConversationId && visibleMessages.length === 0 && !optimisticTurn ? "true" : "false"}>
       <header className="arc-conversation-header">
         <button type="button" className="arc-history-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversations"><MessagesSquare size={17} /><span>Conversations</span></button>
         <div className="arc-conversation-title"><h1>{header.title}</h1><p>{header.subtitle}</p></div>

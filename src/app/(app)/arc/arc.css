@@ -6,7 +6,6 @@
   --arc-fast: 140ms;
   --arc-base: 220ms;
   --arc-slow: 420ms;
-  --arc-workspace-width: clamp(360px, 28vw, 420px);
   position: relative;
   flex: 1;
   min-width: 0;
@@ -16,6 +15,10 @@
   overflow: hidden;
   background: var(--canvas);
   color: var(--text);
+  /* The chat area is a size container: whether the workspace panel docks or
+     overlays is decided by the chat area's own width, not the viewport, so the
+     nav rail (or an embedded preview) can't skew the breakpoint. */
+  container-type: inline-size;
 }
 
 .arc-chat button,
@@ -33,9 +36,6 @@
 .arc-conversation-scroll,
 .arc-composer-dock { transition: margin-right var(--arc-base) var(--arc-curve); }
 
-.arc-chat[data-workspace-open="true"] > .arc-conversation-header,
-.arc-chat[data-workspace-open="true"] > .arc-conversation-scroll,
-.arc-chat[data-workspace-open="true"] > .arc-composer-dock { margin-right: var(--arc-workspace-width); }
 
 /* ── Conversation header ────────────────────────────────────────────────── */
 .arc-conversation-header {
@@ -1467,7 +1467,7 @@
   position: absolute;
   inset: 0 0 0 auto;
   z-index: 24;
-  width: var(--arc-workspace-width);
+  width: min(390px, calc(100% - 42px));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   border-left: 1px solid var(--line-3);
@@ -1709,7 +1709,7 @@
   background: rgba(7, 7, 9, .66);
   cursor: default;
 }
-.arc-workspace-scrim { display: none; }
+.arc-workspace-scrim { position: absolute; inset: 0; z-index: 18; display: block; border: 0; background: rgba(7, 7, 9, .58); }
 .arc-history {
   position: absolute;
   inset: 0 auto 0 0;
@@ -2095,16 +2095,19 @@
 .arc-share-notice { color: var(--ok-text); font-size: 11px; margin: 11px 0 0; }
 
 /* ── Responsive behavior ────────────────────────────────────────────────── */
-@media (max-width: 1399px) {
+/* Docked workspace: when the chat area itself has room (≥1000px), the panel
+   docks beside a still-interactive conversation — no scrim, the composer stays
+   live. Below that, the panel overlays and the scrim gates the chat. This block
+   must stay after the base overlay rules: @container adds no specificity, so
+   source order is what lets the docked state win. */
+@container (min-width: 1000px) {
   .arc-chat[data-workspace-open="true"] > .arc-conversation-header,
   .arc-chat[data-workspace-open="true"] > .arc-conversation-scroll,
-  .arc-chat[data-workspace-open="true"] > .arc-composer-dock { margin-right: 0; }
-  .arc-artifact-workspace { width: min(390px, calc(100% - 42px)); }
-  .arc-workspace-scrim { position: absolute; inset: 0; z-index: 18; display: block; border: 0; background: rgba(7, 7, 9, .58); }
-  .arc-artifact-workspace { z-index: 19; }
-}
-
-@media (min-width: 1400px) {
+  .arc-chat[data-workspace-open="true"] > .arc-composer-dock { margin-right: clamp(340px, 30cqi, 420px); }
+  .arc-artifact-workspace { width: clamp(340px, 30cqi, 420px); box-shadow: none; }
+  .arc-workspace-scrim { display: none; }
+  /* The narrowed conversation column reflows the package card so its channel
+     grid wraps under the title instead of crushing it. */
   .arc-chat[data-workspace-open="true"] .arc-package-row { grid-template-columns: 36px minmax(140px, 1fr) auto; }
   .arc-chat[data-workspace-open="true"] .arc-package-channels { grid-column: 2 / -1; grid-row: 2; padding-bottom: 4px; }
   .arc-chat[data-workspace-open="true"] .arc-review-button { grid-column: 3; grid-row: 1; }
