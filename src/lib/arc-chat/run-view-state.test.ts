@@ -31,4 +31,29 @@ describe("resolveArcRunViewState", () => {
       label: "Ready",
     });
   });
+
+  it("keeps a persisted completed run complete when an activity row is stale", () => {
+    expect(resolveArcRunViewState({
+      pending: false,
+      messageStatus: "complete",
+      rows: [{ status: "done" }, { status: "running" }],
+      hasContent: true,
+    })).toMatchObject({
+      state: "complete",
+      label: "Run complete",
+    });
+  });
+
+  it("surfaces limitations without reopening a completed run", () => {
+    expect(resolveArcRunViewState({
+      pending: false,
+      messageStatus: "complete",
+      rows: [{ status: "done" }, { status: "error" }],
+      hasContent: true,
+    })).toMatchObject({
+      state: "complete",
+      label: "Completed with limitations",
+      hasWarnings: true,
+    });
+  });
 });

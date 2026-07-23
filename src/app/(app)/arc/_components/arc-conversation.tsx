@@ -8,11 +8,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
-import { ArrowRight, ArrowUpRight, Bookmark, Brain, Check, ClipboardCheck, Copy, CornerUpLeft, Link2, MessageSquareText, PanelRightOpen, PencilLine, RotateCcw, ShieldCheck, Target, X, Zap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bookmark, Brain, Check, ClipboardCheck, Copy, CornerUpLeft, Link2, MessageSquareText, PanelRightOpen, PencilLine, RefreshCcw, RotateCcw, ShieldCheck, Target, X, Zap } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 import type { ArcActionCard, ArcAssetStatus, ArcMention, ArcMode, ArcRecall, ArcRoute } from "@/domain";
 import type { ArcMessage, ArcStep } from "@/lib/arc-chat/persistence";
+import { buildArcLauncherRecommendation } from "@/lib/arc-chat/launcher-state";
 import { buildArcRunContract, type ArcRunContract } from "@/lib/arc-chat/run-contract";
 import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
 
@@ -51,14 +52,8 @@ export const LAUNCHER_SHORTCUTS: Array<{ icon: typeof Target; label: string; pro
   { icon: Target, label: "Find priority leads", prompt: "Which homeowners should we reach first right now, and why?" },
   { icon: MessageSquareText, label: "Draft a campaign", prompt: "Draft a multi-channel campaign for our highest-priority segment." },
   { icon: ShieldCheck, label: "Review approvals", prompt: "What's waiting for my approval right now?" },
+  { icon: Zap, label: "Check new signals", prompt: "What changed in my workspace, and what deserves attention now?" },
 ];
-
-const DEFAULT_FEATURED_WORK = {
-  id: "check-signals",
-  title: "Check today’s strongest signals",
-  urgency: "medium" as const,
-  prompt: "What new signals or opportunities should I know about today?",
-};
 
 export type OptimisticArcTurn = {
   body: string;
@@ -195,6 +190,32 @@ function ReviewableWork({ children }: { children: ReactNode }) {
   );
 }
 
+function AssetStatusUpdate({
+  cards,
+  statuses,
+}: {
+  cards: ArcActionCard[];
+  statuses: Record<string, ArcAssetStatus>;
+}) {
+  const decided = cards.flatMap((card) => {
+    const assetId = card.approval?.assetId;
+    const current = (assetId ? statuses[assetId] : undefined) ?? card.status ?? null;
+    return current === "approved" || current === "rejected" ? [{ card, current }] : [];
+  });
+  if (decided.length === 0) return null;
+
+  const label = decided.length === 1
+    ? `${decided[0]!.card.title} · ${assetStatusMeta(decided[0]!.current).label}`
+    : `${decided.length} final decisions are reflected below`;
+
+  return (
+    <div className="arc-status-update" role="status">
+      <RefreshCcw size={13} />
+      <span><b>Current status</b>{label}</span>
+    </div>
+  );
+}
+
 /** The new-conversation "work launcher": a time-of-day greeting and tappable
  *  workflow starters that prefill the composer, so a blank chat proposes work
  *  instead of a bare prompt. */
@@ -219,13 +240,22 @@ export function ArcLauncher({ greetName, waiting, onPick }: { greetName: string;
       }
     });
   };
-  const featuredWork = waiting?.items?.[0] ?? DEFAULT_FEATURED_WORK;
+  const recommendation = buildArcLauncherRecommendation(waiting);
   const hasWaitingStatus = Boolean(waiting && (waiting.approvals > 0 || waiting.opportunities > 0));
+  const shortcuts = recommendation.mode === "review"
+    ? LAUNCHER_SHORTCUTS.filter((shortcut) => shortcut.label !== "Review approvals")
+    : recommendation.mode === "quiet"
+      ? [...LAUNCHER_SHORTCUTS].reverse().slice(0, 3)
+      : LAUNCHER_SHORTCUTS.slice(0, 3);
 
   return (
-    <div className="arc-launcher">
+    <div className="arc-launcher" data-mode={recommendation.mode}>
       <h2>{greeting}, {greetName}</h2>
-      <p>Start with the work Arc recommends, or choose a focused task below.</p>
+      <p>{recommendation.mode === "review"
+        ? "Finished work is waiting on you. Clear the queue or start something focused."
+        : recommendation.mode === "urgent"
+          ? "There’s a time-sensitive signal worth handling before routine work."
+          : "Start with the work Arc recommends, or choose a focused task below."}</p>
       {hasWaitingStatus && waiting ? (
         <div className="arc-launcher-status" aria-label="Workspace status">
           <span>Today</span>
@@ -246,15 +276,23 @@ export function ArcLauncher({ greetName, waiting, onPick }: { greetName: string;
         </div>
       ) : null}
       <div className="arc-launcher-focus">
-        <span>Recommended next</span>
-        <button type="button" onClick={() => pick(featuredWork.prompt)} title={featuredWork.prompt}>
-          <i className={`arc-nudge-dot is-${featuredWork.urgency}`} aria-hidden />
-          <span><b>{featuredWork.title}</b><small>{featuredWork.prompt}</small></span>
-          <ArrowRight size={15} aria-hidden />
-        </button>
+        <span>{recommendation.eyebrow}</span>
+        {recommendation.href ? (
+          <Link href={recommendation.href} title={recommendation.description}>
+            <i className={`arc-nudge-dot is-${recommendation.urgency}`} aria-hidden />
+            <span><b>{recommendation.title}</b><small>{recommendation.description}</small></span>
+            <ArrowRight size={15} aria-hidden />
+          </Link>
+        ) : (
+          <button type="button" onClick={() => pick(recommendation.prompt ?? recommendation.description)} title={recommendation.description}>
+            <i className={`arc-nudge-dot is-${recommendation.urgency}`} aria-hidden />
+            <span><b>{recommendation.title}</b><small>{recommendation.description}</small></span>
+            <ArrowRight size={15} aria-hidden />
+          </button>
+        )}
       </div>
       <div className="arc-launcher-grid">
-        {LAUNCHER_SHORTCUTS.map((shortcut) => {
+        {shortcuts.map((shortcut) => {
           const Icon = shortcut.icon;
           return (
             <button type="button" key={shortcut.label} onClick={() => pick(shortcut.prompt)}>
@@ -349,10 +387,29 @@ export function LiveConversation({
           toolCount: message.toolCalls?.length ?? 0,
           agentTaskId: message.agentTaskId,
         });
+        const runProfile = buildArcRunProfile({
+          request: operatorMessage?.body,
+          mode: operatorMessage?.mode,
+          command: operatorMessage?.command,
+          sources: contract.readScopes,
+        });
+        const failed = message.status === "failed";
         return (
           <AssistantMessage key={message.id} timeIso={message.createdAt} active={pending} onContextMenu={pending ? undefined : (event) => openMenu(event, arcMenuItems(message, index))}>
             <RunTrace pending={pending} liveText={pending ? message.body : null} reasoning={message.reasoning} steps={message.steps} toolCalls={message.toolCalls} contract={contract} thoughtSeconds={thoughtSeconds} onStop={pending && message.agentTaskId ? () => onCancelRun(message.agentTaskId as string, message.conversationId) : undefined} stopping={stoppingTaskId === message.agentTaskId} outcome={message.status === "failed" ? (message.body.startsWith("Stopped by you") ? "canceled" : "failed") : "complete"} />
-            {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div> : null}
+            {!pending ? (
+              failed ? (
+                <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div>
+              ) : (
+                <div className="arc-live-result" data-intent={runProfile.intent}>
+                  <div className="arc-live-result-kicker">
+                    <span><Check size={13} />{runProfile.resultLabel}</span>
+                    <em>{operatorMessage?.mode === "ask" ? "Read only" : "Nothing sent"}</em>
+                  </div>
+                  <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div>
+                </div>
+              )
+            ) : null}
             {!pending && (message.mentions.length || message.recall?.length) ? (
               <div className="arc-response-evidence">
                 {message.mentions.length ? <SourcesRow mentions={message.mentions} onMentionContextMenu={(event, mention) => openMenu(event, mentionMenuItems(mention, navigate))} /> : null}
@@ -367,6 +424,7 @@ export function LiveConversation({
                   {otherCards.length ? <div className="arc-action-list">{otherCards.map((card, index) => <ArcDraftCard card={card} key={`${card.title}-${index}`} />)}</div> : null}
                   {approvalCards.length ? (
                     <ReviewableWork>
+                      <AssetStatusUpdate cards={approvalCards} statuses={assetStatuses} />
                       {approvalCards.length === 1 ? <DraftReceiptCard card={approvalCards[0]!} status={statusOf(approvalCards[0]!)} onReview={() => onReview(approvalCards)} onContextMenu={(event) => openMenu(event, receiptMenuItems({ card: approvalCards[0]!, status: statusOf(approvalCards[0]!), onOpen: () => onReview(approvalCards), onAssetStatus }))} /> : null}
                       {approvalCards.length >= 2 ? <DraftPackageCard cards={approvalCards} statuses={assetStatuses} onReview={() => onReview(approvalCards)} onContextMenu={(event) => openMenu(event, packageMenuItems({ cards: approvalCards, statusOf, onOpen: () => onReview(approvalCards), onAssetStatus }))} /> : null}
                     </ReviewableWork>
