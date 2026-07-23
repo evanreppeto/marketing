@@ -170,7 +170,10 @@ export async function recordExternalSend(
   const { error: eventError } = await client.from("campaign_events").insert({
     org_id: input.tenant.org_id,
     campaign_id: asset.campaign_id,
-    event_type: "external_send",
+    // campaign_event_type is an ENUM on prod; "exported" is its value for
+    // content leaving through a non-dispatch path. The detail line carries the
+    // external-send story (tool + recipient count).
+    event_type: "exported",
     actor: input.operator,
     detail: `"${asset.title}" marked sent via ${toolLabel} to ${audience.recipients.length} recipient(s).`,
     payload: { campaign_asset_id: asset.id, channel: "email", provider: "external", tool: input.tool?.trim() || null, recipients: audience.recipients.length },
