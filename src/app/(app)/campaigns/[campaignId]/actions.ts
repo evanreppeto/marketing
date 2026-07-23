@@ -6,11 +6,12 @@ import { validateRevisionInstruction } from "@/domain";
 import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { attachMediaToCampaignAsset } from "@/lib/campaigns/attach-media";
+import { buildExternalSendPackage, recordExternalSend, type ExternalSendPackage } from "@/lib/campaigns/external-send";
 import { decideAsset, reopenAsset, type ApprovalDecision } from "@/lib/campaigns/decisions";
 import { editDraftAsset } from "@/lib/campaigns/draft-editing";
 import { launchCampaign } from "@/lib/campaigns/launch";
 import { requestAssetRevision } from "@/lib/campaigns/revisions";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
  * Operator decisions on a campaign deliverable — the ContentEngine approval flow.
@@ -176,5 +177,51 @@ export async function launchCampaignAction(campaignId: string): Promise<LaunchCa
     return { ok: true, persisted: true, launchedAssets: result.launchedAssets };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not launch the campaign." };
+  }
+}
+
+export type ExternalSendPackageActionResult = { ok: true; pkg: ExternalSendPackage } | { ok: false; error: string };
+
+/**
+ * BYO send channel: the approved deliverable, attribution-stamped, plus the
+ * resolved audience — ready to paste into the workspace's own email tool.
+ * Approval-gated exactly like the native send path; exports nothing unapproved.
+ */
+export async function exportCampaignAssetForExternalSend(
+  campaignId: string,
+  assetId: string,
+): Promise<ExternalSendPackageActionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Connect a workspace to export a deliverable." };
+  try {
+    const tenant = await getCurrentAgentTaskTenantFields();
+    return await buildExternalSendPackage({ campaignId, assetId, tenant }, getSupabaseAdminClient());
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not build the export." };
+  }
+}
+
+export type MarkExternalSendResult = { ok: true; recipients: number } | { ok: false; error: string };
+
+/**
+ * The operator's declaration that the exported content went out through their
+ * own tool — records the outbound_send touches (idempotent per recipient) so
+ * journeys and the learning loop see the send the app didn't perform.
+ */
+export async function markCampaignAssetSentExternally(
+  campaignId: string,
+  assetId: string,
+  tool?: string,
+): Promise<MarkExternalSendResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Connect a workspace to record an external send." };
+  try {
+    const operator = await getOperatorActor();
+    const tenant = await getCurrentAgentTaskTenantFields();
+    const result = await recordExternalSend({ campaignId, assetId, operator, tool: tool ?? null, tenant }, getSupabaseAdminClient());
+    if (result.ok) revalidatePath(`/campaigns/${campaignId}`);
+    return result;
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not record the external send." };
   }
 }

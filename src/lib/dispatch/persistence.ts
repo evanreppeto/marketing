@@ -98,8 +98,8 @@ export async function enqueueDispatchesForAssets(input: EnqueueInput, client: Su
   }
 }
 
-type CampaignTarget = { persona: string; contactId: string | null; companyId: string | null };
-type AssetRow = { id: string; channel: string | null; title: string; approved_body: string | null; edited_body: string | null; draft_body: string | null };
+export type CampaignTarget = { persona: string; contactId: string | null; companyId: string | null };
+export type AssetRow = { id: string; channel: string | null; title: string; approved_body: string | null; edited_body: string | null; draft_body: string | null };
 
 // Addressable channels fan out per recipient. SMS/social/etc. resolve their
 // audience in the channel connector (BSR-369); here they stay deliverable-level.
@@ -107,7 +107,7 @@ function addressableChannel(channel: string | null): AudienceChannel | null {
   return /email|mail/i.test(channel ?? "") ? "email" : null;
 }
 
-async function loadCampaignTarget(client: SupabaseClient, campaignId: string, tenant?: AgentTaskTenantFields): Promise<CampaignTarget> {
+export async function loadCampaignTarget(client: SupabaseClient, campaignId: string, tenant?: AgentTaskTenantFields): Promise<CampaignTarget> {
   const { data, error } = await applyOrgScope(
     client.from("campaigns").select("persona,contact_id,company_id").eq("id", campaignId),
     tenant,
@@ -142,7 +142,7 @@ async function loadApprovalByAsset(client: SupabaseClient, assetIds: string[], t
   return map;
 }
 
-async function loadCandidateContacts(client: SupabaseClient, campaign: CampaignTarget, tenant?: AgentTaskTenantFields): Promise<AudienceContact[]> {
+export async function loadCandidateContacts(client: SupabaseClient, campaign: CampaignTarget, tenant?: AgentTaskTenantFields): Promise<AudienceContact[]> {
   let query = applyOrgScope(client.from("contacts").select("id,persona,status,email,phone,full_name,company_id"), tenant);
   if (campaign.contactId) {
     query = query.eq("id", campaign.contactId);
@@ -224,13 +224,24 @@ async function logAssetEnqueueEvent(
   assertOk("campaign_events insert", error);
 }
 
-function buildEmailPayload(asset: AssetRow, address: string): { to: string; subject: string; html: string; text: string } {
+export function buildEmailPayload(asset: AssetRow, address: string): { to: string; subject: string; html: string; text: string } {
   const text = asset.approved_body ?? asset.edited_body ?? asset.draft_body ?? "";
   const html = escapeHtml(text)
     .split(/\n{2,}/)
-    .map((paragraph) => `<p>${paragraph.replace(/\n/g, "<br/>")}</p>`)
+    // Bare URLs become real anchors: clickable in mail clients, and — the
+    // load-bearing part — stampable by stampCampaignLinks, which rewrites
+    // href attributes only. Without this, HTML variants shipped unstamped.
+    .map((paragraph) => `<p>${linkifyUrls(paragraph).replace(/\n/g, "<br/>")}</p>`)
     .join("");
   return { to: address, subject: asset.title, html: html || "<p></p>", text };
+}
+
+function linkifyUrls(escaped: string): string {
+  return escaped.replace(/https?:\/\/[^\s<]+/g, (url) => {
+    const trailing = url.match(/[.,;:!?)]+$/)?.[0] ?? "";
+    const core = trailing ? url.slice(0, -trailing.length) : url;
+    return `<a href="${core}">${core}</a>${trailing}`;
+  });
 }
 
 function escapeHtml(value: string): string {

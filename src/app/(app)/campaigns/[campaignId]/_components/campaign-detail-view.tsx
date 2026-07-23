@@ -16,6 +16,7 @@ import { LOCKED_CLAIMS, MEASUREMENT_PLAN } from "@/lib/performance/measurement-c
 import { buildPerformanceLearning, type CampaignPerformancePanel, type PerformanceTrendPoint } from "@/lib/performance/campaign-panel";
 
 import { ShareDialog } from "../../../_components/share-dialog";
+import { ExternalSendModal } from "./external-send-modal";
 import { attachCampaignMediaAction, decideCampaignAsset, editCampaignDraftAction, launchCampaignAction, reopenCampaignAsset, requestCampaignRevision } from "../actions";
 import {
   getCampaignSharingStateAction,
@@ -371,6 +372,8 @@ export function CampaignDetailView({ detail, performance, audience, attachableMe
 
   // Re-group the (locally owned) assets so optimistic status changes reflect live.
   const grouped = CATEGORY_ORDER.map((cat) => ({ cat, items: assets.filter((a) => a.category === cat) })).filter((g) => g.items.length > 0);
+  // BYO send channel: which approved deliverable is open in the export modal.
+  const [externalSendFor, setExternalSendFor] = useState<CampaignWorkspaceAsset | null>(null);
 
   function setAssetStatus(assetId: string, status: string) {
     setAssets((as) => as.map((a) => (a.id === assetId ? { ...a, status, approval: a.approval ? { ...a.approval, status } : a.approval } : a)));
@@ -763,6 +766,12 @@ export function CampaignDetailView({ detail, performance, audience, attachableMe
                               {meta.label}
                               {asset.dispatchLocked && " · outbound stays locked until launch"}
                             </span>
+                            {/^approved/i.test(asset.status) && /email|mail/i.test(asset.channel) && (
+                              <button type="button" className="cbtn ghost" onClick={() => setExternalSendFor(asset)} disabled={pending} title="Export the approved email for your own send tool — links stay campaign-tagged">
+                                {svg('<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>')}
+                                Send it yourself
+                              </button>
+                            )}
                             {/^(approved|archived)/i.test(asset.status) && (
                               <button type="button" className="cbtn ghost dreopen" onClick={() => reopen(asset)} disabled={pending} title="Send this deliverable back to review">
                                 {svg('<path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 10a8 8 0 00-14-3M4 14a8 8 0 0014 3"/>')}
@@ -978,6 +987,16 @@ export function CampaignDetailView({ detail, performance, audience, attachableMe
           </div>
         </aside>
       </div>
+
+      {externalSendFor ? (
+        <ExternalSendModal
+          campaignId={campaign.id}
+          assetId={externalSendFor.id}
+          assetTitle={externalSendFor.title}
+          open
+          onClose={() => setExternalSendFor(null)}
+        />
+      ) : null}
 
       {shareOpen ? (
         <ShareDialog
