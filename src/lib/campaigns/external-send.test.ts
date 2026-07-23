@@ -93,7 +93,7 @@ describe("recordExternalSend", () => {
     expect(upsert?.[2]).toMatchObject({ onConflict: "source_system,external_event_id", ignoreDuplicates: true });
 
     const insert = client.calls.find(([method]) => method === "insert");
-    expect(insert?.[1]).toMatchObject({ event_type: "external_send", actor: "Evan" });
+    expect(insert?.[1]).toMatchObject({ event_type: "exported", actor: "Evan" });
     expect((insert?.[1] as { detail: string }).detail).toContain("Mailchimp");
   });
 
