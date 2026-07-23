@@ -7,7 +7,8 @@
 // from this module, never the reverse.
 
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowRight,
   Bookmark,
@@ -64,6 +65,7 @@ import {
   decideArcDraftAction,
   requestArcDraftRevisionAction,
   saveArcMessageAction,
+  saveArcMessageToBrainAction,
   setArcMessageFeedbackAction,
 } from "../actions";
 import { LiveReasoning, StreamingMarkdown } from "./arc-markdown";
@@ -364,7 +366,7 @@ export function MessageAttachments({ attachments }: { attachments: ArcAttachment
   );
 }
 
-export function OperatorMessage({ body, time, timeIso, attachments, onEdit }: { body: string; time?: string; timeIso?: string; attachments?: ArcAttachment[]; onEdit?: (newBody: string) => void }) {
+export function OperatorMessage({ body, time, timeIso, attachments, onEdit, onContextMenu }: { body: string; time?: string; timeIso?: string; attachments?: ArcAttachment[]; onEdit?: (newBody: string) => void; onContextMenu?: (event: React.MouseEvent, helpers: { startEdit: (() => void) | null }) => void }) {
   const reduceMotion = useReducedMotion();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(body);
@@ -401,6 +403,7 @@ export function OperatorMessage({ body, time, timeIso, attachments, onEdit }: { 
   return (
     <motion.div
       className="arc-operator-message"
+      onContextMenu={onContextMenu ? (event) => onContextMenu(event, { startEdit: onEdit ? () => { setText(body); setEditing(true); } : null }) : undefined}
       initial={reduceMotion ? false : { opacity: 0, y: 7 }}
       animate={{ opacity: 1, y: 0 }}
     >
@@ -416,17 +419,20 @@ export function AssistantMessage({
   time,
   timeIso,
   active = false,
+  onContextMenu,
   children,
 }: {
   time?: string;
   timeIso?: string;
   active?: boolean;
+  onContextMenu?: (event: React.MouseEvent) => void;
   children: React.ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
   return (
     <motion.article
       className={`arc-assistant-message${active ? " is-active" : ""}`}
+      onContextMenu={onContextMenu}
       initial={reduceMotion ? false : { opacity: 0, y: 9 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
@@ -973,6 +979,7 @@ export function QuestionPrompt({ question, onChoose, onDismiss }: { question: Ar
 export function MessageActions({ message, onRegenerate }: { message: ArcMessage; onRegenerate?: () => void }) {
   const [feedback, setFeedback] = useState<"up" | "down" | null>(message.feedback);
   const [saved, setSaved] = useState(false);
+  const [remembered, setRemembered] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, startAction] = useTransition();
 
@@ -1007,6 +1014,12 @@ export function MessageActions({ message, onRegenerate }: { message: ArcMessage;
     setNotice(result.ok ? "Saved to your Arc library" : result.error);
   });
 
+  const remember = () => startAction(async () => {
+    const result = await saveArcMessageToBrainAction(message.id);
+    setRemembered(result.ok);
+    setNotice(result.ok ? "Remembered in the Brain" : result.error);
+  });
+
   return (
     <div className="arc-message-action-row">
       <div className="arc-message-actions">
@@ -1014,11 +1027,170 @@ export function MessageActions({ message, onRegenerate }: { message: ArcMessage;
         <button type="button" aria-label="Good response" title="Good response" aria-pressed={feedback === "up"} className={feedback === "up" ? "is-active" : ""} onClick={() => rate("up")} disabled={busy}><ThumbsUp size={15} /></button>
         <button type="button" aria-label="Bad response" title="Bad response" aria-pressed={feedback === "down"} className={feedback === "down" ? "is-active" : ""} onClick={() => rate("down")} disabled={busy}><ThumbsDown size={15} /></button>
         <button type="button" aria-label={saved ? "Response saved" : "Save response"} title={saved ? "Saved" : "Save response"} aria-pressed={saved} className={saved ? "is-active" : ""} onClick={save} disabled={busy || saved}><Bookmark size={15} /></button>
+        <button type="button" aria-label={remembered ? "Remembered in the Brain" : "Save to Brain"} title={remembered ? "Remembered in the Brain" : "Save to Brain"} aria-pressed={remembered} className={remembered ? "is-active" : ""} onClick={remember} disabled={busy || remembered}><Brain size={15} /></button>
         {onRegenerate ? <button type="button" aria-label="Regenerate response" title="Regenerate response" onClick={() => { setNotice("Regenerating…"); onRegenerate(); }} disabled={busy}><RotateCcw size={15} /></button> : null}
       </div>
       <span className="arc-message-action-notice" role="status" aria-live="polite">{notice}</span>
     </div>
   );
+}
+
+/* ── Message context menu ─────────────────────────────────────────────────
+   Right-click on a message bubble. Portaled to <body> because the chat root is
+   a size container (layout containment), which would otherwise trap and clip a
+   fixed-position menu. One menu instance per conversation, owned by the
+   useMessageContextMenu hook. */
+
+export type MessageMenuItem =
+  | {
+      kind: "item";
+      label: string;
+      icon?: React.ReactNode;
+      /** Muted right-aligned annotation, e.g. why an item is disabled. */
+      hint?: string;
+      disabled?: boolean;
+      /** A returned string is shown as a transient toast near the menu origin. */
+      onSelect: () => void | string | null | Promise<void | string | null>;
+    }
+  | { kind: "separator" };
+
+/* The menu escapes the chat root's containment via a portal — but it must land
+   inside `.arc-app`, not <body>, because the theme variables it styles with are
+   scoped to that wrapper. `.arc-app` has no transform/containment, so `fixed`
+   still positions against the viewport there. */
+function menuPortalRoot(): Element {
+  return document.querySelector(".arc-app") ?? document.body;
+}
+
+function MessageContextMenu({
+  x,
+  y,
+  items,
+  onSelect,
+  onClose,
+}: {
+  x: number;
+  y: number;
+  items: MessageMenuItem[];
+  onSelect: (item: Extract<MessageMenuItem, { kind: "item" }>) => void;
+  onClose: () => void;
+}) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState({ left: x, top: y });
+
+  // Clamp to the viewport once the real size is known (flip up/left near edges).
+  useLayoutEffect(() => {
+    const el = menuRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
+    const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
+    setPos({ left, top });
+    el.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+  }, [x, y]);
+
+  useEffect(() => {
+    const dismissIfOutside = (event: Event) => {
+      const target = event.target as Node | null;
+      if (target && menuRef.current?.contains(target)) return;
+      onClose();
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" || event.key === "Tab") { onClose(); return; }
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      const buttons = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? []);
+      if (!buttons.length) return;
+      const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      const next = event.key === "ArrowDown"
+        ? buttons[(current + 1) % buttons.length]
+        : buttons[(current - 1 + buttons.length) % buttons.length];
+      next?.focus();
+    };
+    document.addEventListener("pointerdown", dismissIfOutside, true);
+    document.addEventListener("contextmenu", dismissIfOutside, true);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onClose, true);
+    window.addEventListener("resize", onClose);
+    return () => {
+      document.removeEventListener("pointerdown", dismissIfOutside, true);
+      document.removeEventListener("contextmenu", dismissIfOutside, true);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onClose, true);
+      window.removeEventListener("resize", onClose);
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div ref={menuRef} className="arc-context-menu" role="menu" style={{ left: pos.left, top: pos.top }}>
+      {items.map((item, index) =>
+        item.kind === "separator" ? (
+          <div className="arc-context-sep" role="separator" key={`sep-${index}`} />
+        ) : (
+          <button type="button" role="menuitem" key={`${item.label}-${index}`} disabled={item.disabled} onClick={() => onSelect(item)}>
+            {item.icon}
+            <span>{item.label}</span>
+            {item.hint ? <small>{item.hint}</small> : null}
+          </button>
+        ),
+      )}
+    </div>,
+    menuPortalRoot(),
+  );
+}
+
+export function useMessageContextMenu() {
+  const [menu, setMenu] = useState<{ x: number; y: number; items: MessageMenuItem[] } | null>(null);
+  const [toast, setToast] = useState<{ x: number; y: number; text: string } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
+
+  const openMenu = (event: React.MouseEvent, items: MessageMenuItem[]) => {
+    // Hold the native menu on plain right-click, keep it on modified clicks so
+    // "Inspect element" style workflows stay reachable via Shift+right-click.
+    if (event.shiftKey) return;
+    if (!items.length) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setToast(null);
+    setMenu({ x: event.clientX, y: event.clientY, items });
+  };
+
+  const handleSelect = (item: Extract<MessageMenuItem, { kind: "item" }>) => {
+    const origin = menu;
+    setMenu(null);
+    void Promise.resolve(item.onSelect()).then((result) => {
+      if (typeof result !== "string" || !result || !origin) return;
+      setToast({ x: origin.x, y: origin.y, text: result });
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(() => setToast(null), 2200);
+    });
+  };
+
+  const element = (
+    <>
+      {menu ? <MessageContextMenu x={menu.x} y={menu.y} items={menu.items} onSelect={handleSelect} onClose={() => setMenu(null)} /> : null}
+      {toast
+        ? createPortal(
+            <div className="arc-context-toast" role="status" style={{ left: toast.x, top: toast.y }}>{toast.text}</div>,
+            menuPortalRoot(),
+          )
+        : null}
+    </>
+  );
+
+  return { openMenu, menuElement: element };
+}
+
+/** Clipboard copy shared by the hover row and the context menu. */
+export async function copyMessageText(body: string): Promise<string> {
+  try {
+    await navigator.clipboard.writeText(body);
+    return "Copied";
+  } catch {
+    return "Copy failed";
+  }
 }
 
 export function operatorMessageBefore(messages: ArcMessage[], index: number): ArcMessage | null {

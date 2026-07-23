@@ -46,6 +46,7 @@ import {
   type ArcMessage,
 } from "@/lib/arc-chat/persistence";
 import { listSavedItems, removeSavedItem, saveItem, type SavedItem, type SavedKind } from "@/lib/arc-chat/saved";
+import { createNode } from "@/lib/knowledge-graph/persistence";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { assertConversationAccess } from "@/lib/arc-chat/sharing";
 import { logArcChatStatus } from "@/lib/arc-chat/status-log";
@@ -651,6 +652,48 @@ export async function saveArcMessageAction(messageId: string): Promise<ArcIntera
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Couldn't save that response." };
+  }
+}
+
+/**
+ * Promote a chat message into the Brain as an operator-authored `learning` node.
+ * Operator authorship makes it trusted immediately (Arc still can't self-approve
+ * gated kinds), and the `chat-save:<messageId>` key means saving the same message
+ * twice updates one node instead of crowding recall with duplicates.
+ */
+export async function saveArcMessageToBrainAction(messageId: string): Promise<ArcInteractionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Saving to the Brain needs a connected backend." };
+  try {
+    const message = await getArcMessage(messageId);
+    if (!message || !message.body.trim()) return { ok: false, error: "That message cannot be saved." };
+    await assertConversationAccess(message.conversationId, "view");
+    const label =
+      message.body.split("\n").find((line) => line.trim())?.replace(/^#+\s*/, "").trim().slice(0, 120) ?? "Chat note";
+    const result = await createNode(
+      {
+        kind: "learning",
+        key: `chat-save:${message.id}`,
+        label,
+        body: message.body,
+        summary: null,
+        persona: null,
+        confidence: null,
+        refTable: null,
+        refId: null,
+        source: "operator-chat-save",
+        sourceReference: message.conversationId,
+        tags: ["chat-save"],
+        props: {},
+      },
+      { createdBy: "operator", actor: await getOperatorActor() },
+    );
+    // A repeat save trips the (org, kind, key) unique constraint — the fact is
+    // already in the Brain, which is what the operator asked for.
+    if (!result.ok && !/duplicate key|23505/i.test(result.error)) return { ok: false, error: result.error };
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't save that to the Brain." };
   }
 }
 

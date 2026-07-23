@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
-import { ArrowRight, ClipboardCheck, MessageSquareText, ShieldCheck, Target, Zap } from "lucide-react";
+import { ArrowRight, Bookmark, Brain, ClipboardCheck, Copy, CornerUpLeft, MessageSquareText, PencilLine, RotateCcw, ShieldCheck, Target, Zap } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 import type { ArcActionCard, ArcAssetStatus, ArcMode, ArcRoute } from "@/domain";
@@ -19,6 +19,7 @@ import { MARKDOWN_COMPONENTS, REHYPE_HIGHLIGHT_PLUGINS, REMARK_PLUGINS } from ".
 import {
   ArcDraftCard,
   AssistantMessage,
+  copyMessageText,
   DraftPackageCard,
   DraftReceiptCard,
   MessageActions,
@@ -27,7 +28,10 @@ import {
   RecallRow,
   RunTrace,
   SourcesRow,
+  useMessageContextMenu,
+  type MessageMenuItem,
 } from "./arc-messages";
+import { saveArcMessageAction, saveArcMessageToBrainAction } from "../actions";
 import {
   buildDemoLiveWork,
   DEMO_ATTACHMENTS,
@@ -172,6 +176,8 @@ export function LiveConversation({
   onCancelRun: (taskId: string, conversationId: string) => void;
   stoppingTaskId: string | null;
 }) {
+  const { openMenu, menuElement } = useMessageContextMenu();
+
   if (messages.length === 0 && !optimisticTurn) {
     return <ArcLauncher greetName={operatorName} waiting={waiting} onPick={onSuggestion} />;
   }
@@ -180,10 +186,33 @@ export function LiveConversation({
   const awaitingReply = Boolean(optimisticTurn) || messages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim()));
   const lastIndex = messages.length - 1;
 
+  const arcMenuItems = (message: ArcMessage, index: number): MessageMenuItem[] => {
+    const sourcePrompt = operatorMessageBefore(messages, index);
+    const items: MessageMenuItem[] = [
+      { kind: "item", label: "Copy message", icon: <Copy size={14} />, onSelect: () => copyMessageText(message.body) },
+      { kind: "separator" },
+      { kind: "item", label: "Save to library", icon: <Bookmark size={14} />, onSelect: async () => { const result = await saveArcMessageAction(message.id); return result.ok ? "Saved to your Arc library" : result.error; } },
+      { kind: "item", label: "Save to Brain", icon: <Brain size={14} />, onSelect: async () => { const result = await saveArcMessageToBrainAction(message.id); return result.ok ? "Remembered in the Brain" : result.error; } },
+    ];
+    if (index === lastIndex && !awaitingReply) {
+      items.push({ kind: "separator" }, { kind: "item", label: "Regenerate response", icon: <RotateCcw size={14} />, onSelect: () => onRegenerate(message.id) });
+    } else if (sourcePrompt) {
+      items.push({ kind: "separator" }, { kind: "item", label: "Ask this again", icon: <RotateCcw size={14} />, disabled: awaitingReply, hint: awaitingReply ? "Run in progress" : undefined, onSelect: () => { onSuggestion(sourcePrompt.body); return "Added to the composer"; } });
+    }
+    return items;
+  };
+
+  const operatorMenuItems = (message: ArcMessage, startEdit: (() => void) | null): MessageMenuItem[] => [
+    { kind: "item", label: "Copy message", icon: <Copy size={14} />, onSelect: () => copyMessageText(message.body) },
+    { kind: "separator" },
+    { kind: "item", label: "Edit & resend", icon: <PencilLine size={14} />, disabled: !startEdit, hint: startEdit ? undefined : "Run in progress", onSelect: () => startEdit?.() },
+    { kind: "item", label: "Use as new message", icon: <CornerUpLeft size={14} />, onSelect: () => { onSuggestion(message.body); return "Added to the composer"; } },
+  ];
+
   return (
     <>
       {messages.map((message, index) => {
-        if (message.role === "operator") return <OperatorMessage key={message.id} body={message.body} timeIso={message.createdAt} attachments={message.attachments} onEdit={awaitingReply ? undefined : (newBody) => onEdit(message.id, newBody)} />;
+        if (message.role === "operator") return <OperatorMessage key={message.id} body={message.body} timeIso={message.createdAt} attachments={message.attachments} onEdit={awaitingReply ? undefined : (newBody) => onEdit(message.id, newBody)} onContextMenu={(event, helpers) => openMenu(event, operatorMenuItems(message, helpers.startEdit))} />;
         const pending = message.status === "pending" || (message.role === "arc" && !message.body.trim());
         const operatorMessage = operatorMessageBefore(messages, index);
         // Runner-measured wall-clock. Message rows are inserted before the run,
@@ -198,7 +227,7 @@ export function LiveConversation({
           agentTaskId: message.agentTaskId,
         });
         return (
-          <AssistantMessage key={message.id} timeIso={message.createdAt} active={pending}>
+          <AssistantMessage key={message.id} timeIso={message.createdAt} active={pending} onContextMenu={pending ? undefined : (event) => openMenu(event, arcMenuItems(message, index))}>
             <RunTrace pending={pending} liveText={pending ? message.body : null} reasoning={message.reasoning} steps={message.steps} toolCalls={message.toolCalls} contract={contract} thoughtSeconds={thoughtSeconds} onStop={pending && message.agentTaskId ? () => onCancelRun(message.agentTaskId as string, message.conversationId) : undefined} stopping={stoppingTaskId === message.agentTaskId} outcome={message.status === "failed" ? (message.body.startsWith("Stopped by you") ? "canceled" : "failed") : "complete"} />
             {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div> : null}
             {!pending && (message.mentions.length || message.recall?.length) ? (
@@ -242,6 +271,7 @@ export function LiveConversation({
           </AssistantMessage>
         </>
       ) : null}
+      {menuElement}
     </>
   );
 }
@@ -268,15 +298,39 @@ export function DemoConversation({
   const pendingTurn = [...turns].reverse().find((turn) => turn.role === "operator");
   const demoLiveWork = buildDemoLiveWork(pendingTurn?.body);
   const editable = pending ? undefined : onEditResend;
+  const { openMenu, menuElement } = useMessageContextMenu();
+
+  // Same menu as the live conversation, with backend-writing items visibly
+  // disabled instead of silently absent — the preview should show the feature.
+  const demoArcItems = (body: string, sourcePrompt?: string): MessageMenuItem[] => {
+    const items: MessageMenuItem[] = [
+      { kind: "item", label: "Copy message", icon: <Copy size={14} />, onSelect: () => copyMessageText(body) },
+      { kind: "separator" },
+      { kind: "item", label: "Save to library", icon: <Bookmark size={14} />, disabled: true, hint: "Preview only", onSelect: () => null },
+      { kind: "item", label: "Save to Brain", icon: <Brain size={14} />, disabled: true, hint: "Preview only", onSelect: () => null },
+    ];
+    if (sourcePrompt) {
+      items.push({ kind: "separator" }, { kind: "item", label: "Ask this again", icon: <RotateCcw size={14} />, disabled: pending, hint: pending ? "Run in progress" : undefined, onSelect: () => onEditResend(sourcePrompt) });
+    }
+    return items;
+  };
+  const demoOperatorItems = (body: string, startEdit: (() => void) | null): MessageMenuItem[] => [
+    { kind: "item", label: "Copy message", icon: <Copy size={14} />, onSelect: () => copyMessageText(body) },
+    { kind: "separator" },
+    { kind: "item", label: "Edit & resend", icon: <PencilLine size={14} />, disabled: !startEdit, hint: startEdit ? undefined : "Run in progress", onSelect: () => startEdit?.() },
+    { kind: "item", label: "Resend", icon: <CornerUpLeft size={14} />, disabled: pending, hint: pending ? "Run in progress" : undefined, onSelect: () => onEditResend(body) },
+  ];
+  const operatorMenu = (body: string) => (event: React.MouseEvent, helpers: { startEdit: (() => void) | null }) =>
+    openMenu(event, demoOperatorItems(body, helpers.startEdit));
 
   return (
     <>
       {includeSeed ? (
         <>
           <div className="arc-day"><span>July 14, 2026</span></div>
-          <OperatorMessage time="9:34 AM" body="Here’s a reference photo from our last storm job — match this look in the creative." attachments={DEMO_ATTACHMENTS} onEdit={editable} />
-          <OperatorMessage time="9:35 AM" body="Which homeowners should we reach first after the Naperville hailstorm?" onEdit={editable} />
-          <AssistantMessage time="9:38 AM">
+          <OperatorMessage time="9:34 AM" body="Here’s a reference photo from our last storm job — match this look in the creative." attachments={DEMO_ATTACHMENTS} onEdit={editable} onContextMenu={operatorMenu("Here’s a reference photo from our last storm job — match this look in the creative.")} />
+          <OperatorMessage time="9:35 AM" body="Which homeowners should we reach first after the Naperville hailstorm?" onEdit={editable} onContextMenu={operatorMenu("Which homeowners should we reach first after the Naperville hailstorm?")} />
+          <AssistantMessage time="9:38 AM" onContextMenu={(event) => openMenu(event, demoArcItems("142 homes took the heaviest hail and still haven’t booked an inspection.", "Which homeowners should we reach first after the Naperville hailstorm?"))}>
             <div className="arc-answer">
               <h2>142 homes took the heaviest hail and still haven’t booked an inspection.</h2>
               <p>That’s 23% of the storm zone and about $1.4M in estimated restoration work. The clearest urgency signals across them:</p>
@@ -288,22 +342,22 @@ export function DemoConversation({
               <RecallRow recall={DEMO_RECALL} />
             </div>
           </AssistantMessage>
-          <AssistantMessage time="9:40 AM">
+          <AssistantMessage time="9:40 AM" onContextMenu={(event) => openMenu(event, demoArcItems(DEMO_BREAKDOWN_MD))}>
             <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{DEMO_BREAKDOWN_MD}</ReactMarkdown></div>
           </AssistantMessage>
-          <AssistantMessage time="9:42 AM">
+          <AssistantMessage time="9:42 AM" onContextMenu={(event) => openMenu(event, demoArcItems("I built the Storm Rapid Response package for the 142 highest-urgency homes."))}>
             <div className="arc-answer"><p>I built the Storm Rapid Response package for the 142 highest-urgency homes.</p></div>
             <ReviewableWork><DraftPackageCard cards={DEMO_PACKAGE_CARDS} statuses={packageStatuses} onReview={() => onReview(DEMO_PACKAGE_CARDS)} /></ReviewableWork>
           </AssistantMessage>
-          <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." onEdit={editable} />
-          <AssistantMessage time="9:45 AM">
+          <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." onEdit={editable} onContextMenu={operatorMenu("Looks good. Draft the email.")} />
+          <AssistantMessage time="9:45 AM" onContextMenu={(event) => openMenu(event, demoArcItems("The inspection email for the 64 insured, fresh-damage homes is ready for review."))}>
             <div className="arc-answer"><p>The inspection email for the 64 insured, fresh-damage homes is ready for review.</p></div>
             <ReviewableWork><DraftReceiptCard card={DEMO_DRAFT_CARD} status={packageStatuses[DEMO_DRAFT_CARD.approval?.assetId ?? ""] ?? DEMO_DRAFT_CARD.status ?? null} onReview={() => onReview([DEMO_DRAFT_CARD])} /></ReviewableWork>
           </AssistantMessage>
         </>
       ) : null}
       {turns.map((turn, index) => {
-        if (turn.role === "operator") return <OperatorMessage key={turn.id} body={turn.body} onEdit={editable} />;
+        if (turn.role === "operator") return <OperatorMessage key={turn.id} body={turn.body} onEdit={editable} onContextMenu={operatorMenu(turn.body)} />;
         const operatorTurn = [...turns.slice(0, index)].reverse().find((candidate) => candidate.role === "operator");
         const turnContract = buildArcRunContract({ mode: turn.mode, route: "fast", contextScopes: ["workspace", "brand", "crm", "campaigns"], agentTaskId: turn.id });
         const turnProfile = buildArcRunProfile({ request: operatorTurn?.body, mode: turn.mode, command: turn.command, sources: turnContract.readScopes });
@@ -311,7 +365,7 @@ export function DemoConversation({
           ? [{ label: "Stopped before remaining work was applied", status: "done", at: "now", kind: "think" }]
           : turnProfile.phases.map((phase) => ({ label: phase.label, detail: [phase.detail], status: "done", at: "now", kind: phase.kind }));
         return (
-          <AssistantMessage key={turn.id} time="now">
+          <AssistantMessage key={turn.id} time="now" onContextMenu={(event) => openMenu(event, demoArcItems(turn.body, operatorTurn?.body))}>
             <RunTrace
               pending={false}
               thoughtSeconds={turn.outcome === "canceled" ? undefined : 5}
@@ -325,6 +379,7 @@ export function DemoConversation({
         );
       })}
       {pending ? <AssistantMessage active><RunTrace pending reasoning={demoLiveWork.commentary} demoRows={demoLiveWork.rows} contract={pendingContract} onStop={onStop} /></AssistantMessage> : null}
+      {menuElement}
     </>
   );
 }
