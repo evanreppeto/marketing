@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { campaignDriver, deriveCampaignRollup, type CampaignDriver, type CampaignRollup, type ViralityScore } from "@/domain";
+import { arcAssetStatusFromDb, campaignDriver, deriveCampaignRollup, type ArcAssetStatus, type CampaignDriver, type CampaignRollup, type ViralityScore } from "@/domain";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { personasForIndustry } from "@/lib/personas/industry-templates";
 import { canonicalIndustryKey } from "@/lib/product-language";
@@ -530,6 +530,42 @@ export async function listCampaignNames(orgId?: string, client?: SupabaseClient)
     return (data ?? []).map((c) => ({ id: c.id as string, name: c.name as string, href: `/campaigns/${c.id as string}` }));
   } catch {
     return [];
+  }
+}
+
+/**
+ * Live chat-facing status for a set of campaign assets, keyed by asset id.
+ *
+ * The Arc chat's action cards carry the status Arc wrote at DRAFT time. Seeding
+ * from this makes a decision taken anywhere else — the campaign page, another
+ * session, another device — visible in the conversation, instead of the chat
+ * asserting a snapshot that stopped being true hours ago.
+ *
+ * Org-scoped, and returns {} rather than throwing: a stale-but-rendered chat is
+ * better than a chat that fails to render.
+ */
+export async function getArcAssetStatuses(
+  assetIds: readonly string[],
+  orgId?: string,
+  client?: SupabaseClient,
+): Promise<Record<string, ArcAssetStatus>> {
+  const ids = [...new Set(assetIds.filter((id) => typeof id === "string" && id.trim()))];
+  if (ids.length === 0) return {};
+  if (!client && !isSupabaseAdminConfigured()) return {};
+  try {
+    const supabase = client ?? getSupabaseAdminClient();
+    const { data, error } = await applyOrgScope(supabase.from("campaign_assets").select("id,status"), orgId).in("id", ids);
+    assertSupabaseResult("campaign_assets", error);
+    const out: Record<string, ArcAssetStatus> = {};
+    for (const row of (data ?? []) as Array<{ id: string; status: string }>) {
+      const mapped = arcAssetStatusFromDb(row.status);
+      // Unrecognised status: leave the id absent so the caller falls back to the
+      // card snapshot rather than inventing a state.
+      if (mapped) out[row.id] = mapped;
+    }
+    return out;
+  } catch {
+    return {};
   }
 }
 
