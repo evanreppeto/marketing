@@ -6,7 +6,9 @@
 // ConnectorView carries only presence + status.
 // ---------------------------------------------------------------------------
 
-import { CONNECTOR_REGISTRY, computeConnectorStatus, connectorRequiresCredential } from "@/domain";
+import { CONNECTOR_REGISTRY, computeConnectorStatus, connectorRequiresCredential, effectiveCostTier, type ConnectorCredentialSource } from "@/domain";
+
+import { platformCredentialFor } from "./credentials";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -21,6 +23,11 @@ export type SettingsConnectorsView = {
 function registryFallback(): ConnectorView[] {
   return CONNECTOR_REGISTRY.map((entry) => {
     const requiresCredential = connectorRequiresCredential(entry);
+    // Env is server-side truth even without Supabase, so platform-credits
+    // availability is real here — the offline preview honestly shows which
+    // connectors would work out of the box.
+    const platformCredentialAvailable = Boolean(platformCredentialFor(entry));
+    const activeCredentialSource: ConnectorCredentialSource = platformCredentialAvailable ? "platform" : "none";
     return {
       key: entry.key,
       kind: entry.kind,
@@ -32,8 +39,11 @@ function registryFallback(): ConnectorView[] {
       enabled: false,
       credentialPresent: false,
       credentialOptional: !requiresCredential,
+      platformCredentialAvailable,
+      activeCredentialSource,
+      activeCostTier: effectiveCostTier(entry, activeCredentialSource),
       config: {},
-      status: computeConnectorStatus({ credentialPresent: false, enabled: false, lastTestOk: null, requiresCredential, availability: entry.availability }),
+      status: computeConnectorStatus({ credentialPresent: false, enabled: false, lastTestOk: null, requiresCredential, availability: entry.availability, platformCredentialAvailable }),
       lastTestedAt: null,
       lastTestOk: null,
       lastTestError: null,

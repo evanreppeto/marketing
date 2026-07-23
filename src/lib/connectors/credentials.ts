@@ -1,5 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { type ConnectorRegistryEntry } from "@/domain";
+
 // Vault-backed connector credentials. Mirrors src/lib/agent/secret.ts: write via
 // create_secret (with a vault-schema fallback), read via vault.decrypted_secrets.
 // Stores/returns only refs + plaintext on demand — the row never holds the secret.
@@ -94,4 +96,12 @@ export async function readConnectorCredential(client: SupabaseClient, ref: strin
   } catch {
     return null;
   }
+}
+
+/** The platform's key for this connector, when the entry declares one AND the
+ *  deployment sets it (platform-credits mode). Server-only by construction. */
+export function platformCredentialFor(entry: Pick<ConnectorRegistryEntry, "platformEnvVar">): string | null {
+  if (!entry.platformEnvVar) return null;
+  const value = process.env[entry.platformEnvVar]?.trim();
+  return value || null;
 }
