@@ -188,14 +188,16 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     description:
       "Cinematic image & video generation, UGC/viral ad variants, and virality prediction on this " +
       "workspace's own Higgsfield credits. Loaded into the runner as a remote MCP; output lands as " +
-      "approval-gated draft assets.",
+      "approval-gated draft assets. Connect with a personal account (OAuth) or a Cloud API key.",
     costTier: "byo_key",
     verticals: [],
     capability: { summary: "Cinematic image & video generation, draft assets only.", toolNamespaces: ["higgsfield"] },
     credentialSchema: {
       kind: "oauth",
-      label: "Higgsfield API token",
-      hint: "Connect with Higgsfield (OAuth), or paste a token bundle. Used only for approval-gated draft assets.",
+      label: "Higgsfield credential",
+      hint:
+        "Connect with Higgsfield (personal-account OAuth), or paste a Cloud API key from cloud.higgsfield.ai — " +
+        "the supported path for the hosted runner (no signed-in session to expire). Used only for approval-gated draft assets.",
     },
     authKind: "oauth",
     access: "gated_write",
