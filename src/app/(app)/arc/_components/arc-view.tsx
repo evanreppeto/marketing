@@ -104,6 +104,7 @@ import {
   getArcConversationHeader,
   getArcConversationScrollTarget,
   shouldShowDemoLauncher,
+  shouldUseDemoSeedWorkspace,
 } from "@/lib/arc-chat/view-state";
 
 import {
@@ -1073,22 +1074,6 @@ export function ArcView({
     setOptimisticTurn(null);
   }, [messages.length, optimisticTurn]);
 
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem("arc.workPanelOpen");
-      // Auto-open only when the panel will dock beside a usable conversation —
-      // the 1000px threshold mirrors the @container query in arc.css, measured
-      // on the chat area itself (the viewport lies once the nav rail is added).
-      const chatWidth = chatRootRef.current?.clientWidth ?? 0;
-      if (chatWidth >= 1000 && saved !== "0") {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- restored after hydration so server and client markup stay identical
-        setWorkPanelOpen(true);
-      }
-    } catch {
-      /* localStorage unavailable — leave the panel closed */
-    }
-  }, []);
-
   // Default to "instant": the scroll container sets `scroll-behavior: smooth`, so
   // an animated follow would restart a new tween every tick toward a moving
   // bottom and never arrive. Only the explicit jump pill animates.
@@ -1282,6 +1267,11 @@ export function ArcView({
   const contextState = visibleMessages.length > 0
     ? contextUsage(visibleMessages.map((message) => message.body ?? ""))
     : { tokens: 4_320, pct: 18, level: "ok" as const };
+  const showContextMeter = contextInfoOpen
+    || selectedMentions.length > 0
+    || attachments.length > 0
+    || contextState.level !== "ok"
+    || contextState.pct >= 65;
   const mentionItems = mentionGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label }))).slice(0, 12);
   const skillQuery = draft.match(/^\s*\/([^\s]*)$/)?.[1]?.toLowerCase() ?? "";
   const unresolvedSkillToken = /^\s*\/[^\s]*$/.test(draft);
@@ -1447,6 +1437,7 @@ export function ArcView({
     setComposerMenu(null);
     setContextInfoOpen(false);
     setComposerNotice(null);
+    if ((chatRootRef.current?.clientWidth ?? 0) >= 1000) setWorkPanelOpen(true);
     if (!live) {
       const demoContract = buildArcRunContract({ mode: resolvedMode, route: resolvedRoute, contextScopes });
       const demoProfile = buildArcRunProfile({ request: body, mode: resolvedMode, command, sources: demoContract.readScopes });
@@ -1517,6 +1508,7 @@ export function ArcView({
     setSelectedDemoId(id);
     setHistoryOpen(false);
     setReviewCards(null);
+    setWorkPanelOpen(false);
     setContextInfoOpen(false);
     setDemoTurns([]);
     setDemoPending(false);
@@ -1555,11 +1547,6 @@ export function ArcView({
   const setWorkPanelVisibility = (open: boolean) => {
     setWorkPanelOpen(open);
     if (!open) setReviewCards(null);
-    try {
-      window.localStorage.setItem("arc.workPanelOpen", open ? "1" : "0");
-    } catch {
-      /* localStorage unavailable — the in-session state still works */
-    }
   };
 
   const recordAssetStatus = (assetId: string, status: ArcAssetStatus) => {
@@ -1645,9 +1632,10 @@ export function ArcView({
     : visibleMessages;
   const latestArcMessage = [...renderedMessages].reverse().find((message) => message.role === "arc");
   const latestDemoRequest = [...demoTurns].reverse().find((turn) => turn.role === "operator")?.body;
-  const demoSeed = !live && selectedDemoId !== "new";
+  const latestDemoArcTurn = [...demoTurns].reverse().find((turn) => turn.role === "arc");
+  const demoSeed = shouldUseDemoSeedWorkspace({ live, selectedDemoId, turnCount: demoTurns.length });
   const workCards = live ? latestArcMessage?.actions ?? [] : demoSeed ? DEMO_PACKAGE_CARDS : [];
-  const reviewableWorkCards = workCards.filter((card) => card.approval);
+  const reviewableWorkCards = (live || selectedDemoId === "new" ? workCards : DEMO_PACKAGE_CARDS).filter((card) => card.approval);
   // Stable key for EVERY asset this conversation references — not just the latest
   // turn's. Receipt cards render per message throughout the thread and all read
   // the same status map, so seeding only `workCards` (the newest arc message) left
@@ -1853,8 +1841,8 @@ export function ArcView({
               <div className="arc-composer-tools">
                 <button type="button" className="arc-composer-add" aria-label="Add attachment, mention, or command" aria-haspopup="menu" aria-controls={composerMenu === "tools" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "tools"} onClick={(event) => toggleComposerMenu("tools", event.currentTarget)}><Plus size={18} /></button>
                 <button type="button" className="arc-composer-pill arc-mode-button" data-mode={mode === "ask" ? "ask" : "act"} aria-label={`Capability: ${capabilityLabel}. ${capabilityDetail}.`} aria-haspopup="menu" aria-controls={composerMenu === "mode" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "mode"} disabled={Boolean(command)} title={command ? "This skill chooses the required capability" : "Choose whether Arc can change the workspace"} onClick={(event) => toggleComposerMenu("mode", event.currentTarget)}><ArcCapabilityIcon mode={mode} size={14} /><span>{capabilityLabel}<small> · {capabilityDetail}</small></span><ChevronDown size={12} /></button>
-                <button type="button" className="arc-composer-pill arc-model-button" aria-label={`Model: ${currentModel.label}${modelPreference === "auto" ? `. Currently routes to Arc ${resolvedModelName}.` : ""}`} aria-haspopup="menu" aria-controls={composerMenu === "model" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "model"} onClick={(event) => toggleComposerMenu("model", event.currentTarget)}><ArcModelIcon model={modelPreference} size={14} /><span>{currentModel.label}{modelPreference === "auto" ? <small> · {resolvedModelName}</small> : null}</span><ChevronDown size={12} /></button>
-                <div className="arc-context-control">
+                <button type="button" className="arc-composer-pill arc-model-button" data-auto={modelPreference === "auto" ? "true" : "false"} title={modelPreference === "auto" ? `Arc Auto is routing this request to ${resolvedModelName}` : `Model: ${currentModel.label}`} aria-label={`Model: ${currentModel.label}${modelPreference === "auto" ? `. Currently routes to Arc ${resolvedModelName}.` : ""}`} aria-haspopup="menu" aria-controls={composerMenu === "model" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "model"} onClick={(event) => toggleComposerMenu("model", event.currentTarget)}><ArcModelIcon model={modelPreference} size={14} /><span>{currentModel.label}{modelPreference === "auto" ? <small> · {resolvedModelName}</small> : null}</span><ChevronDown size={12} /></button>
+                {showContextMeter ? <div className="arc-context-control">
                   <button type="button" className="arc-context-meter" data-level={contextState.level} aria-label={`Context window: ${contextState.pct}% used. Full workspace memory is always on.`} aria-expanded={contextInfoOpen} aria-controls="arc-context-info" onClick={() => { setComposerMenu(null); setContextInfoOpen((current) => !current); }} onKeyDown={(event) => { if (event.key === "Escape") setContextInfoOpen(false); }}>
                     <CircularProgress className="arc-context-progress" variant="determinate" value={contextState.pct} size={24} thickness={2.2} role="presentation" aria-hidden="true" />
                   </button>
@@ -1867,7 +1855,7 @@ export function ArcView({
                       </motion.div>
                     ) : null}
                   </AnimatePresence>
-                </div>
+                </div> : null}
               </div>
               <div className="arc-composer-send"><button type="button" className="arc-send-button" onClick={submitDraft} disabled={!draft.trim() || unresolvedSkillToken || unresolvedMentionToken || isSending || demoPending || uploading || isSavingSkill} aria-label="Send message">{isSending || demoPending || uploading || isSavingSkill ? <LoaderCircle size={18} className="is-spinning" /> : <ArrowUp size={18} />}</button></div>
             </div>
@@ -1882,7 +1870,7 @@ export function ArcView({
         {reviewCards && reviewCards.length > 0
           ? <AssetReviewPanel key="asset-review" cards={reviewCards} statuses={assetStatuses} onStatus={recordAssetStatus} onClose={() => setReviewCards(null)} />
           : workPanelOpen
-            ? <ArcWorkPanel key="work-panel" message={latestArcMessage} cards={workCards} statuses={assetStatuses} demoSeed={demoSeed} demoPending={demoPending} demoRequest={latestDemoRequest} onReview={openReview} onRecover={recoverRun} onClose={() => setWorkPanelVisibility(false)} />
+            ? <ArcWorkPanel key="work-panel" message={latestArcMessage} cards={workCards} statuses={assetStatuses} demoSeed={demoSeed} demoPending={demoPending} demoRequest={latestDemoRequest} demoOutcome={latestDemoArcTurn ? latestDemoArcTurn.outcome ?? "complete" : undefined} onReview={openReview} onRecover={recoverRun} onClose={() => setWorkPanelVisibility(false)} />
             : null}
       </AnimatePresence>
       <AnimatePresence>

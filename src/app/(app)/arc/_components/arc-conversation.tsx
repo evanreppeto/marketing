@@ -502,7 +502,16 @@ export function DemoConversation({
               steps={completedSteps}
               contract={turnContract}
             />
-            <div className="arc-answer"><p>{turn.body}</p></div>
+            {turn.outcome === "canceled" ? (
+              <div className="arc-answer"><p>{turn.body}</p></div>
+            ) : (
+              <div className="arc-result-receipt" data-intent={turnProfile.intent}>
+                <div className="arc-result-receipt-kicker"><Check size={13} /><span>{turnProfile.resultLabel}</span><em>Nothing sent</em></div>
+                <h2>{turnProfile.resultTitle}</h2>
+                <p>{turnProfile.completedSummary}</p>
+                <div className="arc-result-next"><ArrowRight size={14} /><span>{turnProfile.nextAction}</span></div>
+              </div>
+            )}
           </AssistantMessage>
         );
       })}

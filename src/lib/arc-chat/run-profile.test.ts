@@ -33,7 +33,22 @@ describe("buildArcRunProfile", () => {
     for (const profile of profiles) {
       expect(profile.activeLabel.length).toBeGreaterThan(0);
       expect(profile.approach).toContain("Workspace knowledge");
+      expect(profile.completedSummary).toContain("Workspace knowledge");
+      expect(profile.resultLabel.length).toBeGreaterThan(0);
+      expect(profile.resultTitle.length).toBeGreaterThan(0);
+      expect(profile.nextAction.length).toBeGreaterThan(0);
       expect(new Set(profile.phases.map((phase) => phase.id)).size).toBe(profile.phases.length);
     }
+  });
+
+  it("keeps the completion receipt specific to the request", () => {
+    const profile = buildArcRunProfile({
+      request: "Compare the roofing audiences that need attention next",
+      mode: "ask",
+      sources: ["CRM records"],
+    });
+
+    expect(profile.completedSummary).toContain("roofing audiences");
+    expect(profile.completedSummary).not.toBe("I analyzed the relevant records, checked the strongest patterns, and prepared an inspectable recommendation.");
   });
 });

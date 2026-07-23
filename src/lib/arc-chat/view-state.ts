@@ -10,6 +10,18 @@ export function shouldShowDemoLauncher({
   return selectedDemoId === "new" && turnCount === 0 && !pending;
 }
 
+export function shouldUseDemoSeedWorkspace({
+  live,
+  selectedDemoId,
+  turnCount,
+}: {
+  live: boolean;
+  selectedDemoId: string;
+  turnCount: number;
+}) {
+  return !live && selectedDemoId !== "new" && turnCount === 0;
+}
+
 export function getArcConversationScrollTarget({
   live,
   activeConversationId,

@@ -4,6 +4,7 @@ import {
   getArcConversationHeader,
   getArcConversationScrollTarget,
   shouldShowDemoLauncher,
+  shouldUseDemoSeedWorkspace,
 } from "./view-state";
 
 describe("shouldShowDemoLauncher", () => {
@@ -17,6 +18,20 @@ describe("shouldShowDemoLauncher", () => {
 
   it("does not replace an existing demo conversation with the launcher", () => {
     expect(shouldShowDemoLauncher({ selectedDemoId: "storm", turnCount: 0, pending: false })).toBe(false);
+  });
+});
+
+describe("shouldUseDemoSeedWorkspace", () => {
+  it("uses the historical workspace before a new turn starts", () => {
+    expect(shouldUseDemoSeedWorkspace({ live: false, selectedDemoId: "storm", turnCount: 0 })).toBe(true);
+  });
+
+  it("switches the workspace to the current run after the operator sends a message", () => {
+    expect(shouldUseDemoSeedWorkspace({ live: false, selectedDemoId: "storm", turnCount: 1 })).toBe(false);
+  });
+
+  it("never inserts seeded campaign context into a blank conversation", () => {
+    expect(shouldUseDemoSeedWorkspace({ live: false, selectedDemoId: "new", turnCount: 0 })).toBe(false);
   });
 });
 
