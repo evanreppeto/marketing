@@ -1675,13 +1675,19 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
           </div>
         ) : view.key === "higgsfield" ? (
           <div className="cxm-sec">
-            <div className="cxm-label">Connect</div>
-            <p className="cxm-hint">Sign in to your Higgsfield Ultra account. Arc gets its own key for this workspace and refreshes it automatically — no token to copy.</p>
-            <button className="btn gold" disabled={pending || !configured} onClick={() => { window.location.href = "/api/connectors/higgsfield/authorize"; }}>Connect with Higgsfield</button>
-            <div className="cxm-field" style={{ marginTop: 12 }}>
-              <input className="inp" type="password" placeholder="Or paste a token bundle" value={credential} onChange={(e) => setCredential(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") connect(); }} />
-              <button className="btn sm" disabled={pending || !credential.trim()} onClick={connect}>Save</button>
+            <div className="cxm-label">Option 1 — Cloud API key (recommended for teams)</div>
+            <p className="cxm-hint">
+              Create a key at cloud.higgsfield.ai → API keys and paste it here. This is the supported path for the
+              hosted runner: it belongs to your Higgsfield organization, uses your credits, and has no signed-in
+              session to expire. The key is verified with Higgsfield before it&apos;s stored.
+            </p>
+            <div className="cxm-field">
+              <input className="inp" type="password" placeholder="Higgsfield Cloud API key" value={credential} onChange={(e) => setCredential(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") connect(); }} />
+              <button className="btn gold" disabled={pending || !credential.trim()} onClick={connect}>{pending ? "Verifying…" : "Connect"}</button>
             </div>
+            <div className="cxm-label" style={{ marginTop: 16 }}>Option 2 — Personal account (OAuth)</div>
+            <p className="cxm-hint">Sign in to your Higgsfield Ultra account. Arc gets its own key for this workspace and refreshes it automatically — no token to copy.</p>
+            <button className="btn sm" disabled={pending || !configured} onClick={() => { window.location.href = "/api/connectors/higgsfield/authorize"; }}>Connect with Higgsfield</button>
           </div>
         ) : (
           <div className="cxm-sec">
