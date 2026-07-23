@@ -14,6 +14,9 @@ export type ArcRunProfile = {
   activeLabel: string;
   approach: string;
   completedSummary: string;
+  resultLabel: string;
+  resultTitle: string;
+  nextAction: string;
   phases: ArcRunPhase[];
 };
 
@@ -48,6 +51,12 @@ function sourceText(sources: string[]) {
   return sources.length > 0 ? sources.join(", ") : "the current conversation";
 }
 
+function requestFocus(request?: string | null) {
+  const normalized = request?.trim().replace(/\s+/g, " ") ?? "";
+  if (!normalized) return "your request";
+  return normalized.length > 92 ? `${normalized.slice(0, 89).trimEnd()}…` : normalized;
+}
+
 export function buildArcRunProfile(input: {
   request?: string | null;
   mode?: ArcMode;
@@ -56,13 +65,17 @@ export function buildArcRunProfile(input: {
 }): ArcRunProfile {
   const intent = inferArcRunIntent(input);
   const sources = sourceText(input.sources ?? []);
+  const focus = requestFocus(input.request);
 
   if (intent === "research") {
     return {
       intent,
       activeLabel: "Researching",
       approach: `I’ll turn this into a focused search across ${sources}, compare the strongest evidence, and show what supports the answer.`,
-      completedSummary: "I searched the selected sources, compared the evidence, and organized the strongest findings.",
+      completedSummary: `I searched ${sources} for “${focus}”, compared the evidence, and separated the strongest findings from weaker signals.`,
+      resultLabel: "Research brief",
+      resultTitle: "The strongest findings are organized for review.",
+      nextAction: "Open the supporting activity, narrow the question, or ask Arc to turn a finding into a draft.",
       phases: [
         { id: "shape-search", label: "Shape the search", detail: "Defining the question, signals, and useful sources", kind: "think" },
         { id: "search-sources", label: "Search connected sources", detail: `Looking across ${sources}`, kind: "search" },
@@ -77,7 +90,10 @@ export function buildArcRunProfile(input: {
       intent,
       activeLabel: "Analyzing",
       approach: `I’ll frame the decision, pull the relevant evidence from ${sources}, test the strongest patterns, and make the conclusion easy to inspect.`,
-      completedSummary: "I analyzed the relevant records, checked the strongest patterns, and prepared an inspectable recommendation.",
+      completedSummary: `I analyzed “${focus}” against ${sources}, checked the strongest patterns and outliers, and prepared an inspectable recommendation.`,
+      resultLabel: "Recommendation",
+      resultTitle: "The decision is ready to inspect.",
+      nextAction: "Review the evidence and choose whether Arc should refine, draft, or apply the recommendation.",
       phases: [
         { id: "frame-decision", label: "Frame the decision", detail: "Identifying the outcome, comparison, and success criteria", kind: "think" },
         { id: "pull-records", label: "Pull relevant records", detail: `Reading the useful evidence from ${sources}`, kind: "search" },
@@ -93,7 +109,10 @@ export function buildArcRunProfile(input: {
       intent,
       activeLabel: "Creating",
       approach: `I’ll read the brief, use ${sources} for brand and audience grounding, create a first pass, then check it before placing it behind review.`,
-      completedSummary: "I used the brief and selected context to create a review-ready first pass without sending anything externally.",
+      completedSummary: `I used ${sources} to create a review-ready first pass for “${focus}”. Nothing was sent externally.`,
+      resultLabel: "Created",
+      resultTitle: "A review-ready first pass is complete.",
+      nextAction: "Review the output, request a revision, or approve it when it is ready to use.",
       phases: [
         { id: "read-brief", label: "Read the creative brief", detail: "Identifying the format, audience, tone, and goal", kind: "think" },
         { id: "gather-creative-context", label: "Gather brand and audience context", detail: `Pulling the useful constraints from ${sources}`, kind: "search" },
@@ -109,7 +128,10 @@ export function buildArcRunProfile(input: {
       intent,
       activeLabel: "Working",
       approach: `I’ll inspect the current state in ${sources}, verify the target and permissions, apply only the requested workspace change, and record the result.`,
-      completedSummary: "I checked the current workspace state, applied the requested internal change, and recorded the result without external sends.",
+      completedSummary: `I checked ${sources} for “${focus}”, applied the requested internal change, and recorded the result without external sends.`,
+      resultLabel: "Completed",
+      resultTitle: "The requested workspace change is complete.",
+      nextAction: "Inspect the recorded activity or ask Arc to make the next related change.",
       phases: [
         { id: "confirm-target", label: "Confirm target and permissions", detail: "Checking scope, safeguards, and the requested outcome", kind: "think" },
         { id: "inspect-state", label: "Inspect the current workspace state", detail: `Reading the relevant records from ${sources}`, kind: "search" },
@@ -124,7 +146,10 @@ export function buildArcRunProfile(input: {
     intent,
     activeLabel: "Answering",
     approach: `I’ll answer directly, using ${sources} only where it improves accuracy or context.`,
-    completedSummary: "I used the conversation and relevant context to prepare a direct answer.",
+    completedSummary: `I used ${sources} to answer “${focus}” directly and kept the supporting context available in the run activity.`,
+    resultLabel: "Answer",
+    resultTitle: "Here is the direct answer.",
+    nextAction: "Ask a follow-up or open the activity to inspect the context Arc used.",
     phases: [
       { id: "understand-question", label: "Understand the question", detail: "Reading the conversation and identifying the real ask", kind: "think" },
       { id: "recall-context", label: "Recall relevant context", detail: `Checking ${sources} for useful background`, kind: "search" },

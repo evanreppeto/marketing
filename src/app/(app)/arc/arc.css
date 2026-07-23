@@ -316,6 +316,71 @@
 }
 .arc-answer > p:first-child,
 .arc-markdown > p:first-child { color: var(--text); }
+.arc-result-receipt {
+  position: relative;
+  max-width: 76ch;
+  overflow: hidden;
+  margin-top: 15px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 34%),
+    color-mix(in srgb, var(--panel) 62%, var(--canvas));
+  padding: 17px 18px 16px;
+}
+.arc-result-receipt::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--accent);
+}
+.arc-result-receipt-kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-contrast);
+  font-size: 10px;
+  font-weight: 680;
+  letter-spacing: .065em;
+  text-transform: uppercase;
+}
+.arc-result-receipt-kicker em {
+  margin-left: auto;
+  color: var(--ok-text);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 620;
+  letter-spacing: .03em;
+  text-transform: none;
+}
+.arc-result-receipt h2 {
+  margin: 10px 0 7px;
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: clamp(20px, 2vw, 25px);
+  font-weight: 540;
+  line-height: 1.22;
+  letter-spacing: -.018em;
+}
+.arc-result-receipt > p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.62;
+}
+.arc-result-next {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 13px;
+  border-top: 1px solid var(--line);
+  padding-top: 11px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.arc-result-next svg { flex: 0 0 auto; margin-top: 1px; color: var(--accent); }
 .arc-response-evidence {
   max-width: 76ch;
   display: flex;
@@ -1240,6 +1305,9 @@
 .arc-mode-button:disabled { opacity: .62; cursor: not-allowed; }
 .arc-model-button { padding-left: 7px; }
 .arc-model-button > svg:first-child { color: var(--muted); }
+.arc-model-button[data-auto="true"] { width: 32px; padding: 0; }
+.arc-model-button[data-auto="true"] span,
+.arc-model-button[data-auto="true"] > svg:last-child { display: none; }
 .arc-auto-mark { color: currentColor; overflow: visible; }
 .arc-auto-mark path,
 .arc-auto-mark circle {
@@ -1604,11 +1672,14 @@
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 11px;
 }
 .arc-work-run-status span { display: inline-flex; align-items: center; gap: 7px; color: var(--text-2); font-weight: 580; }
 .arc-work-run-status span i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 12%, transparent); }
-.arc-work-run-status.is-running span i { background: var(--accent); animation: arc-status-pulse 1.4s ease-in-out infinite; }
+.arc-work-run-status[data-state="working"] span i { background: var(--accent); animation: arc-status-pulse 1.4s ease-in-out infinite; }
+.arc-work-run-status[data-state="failed"] span { color: var(--red-text); }
+.arc-work-run-status[data-state="failed"] span i { background: var(--priority); box-shadow: 0 0 0 3px color-mix(in srgb, var(--priority) 12%, transparent); }
+.arc-work-run-status[data-state="canceled"] span i { background: var(--muted); box-shadow: none; }
 .arc-work-run-status em { font-family: var(--mono); font-style: normal; }
 .arc-work-count {
   position: absolute;
@@ -1634,8 +1705,8 @@
 .arc-work-activity > div:last-child { border-bottom: 0; }
 .arc-work-activity > div > span { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; background: var(--panel); color: var(--muted); }
 .arc-work-activity > div > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.arc-work-activity b { color: var(--text-2); font-size: 10.5px; font-weight: 570; line-height: 1.35; }
-.arc-work-activity small { color: var(--muted); font-size: 9.5px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arc-work-activity b { color: var(--text-2); font-size: 11.5px; font-weight: 570; line-height: 1.35; }
+.arc-work-activity small { color: var(--muted); font-size: 10.5px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arc-work-activity > div > svg { color: var(--muted); }
 .arc-work-activity > div.is-done > svg { color: var(--ok); }
 .arc-work-activity > div.is-running > svg { color: var(--accent); animation: arc-spin 1s linear infinite; }

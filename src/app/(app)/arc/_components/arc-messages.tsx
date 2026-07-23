@@ -60,6 +60,8 @@ import type {
 } from "@/lib/arc-chat/persistence";
 import type { ArcRunContract } from "@/lib/arc-chat/run-contract";
 import { visibleRecallCount } from "@/lib/arc-chat/recall-visibility";
+import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
+import { resolveArcRunViewState } from "@/lib/arc-chat/run-view-state";
 
 import {
   decideArcDraftAction,
@@ -517,6 +519,7 @@ export function ArcWorkPanel({
   demoSeed,
   demoPending,
   demoRequest,
+  demoOutcome,
   onReview,
   onRecover,
   onClose,
@@ -527,6 +530,7 @@ export function ArcWorkPanel({
   demoSeed: boolean;
   demoPending: boolean;
   demoRequest?: string;
+  demoOutcome?: "complete" | "canceled";
   onReview: (cards: ArcActionCard[]) => void;
   onRecover: (prompt: string) => void;
   onClose: () => void;
@@ -534,6 +538,7 @@ export function ArcWorkPanel({
   const reduceMotion = useReducedMotion();
   const [tab, setTab] = useState<WorkPanelTab>("work");
   const [showAllActivity, setShowAllActivity] = useState(false);
+  const [demoActiveIndex, setDemoActiveIndex] = useState(0);
 
   useEffect(() => {
     try {
@@ -555,10 +560,25 @@ export function ArcWorkPanel({
       /* localStorage unavailable — the in-session state still works */
     }
   };
-  const demoWork = demoPending ? buildDemoLiveWork(demoRequest) : null;
+  const demoWork = demoRequest ? buildDemoLiveWork(demoRequest) : null;
+  const demoProfile = demoRequest ? buildArcRunProfile({
+    request: demoRequest,
+    sources: ["Workspace knowledge", "CRM records", "Campaign context"],
+  }) : null;
   const reasoning = message?.reasoning?.trim()
-    || demoWork?.commentary
+    || (demoPending ? demoWork?.commentary : demoOutcome === "canceled" ? "The run ended at your request. Completed work remains visible, and no external action was taken." : demoProfile?.completedSummary)
     || (demoSeed ? "Arc matched storm exposure against CRM history, ranked the strongest opportunities, and used those signals to shape a review-ready campaign package." : null);
+
+  useEffect(() => {
+    if (!demoPending || reduceMotion || !demoWork?.rows.length) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a new demo request starts a fresh progress sequence
+    setDemoActiveIndex(0);
+    const interval = window.setInterval(() => {
+      setDemoActiveIndex((current) => Math.min(current + 1, demoWork.rows.length - 1));
+    }, 1350);
+    return () => window.clearInterval(interval);
+  }, [demoPending, demoRequest, demoWork?.rows.length, reduceMotion]);
+
   const activityRows: RunRow[] = message
     ? [
         ...message.steps.map((step, index) => ({
@@ -576,7 +596,14 @@ export function ArcWorkPanel({
           kind: getToolKind(tool.name),
         })),
       ]
-    : demoWork?.rows
+    : demoOutcome === "canceled"
+      ? [{ id: "demo-panel-canceled", label: "Stopped before remaining work was applied", detail: "Completed work remains available", status: "done" as const, kind: "think" as const }]
+      : !demoPending && demoProfile
+        ? demoProfile.phases.map((phase) => ({ id: `demo-panel-${phase.id}`, label: phase.label, detail: phase.detail, status: "done" as const, kind: phase.kind }))
+        : demoWork?.rows.map((row, index) => ({
+            ...row,
+            status: index < demoActiveIndex ? "done" as const : index === demoActiveIndex ? "running" as const : "queued" as const,
+          }))
       ?? (demoSeed
         ? [
             ...DEMO_STEPS.map((step, index) => ({ id: `demo-panel-step-${index}`, label: step.label, detail: step.detail?.join(" · "), status: "done" as const, kind: step.kind ?? "think" })),
@@ -589,9 +616,15 @@ export function ArcWorkPanel({
   const reviewableCards = cards.filter((card) => card.approval);
   const statusOf = (card: ArcActionCard) => statuses[card.approval?.assetId ?? ""] ?? card.status ?? null;
   const approvedCount = cards.filter((card) => statusOf(card) === "approved").length;
-  const completedActivityCount = activityRows.filter((row) => row.status === "done").length;
-  const hasActiveWork = activityRows.some((row) => row.status === "running");
-  const hasFailedWork = activityRows.some((row) => row.status === "error");
+  const runView = resolveArcRunViewState({
+    pending: demoPending,
+    messageStatus: message?.status,
+    outcome: demoOutcome,
+    rows: activityRows,
+    hasContent: Boolean(reasoning),
+  });
+  const hasActiveWork = runView.state === "working";
+  const hasFailedWork = runView.state === "failed";
   const visibleActivityRows = hasActiveWork || showAllActivity ? activityRows : activityRows.slice(0, 3);
 
   const tabs: Array<{ id: WorkPanelTab; label: string; icon: typeof Brain }> = [
@@ -628,8 +661,8 @@ export function ArcWorkPanel({
             <motion.div key={tab} role="tabpanel" id={`arc-work-panel-${tab}`} aria-labelledby={`arc-work-tab-${tab}`} className="arc-work-view" initial={reduceMotion ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: 0.16 }}>
               {tab === "work" ? (
                 <>
-                  {activityRows.length > 0 ? <div className={`arc-work-run-status ${hasActiveWork ? "is-running" : "is-complete"}`}><span><i />{hasActiveWork ? "Arc is working" : "Run complete"}</span><em>{completedActivityCount}/{activityRows.length} activities</em></div> : null}
-                  <div className="arc-work-heading"><span>{reasoning ? "Reasoning" : "Run"}</span><h3>{demoPending || message?.status === "pending" ? "Working through the request" : reasoning ? "How Arc approached this" : activityRows.length > 0 ? "Completed work" : "Ready for the next request"}</h3></div>
+                  {activityRows.length > 0 || reasoning ? <div className="arc-work-run-status" data-state={runView.state}><span><i />{runView.label}</span>{runView.progressLabel ? <em>{runView.progressLabel}</em> : null}</div> : null}
+                  <div className="arc-work-heading"><span>{reasoning ? "Run context" : "Run"}</span><h3>{runView.heading}</h3></div>
                   {reasoning ? <p className="arc-work-reasoning">{reasoning}</p> : activityRows.length === 0 ? <div className="arc-work-empty">Activity and decisions will appear here as Arc works.</div> : null}
                   <section className="arc-artifact-section">
                     <h4>Activity</h4>
