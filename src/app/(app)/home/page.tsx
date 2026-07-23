@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { humanizePersonaLabel as humanizePersona } from "@/domain";
 import { resolveViewerName } from "@/lib/auth/display-name";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getAnalyticsOverview, type OverviewKpi, type TrendKey } from "@/lib/analytics/overview";
@@ -12,11 +13,6 @@ import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getWorkspaceSummary } from "@/lib/workspace-summary/read-model";
 
 export const metadata = { title: "Home — Arc" };
-
-function humanizePersona(persona: string): string {
-  const s = (persona || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
-}
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
@@ -133,9 +129,14 @@ export default async function HomePage() {
             <div className="lab">Top opportunity</div>
             <div className="row1">
               <h2>{focal.title}</h2>
-              {evidenceFacts(focal.evidence).map((f, i) => (
-                <span className="cite" key={i} title={`From signal — ${f}`}>{i + 1}</span>
-              ))}
+              {evidenceFacts(focal.evidence).length > 0 && (
+                <span className="cites">
+                  <span className="cites-label">Evidence</span>
+                  {evidenceFacts(focal.evidence).map((f, i) => (
+                    <span className="cite" key={i} title={f}>{i + 1}</span>
+                  ))}
+                </span>
+              )}
               <div className="conf">
                 <span className="cl">Confidence</span>
                 <span className="track">

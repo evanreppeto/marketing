@@ -1,3 +1,4 @@
+import { humanizePersonaLabel } from "@/domain";
 import { getAnalyticsOverview } from "@/lib/analytics/overview";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getBusinessProfile } from "@/lib/brand-kit/persistence";
@@ -26,9 +27,8 @@ function initials(name: string): string {
 }
 
 function humanizePersona(persona: string): string {
-  const s = (persona || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
-  if (!s || /^unassigned/i.test(s)) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  const label = humanizePersonaLabel(persona);
+  return /^unassigned/i.test(label) ? "" : label;
 }
 
 function personaDot(persona: string): string {

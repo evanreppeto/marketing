@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 
-import { type AudienceResolution } from "@/domain";
+import { humanizePersonaLabel as humanizePersona, type AudienceResolution } from "@/domain";
 import { type AttachableMediaItem } from "@/lib/campaigns/attach-media";
 import {
   type CampaignMediaAsset,
@@ -34,11 +34,6 @@ const CATEGORY_LABEL: Record<CampaignWorkspaceAssetCategory, string> = {
   other: "Other deliverables",
 };
 const CATEGORY_ORDER: CampaignWorkspaceAssetCategory[] = ["virtual", "ads", "physical", "media", "other"];
-
-function humanizePersona(persona: string): string {
-  const s = (persona || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
-}
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);

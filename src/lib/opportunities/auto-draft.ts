@@ -27,6 +27,7 @@ import {
   DEFAULT_AUTO_DRAFT_CONFIDENCE_FLOOR,
   DEFAULT_AUTO_DRAFT_LIMIT,
   DEFAULT_AUTO_DRAFT_MAX_PER_KIND,
+  humanizePersonaLabel,
   isAllowedPersona,
   selectOpportunitiesForAutoDraft,
   summarizeAutoDraftSkips,
@@ -45,7 +46,7 @@ import { getOpportunityForCampaign } from "./read-model";
 
 /** `persona_property_manager` -> `Property Manager`; also fine for focus keys. */
 function humanizePersonaKey(key: string): string {
-  return (key || "").replace(/^persona_/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return humanizePersonaLabel(key);
 }
 
 /** The actor recorded on scheduled drafts, so they're distinguishable in the audit log. */

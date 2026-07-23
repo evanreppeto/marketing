@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { OFFICIAL_PERSONA_MAPPINGS } from "@/domain";
+import { OFFICIAL_PERSONA_MAPPINGS, humanizePersonaLabel } from "@/domain";
 
 import { Modal } from "../../../../_components/modal";
 
@@ -20,7 +20,7 @@ function titleize(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 function personaLabel(key: string): string {
-  return titleize(key.replace(/^persona_/, ""));
+  return humanizePersonaLabel(key);
 }
 
 export type EditRecordValue = { persona?: string; status?: string };

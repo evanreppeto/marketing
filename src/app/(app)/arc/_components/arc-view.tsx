@@ -1044,8 +1044,14 @@ export function ArcView({
   const composerMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLElement | null>(null);
+  const chatRootRef = useRef<HTMLDivElement | null>(null);
   const pinnedRef = useRef(true);
   const [showJump, setShowJump] = useState(false);
+  // Deliberate scroll-to-top calls (opening a thread at its start, a new chat)
+  // move scrollTop up exactly like a reader would — this window keeps the
+  // scroll listener from reading them as "the reader left the bottom".
+  const scrollGuardUntilRef = useRef(0);
+  const lastScrollTopRef = useRef(0);
   // Live reply pushed over SSE (body/reasoning/steps as they land), overlaid onto
   // the pending message for instant streaming without a full server refetch.
   const [streamOverlay, setStreamOverlay] = useState<ArcStreamOverlay | null>(null);
@@ -1070,7 +1076,11 @@ export function ArcView({
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("arc.workPanelOpen");
-      if (window.matchMedia("(min-width: 1400px)").matches && saved !== "0") {
+      // Auto-open only when the panel will dock beside a usable conversation —
+      // the 1000px threshold mirrors the @container query in arc.css, measured
+      // on the chat area itself (the viewport lies once the nav rail is added).
+      const chatWidth = chatRootRef.current?.clientWidth ?? 0;
+      if (chatWidth >= 1000 && saved !== "0") {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restored after hydration so server and client markup stay identical
         setWorkPanelOpen(true);
       }
@@ -1088,6 +1098,17 @@ export function ArcView({
     requestAnimationFrame(() => {
       const el = scrollRef.current;
       if (el) el.scrollTo({ top: el.scrollHeight, behavior });
+    });
+  }, []);
+
+  // Deliberate jump to the start of the feed (thread openers, new chat). Guarded
+  // so the pin tracker doesn't read the upward jump as the reader scrolling away.
+  const scrollToStart = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      scrollGuardUntilRef.current = performance.now() + 400;
+      el.scrollTo({ top: 0, behavior: "instant" });
     });
   }, []);
 
@@ -1133,13 +1154,16 @@ export function ArcView({
   }, [awaitingReply, router]);
 
   // Track whether the reader is pinned to the bottom, so we only auto-follow the
-  // stream when they haven't scrolled up to read. We unpin on a genuine USER
-  // scroll-up (wheel / touch), not on the `scroll` event — streamed content and
-  // the row animations fire scroll events constantly, and reading those as intent
-  // would unpin us mid-stream. We re-pin when the user returns near the bottom.
+  // stream when they haven't scrolled up to read. Wheel and touch are the
+  // fast-path intent signals; the scroll listener additionally unpins on any
+  // UPWARD movement we didn't initiate, which is the only way to catch scrollbar
+  // drags, keyboard scrolling, and assistive tech. Content growth and our own
+  // bottom-follow can only move scrollTop toward larger values, so streamed
+  // content never trips the upward check. We re-pin near the bottom.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    lastScrollTopRef.current = el.scrollTop;
     // Tight threshold so a deliberate scroll-up reliably breaks the follow (and
     // isn't immediately re-pinned) — you re-pin only by returning to the bottom.
     const nearBottom = () => el.scrollHeight - el.scrollTop - el.clientHeight < 48;
@@ -1158,10 +1182,15 @@ export function ArcView({
       touchY = y;
     };
     const onScroll = () => {
+      const top = el.scrollTop;
+      const previous = lastScrollTopRef.current;
+      lastScrollTopRef.current = top;
       if (nearBottom()) {
         pinnedRef.current = true;
         setShowJump(false); // no-op re-render when already hidden
+        return;
       }
+      if (top < previous - 1 && performance.now() > scrollGuardUntilRef.current) unpin();
     };
     el.addEventListener("wheel", onWheel, { passive: true });
     el.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -1198,13 +1227,11 @@ export function ArcView({
   useEffect(() => {
     pinnedRef.current = true;
     if (getArcConversationScrollTarget({ live, activeConversationId: visibleConversationId, selectedDemoId }) === "start") {
-      window.requestAnimationFrame(() => {
-        scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
-      });
+      scrollToStart();
       return;
     }
     scrollToEnd();
-  }, [visibleConversationId, live, selectedDemoId, scrollToEnd]);
+  }, [visibleConversationId, live, selectedDemoId, scrollToEnd, scrollToStart]);
 
   useEffect(() => () => {
     if (demoTimer.current != null) window.clearTimeout(demoTimer.current);
@@ -1494,10 +1521,8 @@ export function ArcView({
     setDemoTurns([]);
     setDemoPending(false);
     if (id === "new") {
-      window.requestAnimationFrame(() => {
-        scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
-        composerInputRef.current?.focus();
-      });
+      scrollToStart();
+      window.requestAnimationFrame(() => composerInputRef.current?.focus());
     }
   };
 
@@ -1516,10 +1541,8 @@ export function ArcView({
     setAttachments([]);
     setCommand(null);
     pinnedRef.current = true;
-    window.requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
-      composerInputRef.current?.focus();
-    });
+    scrollToStart();
+    window.requestAnimationFrame(() => composerInputRef.current?.focus());
   };
 
   const openReview = (cards: ArcActionCard[]) => {
@@ -1710,7 +1733,7 @@ export function ArcView({
   };
 
   return (
-    <div className="arc-chat" data-workspace-open={panelVisible ? "true" : "false"} data-new-conversation={live && !visibleConversationId && visibleMessages.length === 0 && !optimisticTurn ? "true" : "false"}>
+    <div className="arc-chat" ref={chatRootRef} data-workspace-open={panelVisible ? "true" : "false"} data-new-conversation={live && !visibleConversationId && visibleMessages.length === 0 && !optimisticTurn ? "true" : "false"}>
       <header className="arc-conversation-header">
         <button type="button" className="arc-history-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversations"><MessagesSquare size={17} /><span>Conversations</span></button>
         <div className="arc-conversation-title"><h1>{header.title}</h1><p>{header.subtitle}</p></div>
@@ -1724,7 +1747,7 @@ export function ArcView({
       <main className="arc-conversation-scroll" ref={scrollRef}>
         <div className="arc-conversation-column">
           {live && historyLoadError ? <div className="arc-history-load-error" role="status"><CircleAlert size={15} /><span><b>History is temporarily unavailable.</b>{historyLoadError}</span></div> : null}
-          {live ? <LiveConversation messages={renderedMessages} optimisticTurn={optimisticTurn} operatorName={greetName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={updateDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : showDemoLauncher ? <ArcLauncher greetName={greetName} waiting={DEMO_WAITING} onPick={updateDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} includeSeed={selectedDemoId !== "new"} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} />}
+          {live ? <LiveConversation messages={renderedMessages} optimisticTurn={optimisticTurn} operatorName={greetName} waiting={waiting} assetStatuses={assetStatuses} onSuggestion={updateDraft} onReview={openReview} onEdit={handleEditResend} onRegenerate={handleRegenerate} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} onAssetStatus={recordAssetStatus} /> : showDemoLauncher ? <ArcLauncher greetName={greetName} waiting={DEMO_WAITING} onPick={updateDraft} /> : <DemoConversation turns={demoTurns} pending={demoPending} includeSeed={selectedDemoId !== "new"} packageStatuses={assetStatuses} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReview={openReview} onEditResend={demoEditResend} onStop={stopDemoRun} onAssetStatus={recordAssetStatus} />}
           <div ref={endRef} />
         </div>
       </main>
@@ -1852,13 +1875,18 @@ export function ArcView({
         </div>
       </footer>
 
-      <AnimatePresence>
-        {panelVisible ? <motion.button type="button" className="arc-workspace-scrim" aria-label="Close conversation workspace" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setReviewCards(null); setWorkPanelVisibility(false); }} /> : null}
+      {/* The two side panels swap in place, so they get their own presence scope:
+          mode="wait" lets the outgoing panel finish exiting before the next one
+          enters — rendering both at once cross-fades their text on top of each other. */}
+      <AnimatePresence mode="wait">
         {reviewCards && reviewCards.length > 0
           ? <AssetReviewPanel key="asset-review" cards={reviewCards} statuses={assetStatuses} onStatus={recordAssetStatus} onClose={() => setReviewCards(null)} />
           : workPanelOpen
             ? <ArcWorkPanel key="work-panel" message={latestArcMessage} cards={workCards} statuses={assetStatuses} demoSeed={demoSeed} demoPending={demoPending} demoRequest={latestDemoRequest} onReview={openReview} onRecover={recoverRun} onClose={() => setWorkPanelVisibility(false)} />
             : null}
+      </AnimatePresence>
+      <AnimatePresence>
+        {panelVisible ? <motion.button type="button" className="arc-workspace-scrim" aria-label="Close conversation workspace" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setReviewCards(null); setWorkPanelVisibility(false); }} /> : null}
         {historyOpen ? <Fragment key="arc-workspace"><motion.button type="button" className="arc-drawer-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setHistoryOpen(false)} aria-label="Close Arc workspace" /><ThreadDrawer live={live} groups={threadGroups} activeConversationId={visibleConversationId} selectedDemoId={selectedDemoId} needsReviewCount={needsReviewCards.length} onSelectDemo={selectDemoThread} onStartNew={startNewConversation} onOpenReview={() => { setHistoryOpen(false); openReview(needsReviewCards); }} onUseSkill={applyDrawerSkill} installedSkills={installedSkills} installedSkillKeys={installedSkillKeys} installingSkillKey={installingSkillKey} onSetSkillInstalled={setLibrarySkillInstalled} workspaceSkills={workspaceSkills} onWorkspaceSkillsChange={setWorkspaceSkills} generatedSkills={generatedSkills} onGeneratedSkillsChange={setGeneratedSkills} workspaceName={workspaceName} campaignItems={mentionGroups.find((group) => group.type === "campaign")?.items ?? []} connectorsConfigured={connectorsConfigured} connectors={connectors} emailConnection={emailConnection} liveSendEnabled={liveSendEnabled} onClose={() => setHistoryOpen(false)} /></Fragment> : null}
         {shareOpen ? <ShareDialog key="share-dialog" conversationId={visibleConversationId} onClose={() => setShareOpen(false)} /> : null}
       </AnimatePresence>

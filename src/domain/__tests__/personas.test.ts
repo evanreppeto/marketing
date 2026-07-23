@@ -3,11 +3,32 @@ import { describe, expect, it } from "vitest";
 import {
   INTERNAL_UNASSIGNED_PERSONA,
   OFFICIAL_PERSONA_MAPPINGS,
+  humanizePersonaLabel,
   isAllowedForLeadIngestion,
   isAllowedPersona,
   isOfficialPersonaMapping,
   validateLeadIngestionPersona,
 } from "../personas";
+
+describe("humanizePersonaLabel", () => {
+  it("sentence-cases a persona key", () => {
+    expect(humanizePersonaLabel("persona_property_manager")).toBe("Property manager");
+    expect(humanizePersonaLabel("persona_homeowner_emergency")).toBe("Homeowner emergency");
+  });
+
+  it("keeps acronyms uppercase instead of 'Hoa board' / 'Hvac …' / 'Gc …'", () => {
+    expect(humanizePersonaLabel("persona_hoa_board")).toBe("HOA board");
+    expect(humanizePersonaLabel("persona_hvac_roof_electrical_partner")).toBe("HVAC roof electrical partner");
+    expect(humanizePersonaLabel("persona_gc_remodeler_partner")).toBe("GC remodeler partner");
+  });
+
+  it("handles slugs without the persona prefix, hyphens, and empty input", () => {
+    expect(humanizePersonaLabel("hoa-board")).toBe("HOA board");
+    expect(humanizePersonaLabel("wedding_lead")).toBe("Wedding lead");
+    expect(humanizePersonaLabel(INTERNAL_UNASSIGNED_PERSONA)).toBe("Unassigned persona");
+    expect(humanizePersonaLabel("")).toBe("");
+  });
+});
 
 describe("persona mappings", () => {
   it("contains the 12 official persona tags", () => {

@@ -1,4 +1,4 @@
-import { buildCampaignSeedFromOpportunity } from "@/domain";
+import { buildCampaignSeedFromOpportunity, humanizePersonaLabel } from "@/domain";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { crmRecordHref, listOpenOpportunities, type OpportunityRecord } from "@/lib/opportunities/read-model";
@@ -17,9 +17,8 @@ function humanize(value: string): string {
 }
 
 function humanizePersona(persona: string): string {
-  const s = (persona || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
-  if (!s || /^unassigned/i.test(s)) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  const label = humanizePersonaLabel(persona);
+  return /^unassigned/i.test(label) ? "" : label;
 }
 
 

@@ -145,10 +145,17 @@ function Svg({ markup }: { markup: string }) {
 function ThumbMedia({ a }: { a: Asset }) {
   const url = a.img || SC2IMG[a.sc];
   const [failed, setFailed] = useState(false);
-  if (url && !failed) {
-    return <img src={url} loading="lazy" alt="" onError={() => setFailed(true)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />;
-  }
-  return <Svg markup={SC[a.sc] || SC.photo} />;
+  // The SVG placeholder always renders underneath: a remote thumb that is slow,
+  // blocked, or offline leaves art on the card instead of a bare grey box. The
+  // image simply covers it once it paints.
+  return (
+    <>
+      <Svg markup={SC[a.sc] || SC.photo} />
+      {url && !failed ? (
+        <img src={url} loading="lazy" alt="" onError={() => setFailed(true)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+      ) : null}
+    </>
+  );
 }
 function Ico({ d }: { d: string }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} dangerouslySetInnerHTML={{ __html: d }} />;

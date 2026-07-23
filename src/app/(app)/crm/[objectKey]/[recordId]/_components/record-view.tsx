@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
+import { humanizePersonaLabel } from "@/domain";
 import { type CrmRecordData, type CrmRecordGraphNode, type CrmRecordRelationship } from "@/lib/crm/read-model";
 import { type NoteEntry, type TaskEntry, type TimelineEntry } from "@/lib/interactions/read-model";
 
@@ -71,9 +72,8 @@ const KIND_COLOR: Record<string, string> = {
 };
 
 function humanizePersona(persona: string): string {
-  const s = (persona || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
-  if (!s || /^unassigned/i.test(s)) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  const label = humanizePersonaLabel(persona);
+  return /^unassigned/i.test(label) ? "" : label;
 }
 
 // Read-model persona values arrive as "Persona Plumbing Partner"; the chip and

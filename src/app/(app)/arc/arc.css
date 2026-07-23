@@ -6,7 +6,6 @@
   --arc-fast: 140ms;
   --arc-base: 220ms;
   --arc-slow: 420ms;
-  --arc-workspace-width: clamp(360px, 28vw, 420px);
   position: relative;
   flex: 1;
   min-width: 0;
@@ -16,6 +15,10 @@
   overflow: hidden;
   background: var(--canvas);
   color: var(--text);
+  /* The chat area is a size container: whether the workspace panel docks or
+     overlays is decided by the chat area's own width, not the viewport, so the
+     nav rail (or an embedded preview) can't skew the breakpoint. */
+  container-type: inline-size;
 }
 
 .arc-chat button,
@@ -33,9 +36,6 @@
 .arc-conversation-scroll,
 .arc-composer-dock { transition: margin-right var(--arc-base) var(--arc-curve); }
 
-.arc-chat[data-workspace-open="true"] > .arc-conversation-header,
-.arc-chat[data-workspace-open="true"] > .arc-conversation-scroll,
-.arc-chat[data-workspace-open="true"] > .arc-composer-dock { margin-right: var(--arc-workspace-width); }
 
 /* ── Conversation header ────────────────────────────────────────────────── */
 .arc-conversation-header {
@@ -751,7 +751,7 @@
 }
 .arc-package-title { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .arc-package-title b { color: var(--text); font-size: 13px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.arc-package-title small { color: var(--muted); font-size: 10.5px; text-transform: capitalize; }
+.arc-package-title small { color: var(--muted); font-size: 10.5px; }
 .arc-package-channels { min-width: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .arc-package-channels > span { position: relative; display: grid; grid-template-columns: 8px minmax(0, 1fr); align-items: center; column-gap: 6px; color: var(--text-2); font-size: 10.5px; min-width: 0; }
 .arc-package-channels i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
@@ -1348,6 +1348,61 @@
 .arc-composer-chip > button:hover { background: rgba(255, 255, 255, .08); }
 .arc-composer-notice { color: var(--muted); font-size: 10px; }
 
+/* ── Message context menu (right-click) ─────────────────────────────────
+   Portaled to <body> (the chat root's containment would trap fixed elements),
+   so these rules must not depend on .arc-chat scoping. */
+.arc-context-menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 216px;
+  border: 1px solid var(--line-3);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 5px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .54);
+  animation: arc-context-in 130ms cubic-bezier(.16, 1, .3, 1);
+}
+@keyframes arc-context-in { from { opacity: 0; transform: translateY(3px) scale(.985); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .arc-context-menu { animation: none; } }
+.arc-context-menu button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  padding: 8px 9px;
+  font-size: 11.5px;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+}
+.arc-context-menu button:hover:not(:disabled),
+.arc-context-menu button:focus-visible { color: var(--text); background: rgba(255, 255, 255, .05); outline: 0; }
+.arc-context-menu button:disabled { color: var(--muted); cursor: default; }
+.arc-context-menu button svg { color: var(--muted); }
+.arc-context-menu button:hover:not(:disabled) svg { color: var(--text-2); }
+.arc-context-menu button small { color: var(--muted); font-size: 9.5px; }
+.arc-context-sep { height: 1px; margin: 4px 7px; background: var(--line); }
+.arc-context-toast {
+  position: fixed;
+  z-index: 80;
+  transform: translateY(-4px);
+  border: 1px solid var(--line-3);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ok-text);
+  padding: 6px 10px;
+  font-size: 10.5px;
+  font-weight: 550;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .5);
+  animation: arc-context-in 130ms cubic-bezier(.16, 1, .3, 1);
+  pointer-events: none;
+}
+
 .arc-composer-menu {
   position: absolute;
   left: 11px;
@@ -1467,7 +1522,7 @@
   position: absolute;
   inset: 0 0 0 auto;
   z-index: 24;
-  width: var(--arc-workspace-width);
+  width: min(390px, calc(100% - 42px));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   border-left: 1px solid var(--line-3);
@@ -1709,7 +1764,7 @@
   background: rgba(7, 7, 9, .66);
   cursor: default;
 }
-.arc-workspace-scrim { display: none; }
+.arc-workspace-scrim { position: absolute; inset: 0; z-index: 18; display: block; border: 0; background: rgba(7, 7, 9, .58); }
 .arc-history {
   position: absolute;
   inset: 0 auto 0 0;
@@ -2095,16 +2150,19 @@
 .arc-share-notice { color: var(--ok-text); font-size: 11px; margin: 11px 0 0; }
 
 /* ── Responsive behavior ────────────────────────────────────────────────── */
-@media (max-width: 1399px) {
+/* Docked workspace: when the chat area itself has room (≥1000px), the panel
+   docks beside a still-interactive conversation — no scrim, the composer stays
+   live. Below that, the panel overlays and the scrim gates the chat. This block
+   must stay after the base overlay rules: @container adds no specificity, so
+   source order is what lets the docked state win. */
+@container (min-width: 1000px) {
   .arc-chat[data-workspace-open="true"] > .arc-conversation-header,
   .arc-chat[data-workspace-open="true"] > .arc-conversation-scroll,
-  .arc-chat[data-workspace-open="true"] > .arc-composer-dock { margin-right: 0; }
-  .arc-artifact-workspace { width: min(390px, calc(100% - 42px)); }
-  .arc-workspace-scrim { position: absolute; inset: 0; z-index: 18; display: block; border: 0; background: rgba(7, 7, 9, .58); }
-  .arc-artifact-workspace { z-index: 19; }
-}
-
-@media (min-width: 1400px) {
+  .arc-chat[data-workspace-open="true"] > .arc-composer-dock { margin-right: clamp(340px, 30cqi, 420px); }
+  .arc-artifact-workspace { width: clamp(340px, 30cqi, 420px); box-shadow: none; }
+  .arc-workspace-scrim { display: none; }
+  /* The narrowed conversation column reflows the package card so its channel
+     grid wraps under the title instead of crushing it. */
   .arc-chat[data-workspace-open="true"] .arc-package-row { grid-template-columns: 36px minmax(140px, 1fr) auto; }
   .arc-chat[data-workspace-open="true"] .arc-package-channels { grid-column: 2 / -1; grid-row: 2; padding-bottom: 4px; }
   .arc-chat[data-workspace-open="true"] .arc-review-button { grid-column: 3; grid-row: 1; }

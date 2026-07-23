@@ -3,6 +3,7 @@
 // lead→job→won funnel, and revenue-by-persona / leads-by-source breakdowns)
 // straight from real leads / jobs / outcomes rows. Everything is derived, so it
 // degrades gracefully when the tables are sparse or unconfigured.
+import { humanizePersonaLabel } from "@/domain";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -50,9 +51,8 @@ export type AnalyticsOverview = {
 const PERSONA_DOTS = ["#c8a24a", "#7fb89a", "#88b6d8", "#9678c8", "#cc6a6a", "#d8935a", "#6ea8a0", "#b08fd0"];
 
 function humanizePersona(p: string): string {
-  const s = (p || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
-  if (!s || /^unassigned/i.test(s)) return "Unassigned";
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  const label = humanizePersonaLabel(p);
+  return !label || /^unassigned/i.test(label) ? "Unassigned" : label;
 }
 
 function pct(cur: number, prev: number): { deltaLabel: string; dir: "up" | "dn" | "flat" } {

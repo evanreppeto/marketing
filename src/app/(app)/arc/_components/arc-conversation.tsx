@@ -6,11 +6,12 @@
 // renders these.
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
-import { ArrowRight, ClipboardCheck, MessageSquareText, ShieldCheck, Target, Zap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bookmark, Brain, Check, ClipboardCheck, Copy, CornerUpLeft, Link2, MessageSquareText, PanelRightOpen, PencilLine, RotateCcw, ShieldCheck, Target, X, Zap } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
-import type { ArcActionCard, ArcAssetStatus, ArcMode, ArcRoute } from "@/domain";
+import type { ArcActionCard, ArcAssetStatus, ArcMention, ArcMode, ArcRecall, ArcRoute } from "@/domain";
 import type { ArcMessage, ArcStep } from "@/lib/arc-chat/persistence";
 import { buildArcRunContract, type ArcRunContract } from "@/lib/arc-chat/run-contract";
 import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
@@ -19,6 +20,8 @@ import { MARKDOWN_COMPONENTS, REHYPE_HIGHLIGHT_PLUGINS, REMARK_PLUGINS } from ".
 import {
   ArcDraftCard,
   AssistantMessage,
+  assetStatusMeta,
+  copyMessageText,
   DraftPackageCard,
   DraftReceiptCard,
   MessageActions,
@@ -27,7 +30,10 @@ import {
   RecallRow,
   RunTrace,
   SourcesRow,
+  useMessageContextMenu,
+  type MessageMenuItem,
 } from "./arc-messages";
+import { decideArcDraftAction, saveArcMessageAction, saveArcMessageToBrainAction } from "../actions";
 import {
   buildDemoLiveWork,
   DEMO_ATTACHMENTS,
@@ -60,6 +66,122 @@ export type OptimisticArcTurn = {
   route: ArcRoute;
   contextScopes: string[];
 };
+
+/* ── Right-click item builders shared by the live and demo conversations ── */
+
+async function copyAppLink(href: string): Promise<string> {
+  return (await copyMessageText(`${window.location.origin}${href}`)) === "Copied" ? "Link copied" : "Copy failed";
+}
+
+/** Right-click items for a source citation chip. */
+function mentionMenuItems(mention: ArcMention, navigate: (href: string) => void): MessageMenuItem[] {
+  if (!mention.href?.startsWith("/")) {
+    return [{ kind: "item", label: "Copy source name", icon: <Copy size={14} />, onSelect: () => copyMessageText(mention.label) }];
+  }
+  const href = mention.href;
+  return [
+    { kind: "item", label: `Open ${mention.label}`, icon: <ArrowUpRight size={14} />, onSelect: () => navigate(href) },
+    { kind: "item", label: "Copy link", icon: <Link2 size={14} />, onSelect: () => copyAppLink(href) },
+  ];
+}
+
+/** Right-click items for a recalled-memory chip. */
+function recallMenuItems(item: ArcRecall, navigate: (href: string) => void): MessageMenuItem[] {
+  const items: MessageMenuItem[] = [];
+  if (item.nodeId) {
+    const href = `/brain?node=${encodeURIComponent(item.nodeId)}`;
+    items.push(
+      { kind: "item", label: "Open in Brain", icon: <Brain size={14} />, onSelect: () => navigate(href) },
+      { kind: "item", label: "Copy link", icon: <Link2 size={14} />, onSelect: () => copyAppLink(href) },
+    );
+  }
+  items.push({ kind: "item", label: "Copy fact", icon: <Copy size={14} />, onSelect: () => copyMessageText(item.label) });
+  return items;
+}
+
+/** Approve/decline straight from the card menu — the same server action the
+ * review workspace uses, so the human gate and its audit trail are identical. */
+async function decideAssetViaMenu(
+  card: ArcActionCard,
+  decision: "approved" | "declined",
+  onAssetStatus: (assetId: string, status: ArcAssetStatus) => void,
+): Promise<string> {
+  const approval = card.approval;
+  if (!approval) return "This asset has no approval record.";
+  const result = await decideArcDraftAction({ campaignId: approval.campaignId, assetId: approval.assetId, decision });
+  if (!result.ok) return result.error;
+  onAssetStatus(approval.assetId, decision === "approved" ? "approved" : "rejected");
+  const label = decision === "approved" ? "Approved" : "Declined";
+  return result.persisted ? label : `Preview — ${label.toLowerCase()}, not saved`;
+}
+
+/** Right-click items for a single-asset receipt card. Revision stays a
+ * workspace affordance because it needs a typed instruction. */
+function receiptMenuItems({
+  card,
+  status,
+  onOpen,
+  onAssetStatus,
+}: {
+  card: ArcActionCard;
+  status: ArcAssetStatus | null;
+  onOpen: () => void;
+  onAssetStatus: (assetId: string, status: ArcAssetStatus) => void;
+}): MessageMenuItem[] {
+  const decided = status === "approved" || status === "rejected";
+  const decidedHint = decided ? assetStatusMeta(status).label : undefined;
+  const items: MessageMenuItem[] = [
+    { kind: "item", label: "Open in review workspace", icon: <PanelRightOpen size={14} />, onSelect: onOpen },
+  ];
+  if (card.approval) {
+    items.push(
+      { kind: "separator" },
+      { kind: "item", label: "Approve", icon: <Check size={14} />, disabled: decided, hint: decidedHint, onSelect: () => decideAssetViaMenu(card, "approved", onAssetStatus) },
+      { kind: "item", label: "Request revision…", icon: <PencilLine size={14} />, disabled: decided, hint: decidedHint, onSelect: onOpen },
+      { kind: "item", label: "Decline", icon: <X size={14} />, disabled: decided, hint: decidedHint, onSelect: () => decideAssetViaMenu(card, "declined", onAssetStatus) },
+    );
+  }
+  return items;
+}
+
+/** Right-click items for a multi-asset package card. */
+function packageMenuItems({
+  cards,
+  statusOf,
+  onOpen,
+  onAssetStatus,
+}: {
+  cards: ArcActionCard[];
+  statusOf: (card: ArcActionCard) => ArcAssetStatus | null;
+  onOpen: () => void;
+  onAssetStatus: (assetId: string, status: ArcAssetStatus) => void;
+}): MessageMenuItem[] {
+  const remaining = cards.filter((card) => card.approval && statusOf(card) !== "approved" && statusOf(card) !== "rejected");
+  return [
+    { kind: "item", label: "Review package", icon: <PanelRightOpen size={14} />, onSelect: onOpen },
+    { kind: "separator" },
+    {
+      kind: "item",
+      label: remaining.length > 0 ? `Approve remaining (${remaining.length})` : "Approve remaining",
+      icon: <Check size={14} />,
+      disabled: remaining.length === 0,
+      hint: remaining.length === 0 ? "All decided" : undefined,
+      onSelect: async () => {
+        let approved = 0;
+        let preview = false;
+        for (const card of remaining) {
+          const outcome = await decideAssetViaMenu(card, "approved", onAssetStatus);
+          if (outcome.includes("Approved") || outcome.includes("approved")) {
+            approved += 1;
+            preview = preview || outcome.startsWith("Preview");
+          }
+        }
+        if (approved === 0) return "Nothing approved";
+        return preview ? `Preview — ${approved} approved, not saved` : `${approved} approved`;
+      },
+    },
+  ];
+}
 
 function ReviewableWork({ children }: { children: ReactNode }) {
   return (
@@ -159,6 +281,7 @@ export function LiveConversation({
   onRegenerate,
   onCancelRun,
   stoppingTaskId,
+  onAssetStatus,
 }: {
   messages: ArcMessage[];
   optimisticTurn?: OptimisticArcTurn | null;
@@ -171,7 +294,13 @@ export function LiveConversation({
   onRegenerate: (replyMessageId: string) => void;
   onCancelRun: (taskId: string, conversationId: string) => void;
   stoppingTaskId: string | null;
+  onAssetStatus: (assetId: string, status: ArcAssetStatus) => void;
 }) {
+  const { openMenu, menuElement } = useMessageContextMenu();
+  const router = useRouter();
+  const navigate = (href: string) => router.push(href);
+  const statusOf = (card: ArcActionCard) => assetStatuses[card.approval?.assetId ?? ""] ?? card.status ?? null;
+
   if (messages.length === 0 && !optimisticTurn) {
     return <ArcLauncher greetName={operatorName} waiting={waiting} onPick={onSuggestion} />;
   }
@@ -180,10 +309,33 @@ export function LiveConversation({
   const awaitingReply = Boolean(optimisticTurn) || messages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim()));
   const lastIndex = messages.length - 1;
 
+  const arcMenuItems = (message: ArcMessage, index: number): MessageMenuItem[] => {
+    const sourcePrompt = operatorMessageBefore(messages, index);
+    const items: MessageMenuItem[] = [
+      { kind: "item", label: "Copy message", icon: <Copy size={14} />, onSelect: () => copyMessageText(message.body) },
+      { kind: "separator" },
+      { kind: "item", label: "Save to library", icon: <Bookmark size={14} />, onSelect: async () => { const result = await saveArcMessageAction(message.id); return result.ok ? "Saved to your Arc library" : result.error; } },
+      { kind: "item", label: "Save to Brain", icon: <Brain size={14} />, onSelect: async () => { const result = await saveArcMessageToBrainAction(message.id); return result.ok ? "Remembered in the Brain" : result.error; } },
+    ];
+    if (index === lastIndex && !awaitingReply) {
+      items.push({ kind: "separator" }, { kind: "item", label: "Regenerate response", icon: <RotateCcw size={14} />, onSelect: () => onRegenerate(message.id) });
+    } else if (sourcePrompt) {
+      items.push({ kind: "separator" }, { kind: "item", label: "Ask this again", icon: <RotateCcw size={14} />, disabled: awaitingReply, hint: awaitingReply ? "Run in progress" : undefined, onSelect: () => { onSuggestion(sourcePrompt.body); return "Added to the composer"; } });
+    }
+    return items;
+  };
+
+  const operatorMenuItems = (message: ArcMessage, startEdit: (() => void) | null): MessageMenuItem[] => [
+    { kind: "item", label: "Copy message", icon: <Copy size={14} />, onSelect: () => copyMessageText(message.body) },
+    { kind: "separator" },
+    { kind: "item", label: "Edit & resend", icon: <PencilLine size={14} />, disabled: !startEdit, hint: startEdit ? undefined : "Run in progress", onSelect: () => startEdit?.() },
+    { kind: "item", label: "Use as new message", icon: <CornerUpLeft size={14} />, onSelect: () => { onSuggestion(message.body); return "Added to the composer"; } },
+  ];
+
   return (
     <>
       {messages.map((message, index) => {
-        if (message.role === "operator") return <OperatorMessage key={message.id} body={message.body} timeIso={message.createdAt} attachments={message.attachments} onEdit={awaitingReply ? undefined : (newBody) => onEdit(message.id, newBody)} />;
+        if (message.role === "operator") return <OperatorMessage key={message.id} body={message.body} timeIso={message.createdAt} attachments={message.attachments} onEdit={awaitingReply ? undefined : (newBody) => onEdit(message.id, newBody)} onContextMenu={(event, helpers) => openMenu(event, operatorMenuItems(message, helpers.startEdit))} />;
         const pending = message.status === "pending" || (message.role === "arc" && !message.body.trim());
         const operatorMessage = operatorMessageBefore(messages, index);
         // Runner-measured wall-clock. Message rows are inserted before the run,
@@ -198,13 +350,13 @@ export function LiveConversation({
           agentTaskId: message.agentTaskId,
         });
         return (
-          <AssistantMessage key={message.id} timeIso={message.createdAt} active={pending}>
+          <AssistantMessage key={message.id} timeIso={message.createdAt} active={pending} onContextMenu={pending ? undefined : (event) => openMenu(event, arcMenuItems(message, index))}>
             <RunTrace pending={pending} liveText={pending ? message.body : null} reasoning={message.reasoning} steps={message.steps} toolCalls={message.toolCalls} contract={contract} thoughtSeconds={thoughtSeconds} onStop={pending && message.agentTaskId ? () => onCancelRun(message.agentTaskId as string, message.conversationId) : undefined} stopping={stoppingTaskId === message.agentTaskId} outcome={message.status === "failed" ? (message.body.startsWith("Stopped by you") ? "canceled" : "failed") : "complete"} />
             {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{message.body}</ReactMarkdown></div> : null}
             {!pending && (message.mentions.length || message.recall?.length) ? (
               <div className="arc-response-evidence">
-                {message.mentions.length ? <SourcesRow mentions={message.mentions} /> : null}
-                {message.recall?.length ? <RecallRow recall={message.recall} /> : null}
+                {message.mentions.length ? <SourcesRow mentions={message.mentions} onMentionContextMenu={(event, mention) => openMenu(event, mentionMenuItems(mention, navigate))} /> : null}
+                {message.recall?.length ? <RecallRow recall={message.recall} onRecallContextMenu={(event, item) => openMenu(event, recallMenuItems(item, navigate))} /> : null}
               </div>
             ) : null}
             {!pending && message.actions.length ? (() => {
@@ -215,8 +367,8 @@ export function LiveConversation({
                   {otherCards.length ? <div className="arc-action-list">{otherCards.map((card, index) => <ArcDraftCard card={card} key={`${card.title}-${index}`} />)}</div> : null}
                   {approvalCards.length ? (
                     <ReviewableWork>
-                      {approvalCards.length === 1 ? <DraftReceiptCard card={approvalCards[0]!} status={assetStatuses[approvalCards[0]!.approval?.assetId ?? ""] ?? approvalCards[0]!.status ?? null} onReview={() => onReview(approvalCards)} /> : null}
-                      {approvalCards.length >= 2 ? <DraftPackageCard cards={approvalCards} statuses={assetStatuses} onReview={() => onReview(approvalCards)} /> : null}
+                      {approvalCards.length === 1 ? <DraftReceiptCard card={approvalCards[0]!} status={statusOf(approvalCards[0]!)} onReview={() => onReview(approvalCards)} onContextMenu={(event) => openMenu(event, receiptMenuItems({ card: approvalCards[0]!, status: statusOf(approvalCards[0]!), onOpen: () => onReview(approvalCards), onAssetStatus }))} /> : null}
+                      {approvalCards.length >= 2 ? <DraftPackageCard cards={approvalCards} statuses={assetStatuses} onReview={() => onReview(approvalCards)} onContextMenu={(event) => openMenu(event, packageMenuItems({ cards: approvalCards, statusOf, onOpen: () => onReview(approvalCards), onAssetStatus }))} /> : null}
                     </ReviewableWork>
                   ) : null}
                 </>
@@ -242,6 +394,7 @@ export function LiveConversation({
           </AssistantMessage>
         </>
       ) : null}
+      {menuElement}
     </>
   );
 }
@@ -255,6 +408,7 @@ export function DemoConversation({
   onReview,
   onEditResend,
   onStop,
+  onAssetStatus,
 }: {
   turns: DemoTurn[];
   pending: boolean;
@@ -264,19 +418,47 @@ export function DemoConversation({
   onReview: (cards: ArcActionCard[]) => void;
   onEditResend: (body: string) => void;
   onStop: () => void;
+  onAssetStatus: (assetId: string, status: ArcAssetStatus) => void;
 }) {
   const pendingTurn = [...turns].reverse().find((turn) => turn.role === "operator");
   const demoLiveWork = buildDemoLiveWork(pendingTurn?.body);
   const editable = pending ? undefined : onEditResend;
+  const { openMenu, menuElement } = useMessageContextMenu();
+  const router = useRouter();
+  const navigate = (href: string) => router.push(href);
+  const statusOf = (card: ArcActionCard) => packageStatuses[card.approval?.assetId ?? ""] ?? card.status ?? null;
+
+  // Same menu as the live conversation, with backend-writing items visibly
+  // disabled instead of silently absent — the preview should show the feature.
+  const demoArcItems = (body: string, sourcePrompt?: string): MessageMenuItem[] => {
+    const items: MessageMenuItem[] = [
+      { kind: "item", label: "Copy message", icon: <Copy size={14} />, onSelect: () => copyMessageText(body) },
+      { kind: "separator" },
+      { kind: "item", label: "Save to library", icon: <Bookmark size={14} />, disabled: true, hint: "Preview only", onSelect: () => null },
+      { kind: "item", label: "Save to Brain", icon: <Brain size={14} />, disabled: true, hint: "Preview only", onSelect: () => null },
+    ];
+    if (sourcePrompt) {
+      items.push({ kind: "separator" }, { kind: "item", label: "Ask this again", icon: <RotateCcw size={14} />, disabled: pending, hint: pending ? "Run in progress" : undefined, onSelect: () => onEditResend(sourcePrompt) });
+    }
+    return items;
+  };
+  const demoOperatorItems = (body: string, startEdit: (() => void) | null): MessageMenuItem[] => [
+    { kind: "item", label: "Copy message", icon: <Copy size={14} />, onSelect: () => copyMessageText(body) },
+    { kind: "separator" },
+    { kind: "item", label: "Edit & resend", icon: <PencilLine size={14} />, disabled: !startEdit, hint: startEdit ? undefined : "Run in progress", onSelect: () => startEdit?.() },
+    { kind: "item", label: "Resend", icon: <CornerUpLeft size={14} />, disabled: pending, hint: pending ? "Run in progress" : undefined, onSelect: () => onEditResend(body) },
+  ];
+  const operatorMenu = (body: string) => (event: React.MouseEvent, helpers: { startEdit: (() => void) | null }) =>
+    openMenu(event, demoOperatorItems(body, helpers.startEdit));
 
   return (
     <>
       {includeSeed ? (
         <>
           <div className="arc-day"><span>July 14, 2026</span></div>
-          <OperatorMessage time="9:34 AM" body="Here’s a reference photo from our last storm job — match this look in the creative." attachments={DEMO_ATTACHMENTS} onEdit={editable} />
-          <OperatorMessage time="9:35 AM" body="Which homeowners should we reach first after the Naperville hailstorm?" onEdit={editable} />
-          <AssistantMessage time="9:38 AM">
+          <OperatorMessage time="9:34 AM" body="Here’s a reference photo from our last storm job — match this look in the creative." attachments={DEMO_ATTACHMENTS} onEdit={editable} onContextMenu={operatorMenu("Here’s a reference photo from our last storm job — match this look in the creative.")} />
+          <OperatorMessage time="9:35 AM" body="Which homeowners should we reach first after the Naperville hailstorm?" onEdit={editable} onContextMenu={operatorMenu("Which homeowners should we reach first after the Naperville hailstorm?")} />
+          <AssistantMessage time="9:38 AM" onContextMenu={(event) => openMenu(event, demoArcItems("142 homes took the heaviest hail and still haven’t booked an inspection.", "Which homeowners should we reach first after the Naperville hailstorm?"))}>
             <div className="arc-answer">
               <h2>142 homes took the heaviest hail and still haven’t booked an inspection.</h2>
               <p>That’s 23% of the storm zone and about $1.4M in estimated restoration work. The clearest urgency signals across them:</p>
@@ -284,26 +466,26 @@ export function DemoConversation({
             </div>
             <RunTrace pending={false} thoughtSeconds={8} reasoning="I combined the storm footprint with property condition and recent CRM activity, then favored an inspection-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "act", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
             <div className="arc-response-evidence">
-              <SourcesRow mentions={DEMO_SOURCES} />
-              <RecallRow recall={DEMO_RECALL} />
+              <SourcesRow mentions={DEMO_SOURCES} onMentionContextMenu={(event, mention) => openMenu(event, mentionMenuItems(mention, navigate))} />
+              <RecallRow recall={DEMO_RECALL} onRecallContextMenu={(event, item) => openMenu(event, recallMenuItems(item, navigate))} />
             </div>
           </AssistantMessage>
-          <AssistantMessage time="9:40 AM">
+          <AssistantMessage time="9:40 AM" onContextMenu={(event) => openMenu(event, demoArcItems(DEMO_BREAKDOWN_MD))}>
             <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{DEMO_BREAKDOWN_MD}</ReactMarkdown></div>
           </AssistantMessage>
-          <AssistantMessage time="9:42 AM">
+          <AssistantMessage time="9:42 AM" onContextMenu={(event) => openMenu(event, demoArcItems("I built the Storm Rapid Response package for the 142 highest-urgency homes."))}>
             <div className="arc-answer"><p>I built the Storm Rapid Response package for the 142 highest-urgency homes.</p></div>
-            <ReviewableWork><DraftPackageCard cards={DEMO_PACKAGE_CARDS} statuses={packageStatuses} onReview={() => onReview(DEMO_PACKAGE_CARDS)} /></ReviewableWork>
+            <ReviewableWork><DraftPackageCard cards={DEMO_PACKAGE_CARDS} statuses={packageStatuses} onReview={() => onReview(DEMO_PACKAGE_CARDS)} onContextMenu={(event) => openMenu(event, packageMenuItems({ cards: DEMO_PACKAGE_CARDS, statusOf, onOpen: () => onReview(DEMO_PACKAGE_CARDS), onAssetStatus }))} /></ReviewableWork>
           </AssistantMessage>
-          <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." onEdit={editable} />
-          <AssistantMessage time="9:45 AM">
+          <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." onEdit={editable} onContextMenu={operatorMenu("Looks good. Draft the email.")} />
+          <AssistantMessage time="9:45 AM" onContextMenu={(event) => openMenu(event, demoArcItems("The inspection email for the 64 insured, fresh-damage homes is ready for review."))}>
             <div className="arc-answer"><p>The inspection email for the 64 insured, fresh-damage homes is ready for review.</p></div>
-            <ReviewableWork><DraftReceiptCard card={DEMO_DRAFT_CARD} status={packageStatuses[DEMO_DRAFT_CARD.approval?.assetId ?? ""] ?? DEMO_DRAFT_CARD.status ?? null} onReview={() => onReview([DEMO_DRAFT_CARD])} /></ReviewableWork>
+            <ReviewableWork><DraftReceiptCard card={DEMO_DRAFT_CARD} status={statusOf(DEMO_DRAFT_CARD)} onReview={() => onReview([DEMO_DRAFT_CARD])} onContextMenu={(event) => openMenu(event, receiptMenuItems({ card: DEMO_DRAFT_CARD, status: statusOf(DEMO_DRAFT_CARD), onOpen: () => onReview([DEMO_DRAFT_CARD]), onAssetStatus }))} /></ReviewableWork>
           </AssistantMessage>
         </>
       ) : null}
       {turns.map((turn, index) => {
-        if (turn.role === "operator") return <OperatorMessage key={turn.id} body={turn.body} onEdit={editable} />;
+        if (turn.role === "operator") return <OperatorMessage key={turn.id} body={turn.body} onEdit={editable} onContextMenu={operatorMenu(turn.body)} />;
         const operatorTurn = [...turns.slice(0, index)].reverse().find((candidate) => candidate.role === "operator");
         const turnContract = buildArcRunContract({ mode: turn.mode, route: "fast", contextScopes: ["workspace", "brand", "crm", "campaigns"], agentTaskId: turn.id });
         const turnProfile = buildArcRunProfile({ request: operatorTurn?.body, mode: turn.mode, command: turn.command, sources: turnContract.readScopes });
@@ -311,7 +493,7 @@ export function DemoConversation({
           ? [{ label: "Stopped before remaining work was applied", status: "done", at: "now", kind: "think" }]
           : turnProfile.phases.map((phase) => ({ label: phase.label, detail: [phase.detail], status: "done", at: "now", kind: phase.kind }));
         return (
-          <AssistantMessage key={turn.id} time="now">
+          <AssistantMessage key={turn.id} time="now" onContextMenu={(event) => openMenu(event, demoArcItems(turn.body, operatorTurn?.body))}>
             <RunTrace
               pending={false}
               thoughtSeconds={turn.outcome === "canceled" ? undefined : 5}
@@ -325,6 +507,7 @@ export function DemoConversation({
         );
       })}
       {pending ? <AssistantMessage active><RunTrace pending reasoning={demoLiveWork.commentary} demoRows={demoLiveWork.rows} contract={pendingContract} onStop={onStop} /></AssistantMessage> : null}
+      {menuElement}
     </>
   );
 }
