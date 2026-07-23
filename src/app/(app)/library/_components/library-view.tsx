@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 
 import { formatByteSize } from "@/domain";
 
-import { createLibraryFolder, deleteLibraryAsset, deleteLibraryFolder, renameLibraryAsset, renameLibraryFolder, setLibraryAssetArcAvailability, setLibraryAssetTags, uploadLibraryAsset } from "../actions";
+import { createLibraryFolder, deleteLibraryAsset, deleteLibraryFolder, importLibraryAssetFromUrl, renameLibraryAsset, renameLibraryFolder, setLibraryAssetArcAvailability, setLibraryAssetTags, uploadLibraryAsset } from "../actions";
 import { ImportUrlModal } from "./import-url-modal";
 import { NewFolderModal } from "./new-folder-modal";
 
@@ -316,6 +316,16 @@ export function LibraryView({
       new URL(clean);
     } catch {
       return { ok: false, error: "Enter a valid URL (including https://)." };
+    }
+    // The server fetches, scans, and stores the file; the returned asset drops
+    // straight into the grid. In the backend-less preview it stays session-only.
+    const folderId = curFolder === "all" || curFolder === "upload" ? null : curFolder;
+    const result = await importLibraryAssetFromUrl({ url: clean, name: value.name, folderId });
+    if (!result.ok) return { ok: false, error: result.error };
+    if (result.persisted && result.asset) {
+      setUploaded((prev) => [{ ...result.asset!, id: uidRef.current--, folder: result.asset!.folder || "upload" }, ...prev]);
+      setNotice("Imported from URL — held for provenance review before Arc may reuse.");
+      return { ok: true };
     }
     const lower = clean.toLowerCase().split("?")[0];
     const kind: Kind = /\.(mp4|mov|webm|m4v)$/.test(lower) ? "video" : /\.pdf$/.test(lower) ? "document" : "image";

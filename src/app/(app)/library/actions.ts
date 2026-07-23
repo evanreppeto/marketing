@@ -7,6 +7,8 @@ import { getCurrentOrgId } from "@/lib/auth/org";
 import { removeMediaRecordFromBrain, syncMediaRecordToBrain } from "@/lib/brain-ingestion/sync";
 import { createFolder, deleteAsset, deleteFolder, insertAssetWithUrl, renameAsset, renameFolder, setAssetTags, setAvailableToArc } from "@/lib/media-library/persistence";
 import { MAX_UPLOAD_BYTES, acceptUpload, kindForContentType } from "@/lib/media-library/upload-policy";
+import { scanMediaIngest } from "@/lib/media-library/ingest-intelligence";
+import { fetchRemoteMedia } from "@/lib/media-library/fetch-remote";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { type Asset } from "./_components/library-view";
@@ -113,6 +115,7 @@ export async function uploadLibraryAsset(formData: FormData): Promise<UploadAsse
     const contentType = accepted.contentType;
     const kind = kindForContentType(contentType);
     const bytes = new Uint8Array(await file.arrayBuffer());
+    const scan = scanMediaIngest({ fileName: file.name, kind });
     const { id, url } = await insertAssetWithUrl({
       orgId,
       folderId,
@@ -123,6 +126,8 @@ export async function uploadLibraryAsset(formData: FormData): Promise<UploadAsse
       byteSize: file.size,
       source: "uploaded",
       provenance: { origin: "operator_upload" },
+      riskFlags: scan.riskFlags,
+      tags: scan.tags,
       uploadedBy,
     });
     revalidatePath("/library");
@@ -151,6 +156,76 @@ export async function uploadLibraryAsset(formData: FormData): Promise<UploadAsse
     return { ok: true, persisted: true, asset };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not upload the file." };
+  }
+}
+
+/**
+ * Real backend for the Library "Import from URL" modal (previously a
+ * session-only preview that persisted nothing). SSRF-guarded https fetch, the
+ * shared upload policy, and the same ingest scan every other path gets. Held
+ * for provenance review like all imports — never outbound.
+ */
+export async function importLibraryAssetFromUrl(input: {
+  url: string;
+  name?: string;
+  folderId?: string | null;
+}): Promise<UploadAssetResult> {
+  await requireOperator();
+
+  const url = input.url?.trim();
+  if (!url) return { ok: false, error: "Enter a URL first." };
+  const fallbackName = decodeURIComponent(url.split("?")[0]!.split("/").pop() ?? "") || "imported-asset";
+  const fileName = input.name?.trim() || fallbackName;
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  try {
+    const fetched = await fetchRemoteMedia({ url, fileName });
+    if (!fetched.ok) return { ok: false, error: fetched.error };
+
+    const [orgId, uploadedBy] = await Promise.all([getCurrentOrgId(), getOperatorActor()]);
+    const kind = kindForContentType(fetched.contentType);
+    const scan = scanMediaIngest({ fileName, kind, provenance: { sourceUrl: url } });
+    const { id, url: publicUrl } = await insertAssetWithUrl({
+      orgId,
+      folderId: input.folderId?.trim() || null,
+      fileName,
+      bytes: fetched.bytes,
+      contentType: fetched.contentType,
+      kind,
+      byteSize: fetched.bytes.byteLength,
+      source: "url_import",
+      provenance: { origin: "url_import", sourceUrl: url },
+      riskFlags: scan.riskFlags,
+      tags: scan.tags,
+      uploadedBy,
+    });
+    revalidatePath("/library");
+
+    const asset: Asset = {
+      id: 0, // reassigned client-side
+      rid: id,
+      nm: fileName,
+      kind: kind === "video" ? "video" : kind === "document" ? "document" : "image",
+      pv: "upload",
+      sc: kind === "video" ? "video" : kind === "document" ? "doc" : "photo",
+      folder: input.folderId ?? "",
+      dim: "—",
+      size: formatSize(fetched.bytes.byteLength),
+      tags: scan.tags.length ? scan.tags : ["imported"],
+      arc: false,
+      used: [],
+      by: uploadedBy,
+      added: "just now",
+      recent: 1,
+      risk: "Imported from URL — provenance unverified before Arc may reuse.",
+      img: kind === "image" ? publicUrl : undefined,
+      lineage: [["upload", "Imported from URL"]],
+      uses: 0,
+    };
+    return { ok: true, persisted: true, asset };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not import that URL." };
   }
 }
 
