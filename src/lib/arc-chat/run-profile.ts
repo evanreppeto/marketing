@@ -21,7 +21,7 @@ export type ArcRunProfile = {
 };
 
 const CREATE_PATTERN = /\b(draft|write|rewrite|revise|create|make|build|compose|generate|design|edit|email|sms|post|landing page|image|video|ad copy)\b/i;
-const ACTION_PATTERN = /\b(update|change|add|remove|archive|approve|schedule|publish|send|sync|assign|move|delete|apply|save)\b/i;
+const ACTION_PATTERN = /\b(update|change|add|remove|archive|approve|schedule|publish|send|sync|assign|delete|apply|save)\b/i;
 const RESEARCH_PATTERN = /\b(search|find|look up|lookup|research|browse|source|web|competitor|trend|latest|weather|discover|investigate)\b/i;
 const ANALYSIS_PATTERN = /\b(analy[sz]e|analysis|compare|rank|score|segment|forecast|why|performance|metric|report|summari[sz]e|evaluate|audit|recommend|opportunit|prioriti[sz]e)\b/i;
 const INFORMATIONAL_UPDATE_PATTERN = /\b(update me|give me an update|status update|what(?:'s| is) new)\b/i;
@@ -128,10 +128,10 @@ export function buildArcRunProfile(input: {
       intent,
       activeLabel: "Working",
       approach: `I’ll inspect the current state in ${sources}, verify the target and permissions, apply only the requested workspace change, and record the result.`,
-      completedSummary: `I checked ${sources} for “${focus}”, applied the requested internal change, and recorded the result without external sends.`,
-      resultLabel: "Completed",
-      resultTitle: "The requested workspace change is complete.",
-      nextAction: "Inspect the recorded activity or ask Arc to make the next related change.",
+      completedSummary: `I checked ${sources} for “${focus}”, but this run did not record a workspace change. Nothing was sent externally.`,
+      resultLabel: "No change recorded",
+      resultTitle: "No workspace change was recorded.",
+      nextAction: "Inspect the activity to confirm what happened, then retry or refine the request if a change is still needed.",
       phases: [
         { id: "confirm-target", label: "Confirm target and permissions", detail: "Checking scope, safeguards, and the requested outcome", kind: "think" },
         { id: "inspect-state", label: "Inspect the current workspace state", detail: `Reading the relevant records from ${sources}`, kind: "search" },

@@ -8,6 +8,7 @@ describe("inferArcRunIntent", () => {
     ["Find the latest storm reports", "ask", null, "research"],
     ["Update me on the latest storm reports", "ask", null, "research"],
     ["Compare these audience segments", "ask", null, "analysis"],
+    ["Compare our last three campaigns and recommend the next move.", "act", null, "analysis"],
     ["Draft a follow-up email", "ask", null, "create"],
     ["Update the campaign owner", "act", null, "action"],
     ["Find qualified leads", "act", "find-leads", "research"],
@@ -50,5 +51,18 @@ describe("buildArcRunProfile", () => {
 
     expect(profile.completedSummary).toContain("roofing audiences");
     expect(profile.completedSummary).not.toBe("I analyzed the relevant records, checked the strongest patterns, and prepared an inspectable recommendation.");
+  });
+
+  it("does not claim an action succeeded without recorded effect evidence", () => {
+    const profile = buildArcRunProfile({
+      request: "Update the campaign owner",
+      mode: "act",
+      sources: ["CRM records"],
+    });
+
+    expect(profile.resultLabel).toBe("No change recorded");
+    expect(profile.resultTitle).toBe("No workspace change was recorded.");
+    expect(profile.completedSummary).toContain("did not record a workspace change");
+    expect(profile.completedSummary).not.toMatch(/\b(applied|completed)\b/i);
   });
 });
