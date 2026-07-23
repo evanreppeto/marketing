@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildApprovalHistory,
+  getArcAssetStatuses,
   buildAuditLog,
   buildExecutiveOverview,
   buildLaunchState,
@@ -263,5 +264,54 @@ describe("selectPendingDeliverables", () => {
     ]);
     expect(pending.map((d) => d.assetId)).toEqual(["a1", "a3"]);
     expect(pending[0]).toMatchObject({ assetId: "a1", title: "Welcome email", kind: "Email" });
+  });
+});
+
+describe("getArcAssetStatuses", () => {
+  const client = (rows: Array<{ id: string; status: string; approved_at?: string | null }>) =>
+    ({ from: () => ({ select: () => ({ eq: function () { return this; }, in: async () => ({ data: rows, error: null }) }) }) }) as never;
+
+  it("returns live chat-facing statuses keyed by asset id", async () => {
+    const out = await getArcAssetStatuses(["a", "b"], "org-1", client([
+      { id: "a", status: "approved" },
+      { id: "b", status: "declined" },
+    ]));
+
+    expect(out).toEqual({ a: "approved", b: "rejected" });
+  });
+
+  // An unrecognised status must be ABSENT, not guessed — the caller falls back to
+  // the card's draft-time snapshot rather than being told a state that isn't real.
+  it("omits assets whose status it can't map", async () => {
+    const out = await getArcAssetStatuses(["a", "b"], "org-1", client([
+      { id: "a", status: "approved" },
+      { id: "b", status: "some_future_status" },
+    ]));
+
+    expect(out).toEqual({ a: "approved" });
+    expect(out).not.toHaveProperty("b");
+  });
+
+  // Archiving a campaign cascades its assets to `archived`, which says the work is
+  // closed but not how it was decided. Reading that as a rejection labelled a
+  // delivered email "Declined" in the chat.
+  it("reads an archived asset from approved_at, not from the closed-state label", async () => {
+    const out = await getArcAssetStatuses(["a", "b"], "org-1", client([
+      { id: "a", status: "archived", approved_at: "2026-07-22T19:01:27Z" },
+      { id: "b", status: "archived", approved_at: null },
+    ]));
+
+    expect(out).toEqual({ a: "approved", b: "rejected" });
+  });
+
+  it("skips the query entirely for an empty or blank id list", async () => {
+    const explode = { from: () => { throw new Error("should not query"); } } as never;
+    await expect(getArcAssetStatuses([], "org-1", explode)).resolves.toEqual({});
+    await expect(getArcAssetStatuses(["", "  "], "org-1", explode)).resolves.toEqual({});
+  });
+
+  it("returns {} rather than throwing — a stale chat beats a broken one", async () => {
+    const broken = { from: () => { throw new Error("db down"); } } as never;
+    await expect(getArcAssetStatuses(["a"], "org-1", broken)).resolves.toEqual({});
   });
 });

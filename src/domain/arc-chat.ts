@@ -430,3 +430,51 @@ export function parseQuestions(value: unknown): ArcQuestion[] {
   }
   return out.slice(0, 4);
 }
+
+/**
+ * Map a stored `campaign_assets.status` onto the four states the chat renders.
+ *
+ * The chat's action cards carry the status Arc wrote AT DRAFT TIME — a snapshot,
+ * not a reference. Decide an asset anywhere outside the chat's own review panel
+ * (the campaign page, another session, another device) and the conversation kept
+ * asserting the draft-time value: "Needs review" on an asset approved and sent
+ * hours earlier, and a `n need review` chip counting work that no longer exists.
+ *
+ * Exhaustive over the DB enum on purpose. An unmapped status returning undefined
+ * would fall back to the same stale snapshot the live lookup exists to replace —
+ * the bug would survive its own fix for exactly the statuses nobody tested.
+ */
+const DB_ASSET_STATUS_TO_ARC: Readonly<Record<string, ArcAssetStatus>> = {
+  draft: "draft",
+  needs_compliance: "draft",
+  pending_approval: "draft",
+  pending_owner_approval: "draft",
+  blocked: "draft",
+  approved: "approved",
+  declined: "rejected",
+  rejected: "rejected",
+  revision_requested: "revision",
+  needs_revision: "revision",
+  // `archived` is deliberately ABSENT — it says the work is closed, not how it
+  // was decided, so it can only be resolved with approved_at. See below.
+};
+
+/**
+ * The chat-facing status for a stored asset; null when unrecognised.
+ *
+ * `approvedAt` is required to resolve `archived`, which records that work is
+ * CLOSED and says nothing about how it was decided. Mapping it straight to
+ * "rejected" made the chat label a campaign's archived-but-approved email
+ * "Declined" — a confident false claim about a human decision, on an asset that
+ * had actually been approved and delivered. approved_at is that human's
+ * signature (the same field the send path treats as authoritative), so it, not
+ * the closed-state label, decides which way an archived asset reads.
+ */
+export function arcAssetStatusFromDb(
+  status: string | null | undefined,
+  approvedAt?: string | null,
+): ArcAssetStatus | null {
+  const key = (status ?? "").trim().toLowerCase();
+  if (key === "archived") return approvedAt ? "approved" : "rejected";
+  return DB_ASSET_STATUS_TO_ARC[key] ?? null;
+}

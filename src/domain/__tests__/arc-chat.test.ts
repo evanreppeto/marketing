@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ArcMessageError,
+  arcAssetStatusFromDb,
   cleanApprovableDrafts,
   deriveThreadTitle,
   parseActions,
@@ -146,5 +147,64 @@ describe("parseActions — one asset, one card", () => {
     ]);
 
     expect(cleanApprovableDrafts(cards)).toEqual([{ campaignId: "camp-1", assetId: ASSET }]);
+  });
+});
+
+describe("arcAssetStatusFromDb", () => {
+  // The chat card carries the status Arc froze at DRAFT time. Without a live
+  // lookup, deciding an asset on the campaign page never reached the
+  // conversation: it kept showing "Needs review" for assets approved and sent
+  // hours earlier, and the `n need review` chip counted work that was gone.
+  it("maps decided states so they stop counting as review work", () => {
+    expect(arcAssetStatusFromDb("approved")).toBe("approved");
+    expect(arcAssetStatusFromDb("declined")).toBe("rejected");
+    expect(arcAssetStatusFromDb("rejected")).toBe("rejected");
+  });
+
+  // `archived` says the work is CLOSED, not how it was decided. Mapping it
+  // straight to "rejected" made the chat label an archived-but-approved email
+  // "Declined" — on prod, on an asset that had actually been approved and
+  // DELIVERED with a Resend message id. approved_at is the human's signature, so
+  // it decides which way an archived asset reads.
+  it("resolves archived from approved_at, never assuming a rejection", () => {
+    expect(arcAssetStatusFromDb("archived", "2026-07-22T19:01:27Z")).toBe("approved");
+    expect(arcAssetStatusFromDb("archived", null)).toBe("rejected");
+    expect(arcAssetStatusFromDb("archived")).toBe("rejected");
+  });
+
+  it("ignores approved_at for statuses that already state the decision", () => {
+    // A declined asset with a stale approved_at is still declined.
+    expect(arcAssetStatusFromDb("declined", "2026-07-22T19:01:27Z")).toBe("rejected");
+    expect(arcAssetStatusFromDb("pending_approval", "2026-07-22T19:01:27Z")).toBe("draft");
+  });
+
+  it("keeps genuinely-undecided states as review work", () => {
+    for (const s of ["draft", "pending_approval", "pending_owner_approval", "needs_compliance", "blocked"]) {
+      expect(arcAssetStatusFromDb(s), s).toBe("draft");
+    }
+  });
+
+  it("maps both revision spellings the schema uses", () => {
+    expect(arcAssetStatusFromDb("revision_requested")).toBe("revision");
+    expect(arcAssetStatusFromDb("needs_revision")).toBe("revision");
+  });
+
+  // An unmapped status must return null, not a guess: the caller omits the id so
+  // the card falls back to its snapshot rather than being told a wrong state.
+  it("returns null for anything it doesn't recognise", () => {
+    for (const s of ["", "  ", "nonsense", null, undefined]) {
+      expect(arcAssetStatusFromDb(s as string)).toBeNull();
+    }
+  });
+
+  it("covers every value in the campaign_assets status enum", () => {
+    // Mirrors the DB enum. A new status added there without a mapping here would
+    // silently fall back to the stale snapshot — the exact bug this replaces.
+    const dbEnum = [
+      "draft", "needs_compliance", "pending_approval", "pending_owner_approval",
+      "approved", "declined", "rejected", "revision_requested", "blocked",
+      "needs_revision", "archived",
+    ];
+    for (const s of dbEnum) expect(arcAssetStatusFromDb(s), `${s} unmapped`).not.toBeNull();
   });
 });
