@@ -119,6 +119,10 @@ export type InsertAssetInput = {
   byteSize: number;
   source?: string;
   provenance?: Record<string, unknown>;
+  /** From scanMediaIngest — review concerns surfaced at ingest time. */
+  riskFlags?: string[];
+  /** From scanMediaIngest — starter tags so imports stay findable. */
+  tags?: string[];
   uploadedBy: string;
   /** Whether Arc may reuse this asset. Defaults to false: operator-supplied media is
    *  held for provenance review, and only the Brain mirror below exposes it to Arc.
@@ -149,6 +153,7 @@ export async function insertAssetWithUrl(input: InsertAssetInput): Promise<Inser
     storage_path: "pending", public_url: "pending", content_type: input.contentType, kind: input.kind,
     width: input.width ?? null, height: input.height ?? null, byte_size: input.byteSize,
     source: input.source ?? "uploaded", provenance: input.provenance ?? {},
+    risk_flags: input.riskFlags ?? [], tags: input.tags ?? [],
     available_to_arc: input.availableToArc ?? false,
     uploaded_by: input.uploadedBy,
   });

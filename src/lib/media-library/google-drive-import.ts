@@ -5,6 +5,7 @@ import {
   type GoogleDriveDownloadedFile,
 } from "@/lib/google-drive/drive-client";
 
+import { scanMediaIngest } from "./ingest-intelligence";
 import { insertAsset, type InsertAssetInput } from "./persistence";
 import { type BrandKnowledgeAsset } from "@/lib/brand-knowledge/brain-sync";
 
@@ -36,6 +37,7 @@ export async function importGoogleDriveFiles(input: ImportGoogleDriveFilesInput)
     try {
       const file = await downloader({ fileId, accessToken: input.accessToken });
       const kind = classifyKind(file.mimeType, file.name);
+      const scan = scanMediaIngest({ fileName: file.name, kind });
       const assetId = await insert({
         orgId: input.orgId,
         folderId: input.folderId,
@@ -50,6 +52,8 @@ export async function importGoogleDriveFiles(input: ImportGoogleDriveFilesInput)
           googleDriveWebUrl: file.webViewLink,
           googleDriveModifiedTime: file.modifiedTime,
         },
+        riskFlags: scan.riskFlags,
+        tags: scan.tags,
         uploadedBy: input.uploadedBy,
       });
       await input.afterInsert?.({

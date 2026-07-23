@@ -14,6 +14,7 @@ import { DEFAULT_WORKSPACE_ID } from "./connection";
 export const TOKEN_SCOPE_ARC_FULL = "arc:full";
 export const TOKEN_SCOPE_LEADS_INGEST = "leads:ingest";
 export const TOKEN_SCOPE_CAMPAIGN_RESULTS_INGEST = "campaign-results:ingest";
+export const TOKEN_SCOPE_MEDIA_INGEST = "media:ingest";
 
 /**
  * Pure: may a token with these scopes perform `required`?
