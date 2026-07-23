@@ -430,3 +430,37 @@ export function parseQuestions(value: unknown): ArcQuestion[] {
   }
   return out.slice(0, 4);
 }
+
+/**
+ * Map a stored `campaign_assets.status` onto the four states the chat renders.
+ *
+ * The chat's action cards carry the status Arc wrote AT DRAFT TIME — a snapshot,
+ * not a reference. Decide an asset anywhere outside the chat's own review panel
+ * (the campaign page, another session, another device) and the conversation kept
+ * asserting the draft-time value: "Needs review" on an asset approved and sent
+ * hours earlier, and a `n need review` chip counting work that no longer exists.
+ *
+ * Exhaustive over the DB enum on purpose. An unmapped status returning undefined
+ * would fall back to the same stale snapshot the live lookup exists to replace —
+ * the bug would survive its own fix for exactly the statuses nobody tested.
+ */
+const DB_ASSET_STATUS_TO_ARC: Readonly<Record<string, ArcAssetStatus>> = {
+  draft: "draft",
+  needs_compliance: "draft",
+  pending_approval: "draft",
+  pending_owner_approval: "draft",
+  blocked: "draft",
+  approved: "approved",
+  declined: "rejected",
+  rejected: "rejected",
+  // Archived is a decided, closed state — never outstanding review work.
+  archived: "rejected",
+  revision_requested: "revision",
+  needs_revision: "revision",
+};
+
+/** The chat-facing status for a stored asset status; null when unrecognised. */
+export function arcAssetStatusFromDb(status: string | null | undefined): ArcAssetStatus | null {
+  const key = (status ?? "").trim().toLowerCase();
+  return DB_ASSET_STATUS_TO_ARC[key] ?? null;
+}

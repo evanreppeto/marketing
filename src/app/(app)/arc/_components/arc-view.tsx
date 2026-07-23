@@ -112,6 +112,7 @@ import {
   cancelArcRunAction,
   deleteArcConversationAction,
   editAndResendArcMessageAction,
+  getArcAssetStatusesAction,
   pinArcConversationAction,
   regenerateArcReplyAction,
   renameArcConversationAction,
@@ -1624,6 +1625,37 @@ export function ArcView({
   const demoSeed = !live && selectedDemoId !== "new";
   const workCards = live ? latestArcMessage?.actions ?? [] : demoSeed ? DEMO_PACKAGE_CARDS : [];
   const reviewableWorkCards = workCards.filter((card) => card.approval);
+  // Stable key for the assets this view references, so the seed below refetches
+  // when the conversation changes but not on every render.
+  const reviewableAssetKey = reviewableWorkCards
+    .map((card) => card.approval?.assetId ?? "")
+    .filter(Boolean)
+    .sort()
+    .join(",");
+  // Seed the decision map from the LIVE asset records.
+  //
+  // It used to start empty and was only ever written by the chat's own review
+  // panel, so `statuses[id] ?? card.status` fell through to the status Arc froze
+  // at draft time. Decide on the campaign page and the conversation never heard:
+  // it kept showing "Needs review" for assets approved and sent hours earlier,
+  // and the `n need review` chip counted work that no longer existed.
+  //
+  // A local decision still wins — it is newer than anything this fetch returned.
+  useEffect(() => {
+    if (!live || !reviewableAssetKey) return;
+    let cancelled = false;
+    getArcAssetStatusesAction(reviewableAssetKey.split(","))
+      .then((fromDb) => {
+        if (cancelled || !fromDb || Object.keys(fromDb).length === 0) return;
+        setAssetStatuses((current) => ({ ...fromDb, ...current }));
+      })
+      .catch(() => {
+        // Best-effort: a failed lookup leaves the card snapshot in place rather
+        // than blanking a status the operator is looking at.
+      });
+    return () => { cancelled = true; };
+  }, [live, reviewableAssetKey]);
+
   const needsReviewCards = reviewableWorkCards.filter((card) => {
     const status = assetStatuses[card.approval?.assetId ?? ""] ?? card.status ?? "draft";
     return status !== "approved" && status !== "rejected" && status !== "revision";

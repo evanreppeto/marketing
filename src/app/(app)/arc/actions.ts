@@ -13,10 +13,11 @@ import {
   type ArcMode,
   type ArcRoute,
   type CampaignAssetType,
+  type ArcAssetStatus,
 } from "@/domain";
 import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { decideAsset, type ApprovalDecision } from "@/lib/campaigns/decisions";
-import { listCampaignNames } from "@/lib/campaigns/read-model";
+import { getArcAssetStatuses, listCampaignNames } from "@/lib/campaigns/read-model";
 import { requestAssetRevision } from "@/lib/campaigns/revisions";
 import { getArcDisplayName } from "@/lib/arc-chat/agent-config";
 import { isAcceptedAttachment } from "@/lib/arc-chat/attachment-types";
@@ -576,6 +577,29 @@ const DRAFT_DECISIONS: ReadonlySet<string> = new Set(["approved", "declined"]);
  * and org-scoped. `persisted: false` is the honest offline/demo signal so the card
  * can reflect the decision without saving.
  */
+/**
+ * Live status for the assets referenced by a conversation's action cards.
+ *
+ * The chat seeds its status map from this on load. Without it the map starts
+ * empty and every card falls back to the status Arc froze at draft time, so a
+ * decision made on the campaign page never reached the conversation — it kept
+ * showing "Needs review" for assets already approved or declined, and the
+ * `n need review` chip counted work that no longer existed.
+ */
+export async function getArcAssetStatusesAction(
+  assetIds: string[],
+): Promise<Record<string, ArcAssetStatus>> {
+  await requireOperator();
+  if (!Array.isArray(assetIds) || assetIds.length === 0) return {};
+  if (!isSupabaseAdminConfigured()) return {};
+  try {
+    const ctx = await getCurrentWorkspaceContext();
+    return await getArcAssetStatuses(assetIds, ctx.orgId);
+  } catch {
+    return {};
+  }
+}
+
 export async function decideArcDraftAction(input: {
   campaignId: string;
   assetId: string;
