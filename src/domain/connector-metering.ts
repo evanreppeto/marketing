@@ -50,6 +50,10 @@ export const CONNECTOR_COST_RATES: Record<string, ConnectorCostRate> = {
   // Firmographic enrichment vendor (BSR-368). One paid lookup per company enriched
   // during a CRM import; each call is guarded by the spend cap before it fires.
   "lead-enrichment": { centsPerUnit: 2, unitLabel: "enrichment", disclosureUnits: 100 },
+  // Platform-credits media generation (dual-mode entry: metered ONLY when the
+  // call runs on the platform key; a workspace's own key bypasses). Unit = one
+  // image; video passes ~10 units per clip (see the generation call sites).
+  "gemini-media": { centsPerUnit: 6, unitLabel: "image", disclosureUnits: 10 },
 };
 
 /** The pricing for a connector, or null when it is not a priced/metered connector. */

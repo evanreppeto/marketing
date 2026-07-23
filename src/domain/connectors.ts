@@ -162,6 +162,26 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     toolNamespace: "gemini",
   },
   {
+    key: "gemini-media",
+    kind: "mcp_tool",
+    label: "Media Generation",
+    description:
+      "AI image & video generation for Studio and Arc — included on platform credits (metered, spend-capped), or bring this workspace's own Gemini API key. Output always lands as approval-gated draft assets, provenance-tagged and risk-flagged.",
+    costTier: "byo_key",
+    platformEnvVar: "GEMINI_API_KEY",
+    verticals: [],
+    capability: { summary: "Generate campaign imagery and short video as approval-gated drafts.", toolNamespaces: ["media"] },
+    credentialSchema: {
+      kind: "api_key",
+      label: "Gemini API key",
+      hint: "From Google AI Studio (billing enabled for image output). Stored encrypted in your Vault — never shown again, never sent to the browser.",
+    },
+    authKind: "api_key",
+    access: "gated_write",
+    mcpUrl: null,
+    toolNamespace: "media",
+  },
+  {
     key: "higgsfield",
     kind: "mcp_tool",
     label: "Higgsfield",

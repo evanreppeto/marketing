@@ -5,7 +5,9 @@ import { parseArcRoute } from "@/domain";
 
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import { checkUsageAllowed, formatCentsUsd } from "@/lib/billing/entitlements";
-import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
+import { getMediaProviderWithKey } from "@/lib/media";
+import { MEDIA_CONNECTOR_KEY, resolveMediaGeneration } from "@/lib/media/enablement";
+import { meterConnectorCall } from "@/lib/connectors/metering";
 import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
 import { storeGeneratedMedia } from "@/lib/media/storage";
@@ -21,9 +23,8 @@ import { recordUsageEvent } from "@/lib/ai-usage/persistence";
 export async function POST(request: Request) {
   const allowed = await arcGuard(request);
   if (!allowed.ok) return allowed.response;
-  if (!isMediaGenEnabled()) {
-    return fail("not_configured", "Video generation isn't enabled (needs ARC_MEDIA_ENABLED and GEMINI_API_KEY).", 503);
-  }
+  const access = await resolveMediaGeneration(allowed.scope.workspaceId);
+  if (!access.enabled) return fail("not_configured", access.reason, 503);
   const payload = await readJson(request);
   if (payload === INVALID_JSON || typeof payload !== "object" || payload === null) {
     return fail("rejected", "Request body must be valid JSON.", 400);
@@ -34,8 +35,7 @@ export async function POST(request: Request) {
   // level -> env/default. Computed each call; the poll request may omit body.level
   // (start already picked the model), so it falls back safely either way.
   const level = parseArcRoute(body.level ?? settings.markDefaultRoute);
-  const provider = getMediaProvider({ level, imageModel: settings.imageModel, videoModel: settings.videoModel });
-  if (!provider) return fail("not_configured", "Video generation isn't enabled.", 503);
+  const provider = getMediaProviderWithKey(access.credential, { level, imageModel: settings.imageModel, videoModel: settings.videoModel });
 
   const operationName = typeof body.operation_name === "string" ? body.operation_name.trim() : "";
 
@@ -75,7 +75,15 @@ export async function POST(request: Request) {
     const aspectRatio =
       typeof body.aspect_ratio === "string" && body.aspect_ratio.trim() ? body.aspect_ratio.trim() : "16:9";
     const durationSeconds = typeof body.duration_seconds === "number" ? body.duration_seconds : undefined;
-    const start = await provider.startVideo({ prompt: hardenImagePrompt(prompt), aspectRatio, durationSeconds });
+    // Spend-cap the START only (a poll of an in-flight job finishes work whose
+    // cost is already incurred). Video ≈ 10 image-units in the rate table.
+    const metered = await meterConnectorCall(
+      undefined,
+      { orgId: allowed.scope.orgId, workspaceId: allowed.scope.workspaceId, connectorKey: MEDIA_CONNECTOR_KEY, estimatedUnits: 10, costTier: access.costTier, context: { route: "generate-video" } },
+      () => provider.startVideo({ prompt: hardenImagePrompt(prompt), aspectRatio, durationSeconds }),
+    );
+    if (!metered.ok) return fail("plan_limit", metered.refusal.message, 402);
+    const start = metered.result;
     return NextResponse.json(
       { ok: true, status: "running", operationName: start.operationName, model: start.model, jobId: start.jobId },
       { status: 201 },

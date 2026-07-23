@@ -8,6 +8,10 @@ vi.mock("@/app/api/v1/arc/_lib/http", async (importOriginal) => {
   };
 });
 vi.mock("@/lib/media", () => ({ isMediaGenEnabled: vi.fn(() => true) }));
+vi.mock("@/lib/media/enablement", () => ({
+  MEDIA_CONNECTOR_KEY: "gemini-media",
+  resolveMediaGeneration: vi.fn(async () => ({ enabled: true, credential: "test-key", source: "byo", costTier: "byo_key" })),
+}));
 vi.mock("@/lib/brand-kit/persistence", () => ({ getBusinessProfile: vi.fn(async () => null) }));
 vi.mock("@/lib/media/compose/renderer", () => ({
   renderCreative: vi.fn(async () => ({ bytes: Buffer.from("png-bytes"), contentType: "image/png" })),
@@ -15,7 +19,7 @@ vi.mock("@/lib/media/compose/renderer", () => ({
 vi.mock("@/lib/media/storage", () => ({ storeGeneratedMedia: vi.fn(async () => "https://cdn.example/composite.png") }));
 
 import { POST } from "./route";
-import { isMediaGenEnabled } from "@/lib/media";
+import { resolveMediaGeneration } from "@/lib/media/enablement";
 
 const post = (body: unknown) =>
   POST(new Request("http://localhost/api/v1/arc/media/compose", { method: "POST", body: JSON.stringify(body) }));
@@ -43,8 +47,8 @@ describe("POST /api/v1/arc/media/compose", () => {
     expect(res.status).toBe(400);
   });
 
-  it("returns 503 when media gen is disabled", async () => {
-    vi.mocked(isMediaGenEnabled).mockReturnValueOnce(false);
+  it("returns 503 when media gen is disabled for the workspace", async () => {
+    vi.mocked(resolveMediaGeneration).mockResolvedValueOnce({ enabled: false, reason: "Media generation is off for this workspace." });
     const res = await post({ background_url: "https://cdn.example/bg.png", headline: "Flooded?" });
     expect(res.status).toBe(503);
   });

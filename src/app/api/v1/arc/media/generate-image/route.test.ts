@@ -26,7 +26,19 @@ const generateImage = vi.fn();
 vi.mock("@/lib/media", () => ({
   isMediaGenEnabled: () => process.env.ARC_MEDIA_ENABLED === "1",
   getMediaProvider: () => ({ generateImage }),
+  getMediaProviderWithKey: () => ({ generateImage }),
 }));
+vi.mock("@/lib/media/enablement", () => ({
+  MEDIA_CONNECTOR_KEY: "gemini-media",
+  // Enabled via the workspace's own key (byo bypasses metering) so route tests
+  // exercise the route, not the metering ledger.
+  resolveMediaGeneration: vi.fn(async () =>
+    process.env.ARC_MEDIA_ENABLED === "1"
+      ? { enabled: true, credential: "test-key", source: "byo", costTier: "byo_key" }
+      : { enabled: false, reason: "Media generation is off for this workspace." },
+  ),
+}));
+
 const checkUsageAllowed = vi.fn(async () => ({
   allowed: true, enforced: false, tier: "free", usedCents: 0, capCents: 1000, remainingCents: 1000, overCap: false,
 }));

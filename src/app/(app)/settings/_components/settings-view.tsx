@@ -287,6 +287,12 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
     credLabel: "Mailchimp API key",
     credHint: "From Mailchimp → Account → Extras → API keys (the '…-us21' form). Stored in your Vault; used read-only — imports members, never writes back.",
   },
+  "gemini-media": {
+    c: "#c8a24a",
+    l: "Md",
+    credLabel: "Gemini API key",
+    credHint: "Optional — included on platform credits (metered, spend-capped). Add your own Google AI Studio key (billing enabled) to generate on your account instead.",
+  },
   "lead-enrichment": {
     c: "#5b8def",
     l: "En",
