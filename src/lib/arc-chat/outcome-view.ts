@@ -13,6 +13,7 @@ export type ArcOutcomeView = {
   headline: string;
   body: string;
   safetyLabel: string;
+  nextAction: string;
   badges: ArcOutcomeBadge[];
 };
 
@@ -52,18 +53,38 @@ export function buildArcOutcomeView(input: {
   const badges: ArcOutcomeBadge[] = [];
   const sourceCount = input.sourceCount ?? 0;
   const recallCount = input.recallCount ?? 0;
+  const createdDraftCount = actions.filter((action) => action.kind === "draft").length;
+  const unrecordedAction = profile.intent === "action" && createdDraftCount === 0;
 
   if (sourceCount > 0) badges.push({ kind: "sources", label: plural(sourceCount, "source") });
   if (recallCount > 0) badges.push({ kind: "memory", label: plural(recallCount, "memory", "memories") });
-  if (actions.length > 0) badges.push({ kind: "created", label: plural(actions.length, "deliverable") });
+  if (createdDraftCount > 0) badges.push({ kind: "created", label: plural(createdDraftCount, "deliverable") });
   if (LIMITATION_PATTERN.test(input.response)) badges.push({ kind: "limitation", label: "Limitations noted" });
 
+  if (unrecordedAction) {
+    return {
+      intent: profile.intent,
+      label: profile.resultLabel,
+      headline: profile.resultTitle,
+      body: input.response,
+      safetyLabel: "No changes recorded",
+      nextAction: profile.nextAction,
+      badges,
+    } satisfies ArcOutcomeView;
+  }
+
+  const createdOutput = createdDraftCount > 0;
   return {
     intent: profile.intent,
-    label: profile.resultLabel,
-    headline: extracted?.headline ?? profile.resultTitle,
+    label: createdOutput ? "Created" : profile.resultLabel,
+    headline: extracted?.headline ?? (createdOutput ? "Reviewable work is ready." : profile.resultTitle),
     body: extracted?.body ?? input.response,
-    safetyLabel: input.mode === "ask" ? "Read only" : "Nothing sent",
+    safetyLabel: input.mode === "ask"
+      ? "Read only"
+      : profile.intent === "create" || createdOutput
+        ? "Nothing sent"
+        : "No changes recorded",
+    nextAction: profile.nextAction,
     badges,
   } satisfies ArcOutcomeView;
 }

@@ -387,11 +387,13 @@ export function LiveConversation({
         // Runner-measured wall-clock. Message rows are inserted before the run,
         // so subtracting their created_at values reported 0s for real work.
         const thoughtSeconds = !pending && message.runDurationMs != null ? message.runDurationMs / 1000 : undefined;
+        const recordedDraftCount = message.actions.filter((action) => action.kind === "draft").length;
         const contract = buildArcRunContract({
           mode: operatorMessage?.mode,
           route: operatorMessage?.route,
           contextScopes: operatorMessage?.contextScopes,
           actionCount: message.actions.length,
+          workspaceChangeCount: recordedDraftCount,
           toolCount: message.toolCalls?.length ?? 0,
           agentTaskId: message.agentTaskId,
         });
@@ -566,6 +568,12 @@ export function DemoConversation({
         const operatorTurn = [...turns.slice(0, index)].reverse().find((candidate) => candidate.role === "operator");
         const turnContract = buildArcRunContract({ mode: turn.mode, route: "fast", contextScopes: ["workspace", "brand", "crm", "campaigns"], agentTaskId: turn.id });
         const turnProfile = buildArcRunProfile({ request: operatorTurn?.body, mode: turn.mode, command: turn.command, sources: turnContract.readScopes });
+        const outcomeView = buildArcOutcomeView({
+          request: operatorTurn?.body,
+          response: turn.body,
+          mode: turn.mode,
+          command: turn.command,
+        });
         const completedSteps: ArcStep[] = turn.outcome === "canceled"
           ? [{ label: "Stopped before remaining work was applied", status: "done", at: "now", kind: "think" }]
           : turnProfile.phases.map((phase) => ({ label: phase.label, detail: [phase.detail], status: "done", at: "now", kind: phase.kind }));
@@ -582,11 +590,11 @@ export function DemoConversation({
             {turn.outcome === "canceled" ? (
               <div className="arc-answer"><p>{turn.body}</p></div>
             ) : (
-              <div className="arc-result-receipt" data-intent={turnProfile.intent}>
-                <div className="arc-result-receipt-kicker"><Check size={13} /><span>{turnProfile.resultLabel}</span><em>Nothing sent</em></div>
-                <h2>{turnProfile.resultTitle}</h2>
-                <p>{turnProfile.completedSummary}</p>
-                <div className="arc-result-next"><ArrowRight size={14} /><span>{turnProfile.nextAction}</span></div>
+              <div className="arc-result-receipt" data-intent={outcomeView.intent}>
+                <div className="arc-result-receipt-kicker"><Check size={13} /><span>{outcomeView.label}</span><em>{outcomeView.safetyLabel}</em></div>
+                <h2>{outcomeView.headline}</h2>
+                <p>{outcomeView.body}</p>
+                <div className="arc-result-next"><ArrowRight size={14} /><span>{outcomeView.nextAction}</span></div>
               </div>
             )}
           </AssistantMessage>
