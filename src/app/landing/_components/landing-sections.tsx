@@ -5,8 +5,8 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 
 import { Constellation } from "./constellation";
-import { GhostCta, GoldCta } from "./cta";
 import { Reveal } from "./reveal";
+import { WaitlistForm } from "./waitlist-form";
 
 // ————— How it works: a week with Arc, told as the app's own activity feed —————
 
@@ -335,12 +335,11 @@ export function FinalCta() {
             Put a marketing operator on your team
           </h2>
           <p className="mx-auto mt-5 max-w-[52ch] text-[1rem] leading-relaxed text-[var(--text-secondary)]">
-            Set up your workspace, connect your channels, and let Arc bring you
-            its first opportunities — with every decision still yours.
+            We&rsquo;re onboarding teams gradually while pricing is finalized —
+            join the waitlist and we&rsquo;ll reach out when your spot opens.
           </p>
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-3.5">
-            <GoldCta href="/sign-up">Create your workspace</GoldCta>
-            <GhostCta href="/login">Sign in</GhostCta>
+          <div className="mt-9">
+            <WaitlistForm source="landing-cta" align="center" />
           </div>
         </Reveal>
       </div>
@@ -361,9 +360,9 @@ export function LandingFooter() {
           <a href="#how" className="transition-colors hover:text-[var(--text-primary)]">How it works</a>
           <a href="#approvals" className="transition-colors hover:text-[var(--text-primary)]">Approvals</a>
           <Link href="/login" className="transition-colors hover:text-[var(--text-primary)]">Sign in</Link>
-          <Link href="/sign-up" className="font-medium text-[var(--accent)] transition-colors hover:text-[color:color-mix(in_srgb,var(--accent)_85%,white)]">
-            Create account
-          </Link>
+          <a href="#waitlist" className="font-medium text-[var(--accent)] transition-colors hover:text-[color:color-mix(in_srgb,var(--accent)_85%,white)]">
+            Join the waitlist
+          </a>
         </nav>
       </div>
       <div className="border-t border-[color:var(--border-panel)]">

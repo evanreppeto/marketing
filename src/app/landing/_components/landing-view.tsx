@@ -11,7 +11,7 @@ import {
 } from "motion/react";
 
 import { AppWindow } from "./app-window";
-import { GhostCta, GoldCta } from "./cta";
+import { GoldCta } from "./cta";
 import {
   FinalCta,
   HowItWorks,
@@ -20,6 +20,7 @@ import {
   TrustBand,
 } from "./landing-sections";
 import { ScrollSequence } from "./scroll-sequence";
+import { WaitlistForm } from "./waitlist-form";
 import { ShowcaseTabs } from "./showcase-tabs";
 import { StudioShowcase } from "./studio-showcase";
 
@@ -66,8 +67,8 @@ function LandingNav() {
           >
             Sign in
           </Link>
-          <GoldCta href="/sign-up" size="sm">
-            Get started
+          <GoldCta href="#waitlist" size="sm">
+            Join waitlist
           </GoldCta>
         </div>
       </div>
@@ -246,9 +247,14 @@ function Hero() {
           Nothing reaches a customer until you say so.
         </motion.p>
 
-        <motion.div {...entrance(0.36)} className="mt-10 flex flex-wrap items-center gap-3.5">
-          <GoldCta href="/sign-up">Get started</GoldCta>
-          <GhostCta href="/login">Sign in</GhostCta>
+        <motion.div {...entrance(0.36)} id="waitlist" className="mt-10 scroll-mt-28">
+          <WaitlistForm source="landing-hero" />
+          <p className="mt-4 text-[0.85rem] text-[var(--text-secondary)]">
+            Already have a workspace?{" "}
+            <Link href="/login" className="font-medium text-[var(--accent)] underline-offset-4 hover:underline">
+              Sign in
+            </Link>
+          </p>
         </motion.div>
 
         <HeroProductShot />

@@ -1,5 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+
+import { getAuthMode } from "@/lib/auth/auth-mode";
 
 import { EtherealShadow } from "@/components/ui/etheral-shadow";
 import { FormValidityMessages } from "@/components/ui/form-validity";
@@ -38,6 +41,13 @@ export default async function SignUpPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  // Pre-pricing: self-serve sign-up stays closed in production (supabase mode)
+  // and the landing waitlist is the front door. Invited teammates still join
+  // through /accept-invite, and ARC_SELF_SERVE_SIGNUP=1 reopens this page.
+  if (getAuthMode() === "supabase" && process.env.ARC_SELF_SERVE_SIGNUP !== "1") {
+    redirect("/#waitlist");
+  }
+
   const params = await searchParams;
   const error = params.error ? SIGN_UP_ERRORS[params.error] ?? "Something went wrong. Try again." : null;
   const checkEmail = params.success === "check_email";
