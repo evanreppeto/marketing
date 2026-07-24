@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "motion/react";
 
-const FRAME_COUNT = 60;
+const FRAME_COUNT = 120;
 const frameSrc = (i: number) => `/brand/landing/sequence/frame-${String(i).padStart(3, "0")}.webp`;
 
 const STAGES = [
@@ -36,10 +36,11 @@ function StageLine({
   );
 }
 
-// The scroll-scrubbed brand film: 60 frames extracted from a Higgsfield-generated
-// video of a gold ribbon drawing itself. Scrolling through the (tall) section
-// scrubs the sequence on a sticky canvas while the operating principle plays out
-// line by line. Reduced motion gets the finished frame and all three lines static.
+// The scroll-scrubbed brand film: 120 frames (every source frame) from a
+// Higgsfield-generated video of a gold ribbon drawing itself. The scrub is
+// driven through a spring, so discrete mouse-wheel steps glide through the
+// in-between frames instead of jumping. Reduced motion gets the finished
+// frame and all three lines static.
 export function ScrollSequence() {
   const reduced = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,6 +52,9 @@ export function ScrollSequence() {
     target: containerRef,
     offset: ["start start", "end end"],
   });
+  // Smooths chunky wheel/trackpad input into continuous motion before it
+  // reaches the canvas and the stage copy.
+  const smoothProgress = useSpring(scrollYProgress, { stiffness: 90, damping: 26, mass: 0.5 });
 
   useEffect(() => {
     if (reduced) return;
@@ -74,7 +78,7 @@ export function ScrollSequence() {
       return img;
     });
 
-    const unsubscribe = scrollYProgress.on("change", (p) => {
+    const unsubscribe = smoothProgress.on("change", (p) => {
       const index = Math.min(FRAME_COUNT - 1, Math.max(0, Math.round(p * (FRAME_COUNT - 1))));
       if (index !== currentFrame.current) draw(index);
     });
@@ -84,7 +88,7 @@ export function ScrollSequence() {
       unsubscribe();
       imagesRef.current = [];
     };
-  }, [reduced, scrollYProgress]);
+  }, [reduced, smoothProgress]);
 
   if (reduced) {
     return (
@@ -126,7 +130,7 @@ export function ScrollSequence() {
           {STAGES.map((stage) => (
             <StageLine
               key={stage.text}
-              progress={scrollYProgress}
+              progress={smoothProgress}
               from={stage.from}
               to={stage.to}
               text={stage.text}
