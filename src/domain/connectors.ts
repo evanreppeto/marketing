@@ -331,14 +331,14 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     key: "competitor-ads",
     kind: "signal_source",
     label: "Competitor Ad Intel",
-    // Same shape as reviews-signals: the classifier is real, the ad-library client
-    // isn't. Official APIs only when it lands (ToS) — no scraping.
+    // Meta's official Ad Library API only (ToS) — no scraping. Google has no
+    // official ads-transparency API, so this is Meta-only by necessity.
     description:
-      "PLANNED — the public ad-library pull (Meta Ad Library / Google Ads Transparency) isn't built yet, so this " +
-      "can't be switched on. When it lands it will be a read-only signal source: it proposes defensive / " +
-      "contested-territory opportunities with the competitor's keywords and creative intel attached. It will never " +
-      "contact anyone — proposals only.",
-    availability: "planned",
+      "Read-only competitor ad intel from Meta's official Ad Library. Proposes defensive / contested-territory " +
+      "opportunities with the competitor's keywords and creative intel attached — never contacts anyone. " +
+      "COVERAGE NOTE: outside the EU, Meta's Ad Library API only returns political & social-issue ads; general " +
+      "commercial ads are broadly queryable for EU-delivered ads. A quiet result may mean Meta doesn't expose " +
+      "those ads, not that competitors are inactive.",
     costTier: "byo_key",
     verticals: [
       "home_services",
@@ -357,10 +357,11 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     },
     credentialSchema: {
       kind: "api_key",
-      label: "Ad library API access token",
-      hint: "Meta Ad Library API token and/or Google Ads Transparency access. Stored encrypted in your Vault; used read-only. Official APIs only — no scraping.",
-      optional: true,
+      label: "Meta Ad Library access token",
+      hint: "A Meta access token with Ad Library API access. Stored encrypted in your Vault; used read-only. Official API only — no scraping.",
     },
+    // Needs BOTH who to watch and where — a token alone can't query the library.
+    requiredConfigKeys: ["competitors"],
     authKind: "api_key",
     access: "read_only",
     mcpUrl: null,

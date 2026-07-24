@@ -261,8 +261,8 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
   "competitor-ads": {
     c: "#c47f7f",
     l: "Ad",
-    credLabel: "Ad library API access token",
-    credHint: "Meta Ad Library / Google Ads Transparency access, stored in your Vault. Read-only competitive intel from official APIs — it proposes defensive opportunities and never contacts anyone.",
+    credLabel: "Meta Ad Library access token",
+    credHint: "A Meta access token with Ad Library API access, stored in your Vault. Read-only competitive intel from Meta's official API — it proposes defensive opportunities and never contacts anyone. (Google has no official ads-transparency API, so this is Meta-only.)",
   },
   "webhook-dispatch": {
     c: "#9aa0ac",
@@ -446,6 +446,22 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       label: "Business location",
       placeholder: "accounts/123456789/locations/987654321",
       hint: "The Google Business Profile location resource name whose reviews Arc reads. Find it in the Business Profile API (accounts.locations.list) — reviews are fetched per location.",
+    },
+  ],
+  "competitor-ads": [
+    {
+      key: "competitors",
+      kind: "csv",
+      label: "Competitors to watch",
+      placeholder: "Competitor One, Competitor Two",
+      hint: "Advertiser or brand names to search the Meta Ad Library for. Each becomes a search term; matching advertisers become competitor-signal opportunities.",
+    },
+    {
+      key: "countries",
+      kind: "csv",
+      label: "Countries",
+      placeholder: "US, CA",
+      hint: "ISO country codes the ads reached — Meta requires at least one. Note: outside the EU the Ad Library API only exposes political & social-issue ads.",
     },
   ],
   "hubspot-import": [

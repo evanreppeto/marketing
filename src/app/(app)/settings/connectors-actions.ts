@@ -15,6 +15,8 @@ import { runCrmImport, runCsvImport, runMailchimpImport, CSV_IMPORT_CONNECTOR_KE
 import { checkHubspotConnection } from "@/lib/integrations/crm/hubspot";
 import { checkMailchimpConnection } from "@/lib/integrations/crm/mailchimp";
 import { checkGbpConnection } from "@/lib/integrations/reviews/gbp";
+import { checkMetaAdLibrary } from "@/lib/integrations/ads/meta-ad-library";
+import { parseAdWatchConfig } from "@/lib/connectors/builtin/competitor-ads";
 import { resolveGoogleAccessToken } from "@/lib/connectors/google-oauth";
 import { buildOpportunityDigest, postSlackWebhook } from "@/lib/integrations/slack/notify";
 import { listOpenOpportunities } from "@/lib/opportunities/read-model";
@@ -224,6 +226,25 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
       return gb.ok
         ? { ok: true, persisted: true, message: `Google Business Profile reachable — reviews readable for this location.` }
         : { ok: false, error: `Test failed: ${gb.error}` };
+    }
+
+    // Competitor ads: probe the Meta Ad Library with the configured terms. A zero
+    // match is reported honestly (Meta's non-EU coverage is political ads only), so
+    // an empty result never reads as "no competitor activity".
+    if (connector.key === "competitor-ads") {
+      const config = await getConnectorConfig(client, workspaceId, connector.key);
+      const watch = parseAdWatchConfig(config);
+      const ma = await checkMetaAdLibrary(plaintext, { searchTerms: watch.terms, countries: watch.countries, adType: watch.adType });
+      await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: ma.ok ? { ok: true } : { ok: false, error: ma.error } });
+      revalidatePath("/settings");
+      if (!ma.ok) return { ok: false, error: `Test failed: ${ma.error}` };
+      return {
+        ok: true,
+        persisted: true,
+        message: ma.count
+          ? `Meta Ad Library reachable — matching ads found for “${watch.terms[0]}”.`
+          : `Meta Ad Library reachable, but no ads matched “${watch.terms[0]}”. Outside the EU only political & social-issue ads are exposed by Meta's API.`,
+      };
     }
 
     // Slack: the natural test is posting a message to the webhook.
