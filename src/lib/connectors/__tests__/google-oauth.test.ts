@@ -48,7 +48,7 @@ describe("exchangeGoogleCode", () => {
   it("posts the confidential-client body and maps the tokens", async () => {
     vi.stubEnv("GOOGLE_CLIENT_ID", "cid");
     vi.stubEnv("GOOGLE_CLIENT_SECRET", "sec");
-    const fetchImpl = vi.fn(async () => ({
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({ access_token: "at", refresh_token: "rt", expires_in: 3600 }),
@@ -64,7 +64,7 @@ describe("exchangeGoogleCode", () => {
   it("rejects a response missing the refresh_token (offline consent not granted)", async () => {
     vi.stubEnv("GOOGLE_CLIENT_ID", "cid");
     vi.stubEnv("GOOGLE_CLIENT_SECRET", "sec");
-    const fetchImpl = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ access_token: "at" }) }) as unknown as Response);
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({ ok: true, status: 200, json: async () => ({ access_token: "at" }) }) as unknown as Response);
     expect((await exchangeGoogleCode({ code: "c", redirectUri: "https://app/cb", fetchImpl })).ok).toBe(false);
   });
 });
@@ -88,7 +88,7 @@ describe("resolveGoogleAccessToken", () => {
   it("refreshes a stale bundle with the client secret", async () => {
     vi.stubEnv("GOOGLE_CLIENT_ID", "cid");
     vi.stubEnv("GOOGLE_CLIENT_SECRET", "sec");
-    const fetchImpl = vi.fn(async () => ({
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({ access_token: "rotated", expires_in: 3600 }),
@@ -109,7 +109,7 @@ describe("resolveGoogleAccessToken", () => {
   it("surfaces a refresh failure so the operator is told to reconnect", async () => {
     vi.stubEnv("GOOGLE_CLIENT_ID", "cid");
     vi.stubEnv("GOOGLE_CLIENT_SECRET", "sec");
-    const fetchImpl = vi.fn(async () => ({ ok: false, status: 400, text: async () => "invalid_grant" }) as unknown as Response);
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({ ok: false, status: 400, text: async () => "invalid_grant" }) as unknown as Response);
     const bundle = serializeOAuthBundle({
       kind: "oauth_refresh",
       accessToken: "stale",

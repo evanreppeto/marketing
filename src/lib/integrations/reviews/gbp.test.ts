@@ -44,7 +44,7 @@ describe("gbpReviewToInput", () => {
 
 describe("gbpReviewSource", () => {
   it("lists mapped reviews for the configured location", async () => {
-    const fetchImpl = vi.fn(async () =>
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
       jsonResponse({ reviews: [{ reviewId: "a", starRating: "FIVE" }, { reviewId: "b", starRating: "TWO" }] }),
     );
     const src = gbpReviewSource("tok", { locationName: LOCATION, fetchImpl: fetchImpl as unknown as typeof fetch });
