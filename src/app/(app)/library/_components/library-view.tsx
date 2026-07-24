@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { formatByteSize } from "@/domain";
 
 import { createLibraryFolder, deleteLibraryAsset, deleteLibraryFolder, importLibraryAssetFromUrl, renameLibraryAsset, renameLibraryFolder, setLibraryAssetArcAvailability, setLibraryAssetTags, uploadLibraryAsset } from "../actions";
+import { addLibraryAssetsToCampaign } from "../actions";
 import { ImportUrlModal } from "./import-url-modal";
 import { NewFolderModal } from "./new-folder-modal";
 
@@ -184,7 +185,8 @@ export function LibraryView({
   folders,
   live = false,
   totalBytes,
-}: { assets?: Asset[]; folders?: Folder[]; live?: boolean; totalBytes?: number } = {}) {
+  campaigns = [],
+}: { assets?: Asset[]; folders?: Folder[]; live?: boolean; totalBytes?: number; campaigns?: { id: string; name: string }[] } = {}) {
   const [curFolder, setCurFolder] = useState("all");
   const [curKind, setCurKind] = useState("all");
   const [curColl, setCurColl] = useState("all");
@@ -215,6 +217,11 @@ export function LibraryView({
   const [folderOpen, setFolderOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // "Add to campaign" picker. The control used to be a bare link to /campaigns,
+  // which navigated away and silently discarded the selection.
+  const [campaignPickOpen, setCampaignPickOpen] = useState(false);
+  const [addingTo, setAddingTo] = useState<string | null>(null);
+
   const fileRef = useRef<HTMLInputElement>(null);
   const uidRef = useRef(-1);
 
@@ -225,6 +232,32 @@ export function LibraryView({
       .map((a) => (edits[a.id] ? { ...a, ...(edits[a.id].nm !== undefined ? { nm: edits[a.id].nm! } : {}), ...(edits[a.id].tags !== undefined ? { tags: edits[a.id].tags! } : {}) } : a)),
     [uploaded, baseAssets, deletedIds, edits],
   );
+
+  /**
+   * Attach the selected media to a campaign as approval-gated drafts. Uses the real
+   * media_assets uuids (Asset.rid); session/demo rows without one can't be promoted,
+   * and we say so rather than silently attaching fewer than were selected.
+   */
+  const addSelectionToCampaign = async (campaignId: string, campaignName: string) => {
+    const chosen = allAssets.filter((a) => sel.has(a.id));
+    const ids = chosen.map((a) => a.rid).filter(Boolean) as string[];
+    setCampaignPickOpen(false);
+    if (ids.length === 0) {
+      setNotice("Those items aren't saved assets yet, so they can't be added to a campaign.");
+      return;
+    }
+    setAddingTo(campaignId);
+    const res = await addLibraryAssetsToCampaign({ assetIds: ids, campaignId });
+    setAddingTo(null);
+    if (!res.ok) { setNotice(res.error); return; }
+    const skipped = chosen.length - ids.length;
+    setNotice(
+      !res.persisted
+        ? "Connect a workspace to add assets to a campaign."
+        : `Added ${res.added} ${res.added === 1 ? "asset" : "assets"} to ${res.campaignName ?? campaignName} as drafts — approve them on the campaign.${skipped > 0 ? ` ${skipped} skipped (not saved assets).` : ""}`,
+    );
+    if (res.persisted) setSel(new Set());
+  };
 
   // Folder counts over the live asset set (base assets + this session's uploads).
   const rcountLive = (f: string): number => {
@@ -640,7 +673,26 @@ export function LibraryView({
           <div className={`selbar${selmode ? " show" : ""}`}>
             <span className="sc">{sel.size} selected</span>
             <span className="sa" onClick={() => { applyArc(allAssets.filter((a) => sel.has(a.id)), true); setSel(new Set()); }}><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg>Make available to Arc</span>
-            <a className="sa" href={NEW_CAMPAIGN}><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to campaign</a>
+            <span className="sa sa-pick" style={{ position: "relative" }}>
+              <span
+                onClick={() => { if (campaigns.length > 0) setCampaignPickOpen((o) => !o); else setNotice("Create a campaign first, then you can add media to it."); }}
+                {...(addingTo ? { "aria-busy": true } : {})}
+              >
+                <svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>
+                {addingTo ? "Adding…" : "Add to campaign"}
+              </span>
+              {campaignPickOpen && campaigns.length > 0 && (
+                <>
+                  <span className="pickscrim" onClick={() => setCampaignPickOpen(false)} />
+                  <span className="pickmenu" role="menu">
+                    <span className="pickhd">Add {sel.size} to…</span>
+                    {campaigns.map((c) => (
+                      <span key={c.id} className="pickopt" role="menuitem" onClick={() => addSelectionToCampaign(c.id, c.name)}>{c.name}</span>
+                    ))}
+                  </span>
+                </>
+              )}
+            </span>
             <span className="sa"><svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z" /></svg>Move to folder</span>
             <span className="sa"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>Download</span>
             <span className="clr" onClick={() => setSel(new Set())}>Clear</span>
