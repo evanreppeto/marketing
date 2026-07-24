@@ -129,10 +129,6 @@ export function AppShell({
   const pathname = usePathname();
   const language = getProductLanguage(industry);
   const navGroups = navGroupsFor(language.crmLabel);
-  const advancedActive = ADVANCED_NAV_GROUPS.some((group) =>
-    group.items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)),
-  );
-  const [toolsOpen, setToolsOpen] = useState(false);
   // Mobile nav drawer. Below the shell breakpoint the rail is an off-canvas
   // drawer toggled from the top bar; on desktop `navOpen` is inert (the rail is
   // always visible). Tapping a destination closes it (see the nav links), and
@@ -213,16 +209,7 @@ export function AppShell({
                 })}
               </div>
             ))}
-            <button
-              type="button"
-              className="nav-more"
-              aria-expanded={toolsOpen || advancedActive}
-              onClick={() => setToolsOpen((open) => !open)}
-            >
-              <span>More tools</span>
-              <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" /></svg>
-            </button>
-            {(toolsOpen || advancedActive) && navGroups.slice(1).map((g) => (
+            {navGroups.slice(1).map((g) => (
               <div key={g.group}>
                 <div className="grp">{g.group.toUpperCase()}</div>
                 {g.items.map((it) => {

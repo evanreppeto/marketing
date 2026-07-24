@@ -265,20 +265,45 @@ body {
   color: var(--text-primary);
   font-family: var(--font-sans);
   font-feature-settings: "cv05", "ss01";
+  font-kerning: normal;
+  font-variant-ligatures: common-ligatures contextual;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* Prose sits on a slightly nicer rag: pretty avoids orphans/short last lines
+   without the reflow cost of balance on long copy. */
+p {
+  text-wrap: pretty;
 }
 
 h1, h2, h3 {
   font-family: var(--font-serif);
   letter-spacing: -0.022em;
   font-weight: 600;
+  /* Fraunces is an optical face — let large display sizes render on their own
+     optical master, and let headings break into balanced, even lines. */
+  font-optical-sizing: auto;
+  text-wrap: balance;
 }
 
 h4, .font-display {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
   font-weight: 600;
+  text-wrap: balance;
+}
+
+/* Aligned data reads as engineered when digits sit on a fixed advance. Applied
+   to the surfaces where numbers line up in columns or update in place — tables,
+   metric readouts, mono tokens, and timestamps — never to prose. */
+table,
+.metric-value-fluid,
+.token-value,
+.tabular-nums,
+time,
+[class*="tabular"] {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Editorial serif (Fraunces) — the auth-screen headline signature only. */
