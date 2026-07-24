@@ -5,7 +5,29 @@ import {
   type OpportunityCandidate,
 } from "@/domain";
 
+import { metaAdLibrarySource } from "@/lib/integrations/ads/meta-ad-library";
+
+import { readConnectorCredential } from "../credentials";
+import { resolveConnectorCredentialRef } from "../read-model";
 import { registerSignalSource, type SignalDetectContext, type SignalSourceConnector } from "../registry";
+
+export const COMPETITOR_ADS_CONNECTOR_KEY = "competitor-ads";
+
+/** Parse the operator's configured search terms / countries (newline or comma separated). */
+export function parseAdWatchConfig(config: Record<string, unknown> | null | undefined): { terms: string[]; countries: string[]; adType?: string } {
+  const cfg = config ?? {};
+  const split = (raw: unknown): string[] =>
+    typeof raw === "string"
+      ? raw.split(/[\n,]/).map((s) => s.trim()).filter(Boolean)
+      : Array.isArray(raw)
+        ? raw.filter((v): v is string => typeof v === "string").map((s) => s.trim()).filter(Boolean)
+        : [];
+  return {
+    terms: split(cfg.competitors),
+    countries: split(cfg.countries).map((c) => c.toUpperCase()),
+    adType: typeof cfg.adType === "string" && cfg.adType.trim() ? cfg.adType.trim() : undefined,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Real `competitor-ads` signal_source connector (BSR-367). Read-only: reads a
@@ -67,9 +89,32 @@ export async function detectCompetitorAdOpportunities(input: CompetitorAdDetectI
   return detectCompetitorOpportunities(mapAdFlightsToSignals(flights), { now });
 }
 
+/**
+ * Pick the ad source for a scan: the LIVE Meta Ad Library when the workspace has a
+ * token AND configured competitors + countries, else the config seam (dev/demo).
+ * Any resolution failure falls back to config so a scan never throws.
+ */
+async function resolveAdSource(ctx: SignalDetectContext): Promise<CompetitorAdSource> {
+  const watch = parseAdWatchConfig(ctx.config);
+  if (!ctx.client || !ctx.workspaceId || watch.terms.length === 0 || watch.countries.length === 0) {
+    return configAdSource(ctx.config);
+  }
+  try {
+    const ref = await resolveConnectorCredentialRef(ctx.client, ctx.workspaceId, COMPETITOR_ADS_CONNECTOR_KEY);
+    const token = await readConnectorCredential(ctx.client, ref);
+    if (!token) return configAdSource(ctx.config);
+    return metaAdLibrarySource(token, { searchTerms: watch.terms, countries: watch.countries, adType: watch.adType });
+  } catch {
+    return configAdSource(ctx.config);
+  }
+}
+
 export const competitorAdsConnector: SignalSourceConnector = {
-  key: "competitor-ads",
-  detect: (ctx) => detectCompetitorAdOpportunities(ctx),
+  key: COMPETITOR_ADS_CONNECTOR_KEY,
+  detect: async (ctx) => {
+    const source = await resolveAdSource(ctx);
+    return detectCompetitorAdOpportunities({ config: ctx.config, now: ctx.now, source });
+  },
 };
 
 registerSignalSource(competitorAdsConnector);

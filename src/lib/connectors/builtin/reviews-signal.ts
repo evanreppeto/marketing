@@ -1,6 +1,13 @@
 import { detectReviewSignalOpportunities, type OpportunityCandidate, type ReviewInput } from "@/domain";
 
+import { gbpReviewSource } from "@/lib/integrations/reviews/gbp";
+
+import { readConnectorCredential } from "../credentials";
+import { resolveGoogleAccessToken } from "../google-oauth";
+import { resolveConnectorCredentialRef } from "../read-model";
 import { registerSignalSource, type SignalDetectContext, type SignalSourceConnector } from "../registry";
+
+export const REVIEWS_SIGNAL_CONNECTOR_KEY = "reviews-signals";
 
 // ---------------------------------------------------------------------------
 // Real `reviews-signals` signal_source connector (BSR-365). Read-only: reads
@@ -60,9 +67,33 @@ export async function detectReviewOpportunities(input: ReviewDetectInput): Promi
   return detectReviewSignalOpportunities(reviews, { now });
 }
 
+/**
+ * Pick the review source for a scan: the LIVE Google Business Profile source when
+ * the workspace has connected (OAuth credential) AND configured its location, else
+ * the config seam (dev/demo). Best-effort — any resolution failure falls back to the
+ * config source so a scan never throws.
+ */
+async function resolveReviewSource(ctx: SignalDetectContext): Promise<ReviewSource> {
+  const locationName = typeof ctx.config?.gbpLocation === "string" ? ctx.config.gbpLocation.trim() : "";
+  if (!ctx.client || !ctx.workspaceId || !locationName) return configReviewSource(ctx.config);
+  try {
+    const ref = await resolveConnectorCredentialRef(ctx.client, ctx.workspaceId, REVIEWS_SIGNAL_CONNECTOR_KEY);
+    const raw = await readConnectorCredential(ctx.client, ref);
+    if (!raw) return configReviewSource(ctx.config);
+    const resolved = await resolveGoogleAccessToken(ctx.client, ref, raw);
+    if (!resolved.ok) return configReviewSource(ctx.config);
+    return gbpReviewSource(resolved.accessToken, { locationName });
+  } catch {
+    return configReviewSource(ctx.config);
+  }
+}
+
 export const reviewsSignalConnector: SignalSourceConnector = {
-  key: "reviews-signals",
-  detect: (ctx) => detectReviewOpportunities(ctx),
+  key: REVIEWS_SIGNAL_CONNECTOR_KEY,
+  detect: async (ctx) => {
+    const source = await resolveReviewSource(ctx);
+    return detectReviewOpportunities({ config: ctx.config, now: ctx.now, source });
+  },
 };
 
 registerSignalSource(reviewsSignalConnector);
