@@ -17,69 +17,69 @@ export const DEMO_THREADS: ArcThreadGroupVM[] = [
   {
     group: "Today",
     items: [
-      { id: "storm", title: "Storm-damage homeowners", when: "9:38 AM", active: true, pinned: true, running: false, campaignId: "demo-camp" },
+      { id: "storm", title: "High-intent accounts", when: "9:38 AM", active: true, pinned: true, running: false, campaignId: "demo-camp" },
       { id: "past", title: "Past-customer outreach", when: "8:12 AM", active: false, pinned: false, running: true, campaignId: "past-customer" },
     ],
   },
   {
     group: "Yesterday",
     items: [
-      { id: "property", title: "Property-manager list", when: "4:46 PM", active: false, pinned: false, running: false, campaignId: "property-partners" },
-      { id: "noaa", title: "NOAA hail report read", when: "2:10 PM", active: false, pinned: false, running: false, campaignId: "demo-camp" },
+      { id: "property", title: "Multi-seat team list", when: "4:46 PM", active: false, pinned: false, running: false, campaignId: "property-partners" },
+      { id: "noaa", title: "Engagement signal read", when: "2:10 PM", active: false, pinned: false, running: false, campaignId: "demo-camp" },
     ],
   },
   {
     group: "Previous 7 days",
     items: [
-      { id: "inspection", title: "Inspection page rewrite", when: "Jul 10", active: false, pinned: false, running: false, campaignId: "demo-camp" },
-      { id: "adjuster", title: "Adjuster follow-ups", when: "Jul 8", active: false, pinned: false, running: false, campaignId: null },
+      { id: "inspection", title: "Demo page rewrite", when: "Jul 10", active: false, pinned: false, running: false, campaignId: "demo-camp" },
+      { id: "adjuster", title: "Procurement follow-ups", when: "Jul 8", active: false, pinned: false, running: false, campaignId: null },
     ],
   },
 ];
 
 export const DEMO_STEPS: ArcStep[] = [
-  { label: "Read the Naperville storm brief", status: "done", at: "9:38 AM", kind: "think" },
-  { label: "Matched recent hail exposure to CRM properties", status: "done", at: "9:38 AM", kind: "match" },
-  { label: "Ranked homeowners by inspection urgency", status: "done", at: "9:38 AM", kind: "search" },
+  { label: "Read the pricing-intent brief", status: "done", at: "9:38 AM", kind: "think" },
+  { label: "Matched high-intent accounts in CRM", status: "done", at: "9:38 AM", kind: "match" },
+  { label: "Ranked accounts by demo urgency", status: "done", at: "9:38 AM", kind: "search" },
   { label: "Prepared a review-safe campaign package", status: "done", at: "9:38 AM", kind: "draft" },
 ];
 
 export const DEMO_TOOLS: ArcToolCall[] = [
-  { name: "weather.lookup", status: "complete", output: "Naperville hail swath" },
-  { name: "crm.search", status: "complete", output: "142 matched properties" },
+  { name: "weather.lookup", status: "complete", output: "pricing-page surge" },
+  { name: "crm.search", status: "complete", output: "142 high-intent accounts" },
   { name: "audience.score", status: "complete", output: "$1.4M estimated opportunity" },
 ];
 
-export const DEMO_BREAKDOWN_MD = `Here's how the 142 homes break down, and the tracking I'd attach so we can attribute booked jobs back to this run:
+export const DEMO_BREAKDOWN_MD = `Here's how the 142 high-intent accounts break down, and the tracking I'd attach so we can attribute booked demos back to this run:
 
-| Segment | Homes | Est. value | Top signal |
+| Segment | Accounts | Est. value | Top signal |
 | --- | --: | --: | --- |
-| Insured · fresh damage | 64 | $612K | No inspection booked |
-| Aging roof · out-of-pocket | 41 | $455K | Roof age 8y+ |
-| Property manager · multi-unit | 37 | $333K | Prior claim activity |
+| Active trial · high intent | 64 | $612K | No demo booked |
+| Trial expiring soon | 41 | $455K | Trial age 8d+ |
+| Multi-seat team · expansion | 37 | $333K | Prior usage activity |
 
 Every link gets tagged so attribution is clean:
 
 \`\`\`text
-?utm_source=arc&utm_medium=email&utm_campaign=naperville_storm&segment={persona}
+?utm_source=arc&utm_medium=email&utm_campaign=pricing_intent&segment={persona}
 \`\`\`
 `;
 
 export const DEMO_DRAFT_CARD: ArcActionCard = {
   kind: "draft",
-  title: "Inspection follow-up email",
+  title: "Demo follow-up email",
   channel: "Email",
-  format: "64-home segment",
+  format: "64-account segment",
   status: "draft",
   preview:
-    "Hi {first_name}, the recent Naperville hailstorm hit your block harder than most. We're offering a free, no-pressure inspection this week — and if there's claimable damage, we can help coordinate the insurance process.",
+    "Hi {first_name}, your team spent time on our pricing page this week. We're offering a free, no-pressure walkthrough this week — and if it's a fit, we can help you map Meridian to how your team already works.",
   rows: [
-    { name: "Audience", meta: "64 insured · fresh damage" },
-    { name: "Subject", meta: "Your roof may have hidden hail damage" },
+    { name: "Audience", meta: "64 active trial · high intent" },
+    { name: "Subject", meta: "You looked at pricing — here's a walkthrough" },
   ],
   flags: [
     { tone: "ok", label: "Brand voice" },
-    { tone: "ok", label: "Claims-safe" },
+    { tone: "ok", label: "No overclaim" },
   ],
   approval: { kind: "campaign", campaignId: "demo-campaign", assetId: "demo-asset-email" },
 };
@@ -88,52 +88,52 @@ export const DEMO_PACKAGE_CARDS: ArcActionCard[] = [
   DEMO_DRAFT_CARD,
   {
     kind: "draft",
-    title: "Warm inspection check-in",
+    title: "Warm demo check-in",
     channel: "SMS",
     format: "152 / 160 chars",
     status: "draft",
-    preview: "Hi {first_name} — it’s the {brand} crew. We’re checking roofs near you after the Naperville hail, no charge and no pressure. Want us to stop by?",
-    rows: [{ name: "Audience", meta: "142-home segment" }],
-    flags: [{ tone: "ok", label: "Claims-safe" }],
+    preview: "Hi {first_name} — it’s the {brand} team. Saw your team exploring Meridian, no charge and no pressure. Want a quick walkthrough?",
+    rows: [{ name: "Audience", meta: "142-account segment" }],
+    flags: [{ tone: "ok", label: "No overclaim" }],
     approval: { kind: "campaign", campaignId: "demo-campaign", assetId: "demo-asset-sms" },
   },
   {
     kind: "draft",
-    title: "Naperville storm awareness",
+    title: "High-intent awareness",
     channel: "Paid social",
     format: "1:1 · Meta",
     status: "draft",
-    preview: "Naperville got hit hard. Hidden hail damage can become a much bigger repair if it sits — book a free roof inspection while our crews are nearby.",
-    rows: [{ name: "Headline", meta: "See what the storm left behind" }, { name: "CTA", meta: "Book now" }],
+    preview: "Comparing options? The right workflow can save your team hours every week — book a personalized demo while it's top of mind.",
+    rows: [{ name: "Headline", meta: "See Meridian tailored to your team" }, { name: "CTA", meta: "Book now" }],
     flags: [{ tone: "ok", label: "Brand voice" }, { tone: "warn", label: "Needs image" }],
     approval: { kind: "campaign", campaignId: "demo-campaign", assetId: "demo-asset-social" },
   },
   {
     kind: "draft",
-    title: "Storm inspection landing page",
+    title: "Demo landing page",
     channel: "Landing page",
     format: "Mobile-ready",
     status: "draft",
-    preview: "Free roof inspection for storm-hit homes. See whether your roof has claimable damage before the next storm rolls through.",
+    preview: "Free personalized walkthrough for teams evaluating Meridian. See how it fits your workflow before your trial winds down.",
     rows: [{ name: "Destination", meta: "Campaign-matched" }],
-    flags: [{ tone: "ok", label: "Claims-safe" }],
+    flags: [{ tone: "ok", label: "No overclaim" }],
     approval: { kind: "campaign", campaignId: "demo-campaign", assetId: "demo-asset-landing" },
   },
 ];
 
 export const DEMO_ATTACHMENTS: ArcAttachment[] = [
-  { url: "/brand/login-background-v2.png", name: "storm-job-reference.png", contentType: "image/png", objectPath: "demo-ref-1" },
+  { url: "/brand/login-background-v2.png", name: "product-tour-reference.png", contentType: "image/png", objectPath: "demo-ref-1" },
 ];
 
 export const DEMO_SOURCES: ArcMention[] = [
-  { type: "property", id: "demo-prop", label: "142 storm-zone properties", href: "/crm/properties" },
-  { type: "campaign", id: "demo-camp", label: "Storm Rapid Response", href: "/campaigns" },
-  { type: "company", id: "demo-co", label: "Naperville homeowners", href: "/crm/companies" },
+  { type: "property", id: "demo-prop", label: "142 high-intent accounts", href: "/crm/properties" },
+  { type: "campaign", id: "demo-camp", label: "Pricing-Intent Fast Track", href: "/campaigns" },
+  { type: "company", id: "demo-co", label: "High-intent accounts", href: "/crm/companies" },
 ];
 
 export const DEMO_RECALL: ArcRecall[] = [
-  { label: "Inspection-first beats discount-led", confidence: 0.86, nodeId: "demo-node-inspection" },
-  { label: "Insured segment books fastest", confidence: 0.72, nodeId: "demo-node-insured" },
+  { label: "Demo-first beats discount-led", confidence: 0.86, nodeId: "demo-node-inspection" },
+  { label: "Active-trial segment books fastest", confidence: 0.72, nodeId: "demo-node-insured" },
 ];
 
 /** Offline preview: mirrors the demo opportunity inbox so the launcher's "waiting
@@ -144,22 +144,22 @@ export const DEMO_WAITING: ArcWaiting = {
   items: [
     {
       id: "demo-opp-next-iteration-storm-prep",
-      title: "Spring Storm Prep is converting — draft the next iteration",
+      title: "Trial nurture is converting — draft the next iteration",
       urgency: "high",
       prompt:
-        "Draft the next iteration of the Spring Storm Prep campaign based on what worked: For the next iteration, lead with Email, reuse “Storm-watch SMS nudge”. Keep it approval-gated.",
+        "Draft the next iteration of the Quarterly Nurture Refresh campaign based on what worked: For the next iteration, lead with Email, reuse “Trial-watch SMS nudge”. Keep it approval-gated.",
     },
     {
       id: "demo-opp-storm-riverside",
-      title: "Flash-flood warning — Riverside basements at risk",
+      title: "Usage dropped 40% — Riverside Labs trial at risk",
       urgency: "high",
-      prompt: "Help me act on this opportunity: “Flash-flood warning — Riverside basements at risk”. What should we draft? Keep it approval-gated.",
+      prompt: "Help me act on this opportunity: “Usage dropped 40% — Riverside Labs trial at risk”. What should we draft? Keep it approval-gated.",
     },
     {
       id: "demo-opp-partner-northside",
-      title: "Northside Plumbing Co. sent 3 referrals — no co-marketing in place",
+      title: "Larkfield Partners sent 3 referrals — no co-marketing in place",
       urgency: "medium",
-      prompt: "Help me act on this opportunity: “Northside Plumbing Co. sent 3 referrals — no co-marketing in place”. What should we draft? Keep it approval-gated.",
+      prompt: "Help me act on this opportunity: “Larkfield Partners sent 3 referrals — no co-marketing in place”. What should we draft? Keep it approval-gated.",
     },
   ],
 };
