@@ -62,6 +62,8 @@ export type GenerateStudioAssetInput = {
   kicker?: string;
   ctaLabel?: string;
   template?: string;
+  /** Accent hex picked in Studio; overrides the brand kit's accent for this render. */
+  accent?: string;
   /** The campaign this draft attaches to — required so it enters the approval gate. */
   campaignId: string;
 };
@@ -157,7 +159,13 @@ export async function generateStudioAsset(input: GenerateStudioAssetInput): Prom
         ctaLabel: (input.ctaLabel ?? "").trim() || undefined,
       };
       const profile = await getBusinessProfile(ctx.orgId);
-      const brand = toBrandTokens(profile);
+      // The workspace's brand kit is the base; the operator's accent pick in Studio
+      // overrides it so the rendered creative matches the canvas they approved by
+      // eye. Ignored unless it's a well-formed hex, so a junk value can't corrupt
+      // the render.
+      const baseBrand = toBrandTokens(profile);
+      const accentOverride = /^#[0-9a-f]{6}$/i.test((input.accent ?? "").trim()) ? input.accent!.trim() : null;
+      const brand = accentOverride ? { ...baseBrand, accent: accentOverride } : baseBrand;
       const { bytes, contentType } = await renderCreative({ template, format, brand, copy, backgroundUrl });
       objectPath = `arc-composite/${ctx.orgId}/${tenant.workspace_id}/${randomUUID()}.png`;
       const url = await storeGeneratedMedia(objectPath, bytes, contentType);

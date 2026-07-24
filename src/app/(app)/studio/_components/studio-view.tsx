@@ -108,7 +108,22 @@ const FORMATS = [
   { ar: "9 / 16", dim: "1080 × 1920", label: "Story", r: "9:16" },
   { ar: "16 / 9", dim: "1920 × 1080", label: "Landscape", r: "16:9" },
 ];
-const SWATCHES = ["#c8a24a", "#7fb89a", "#5b8fd6", "#cc6666", "#f1ede2"];
+/**
+ * Template tiles. `id` MUST match a CREATIVE_TEMPLATE_IDS value in
+ * src/domain/creative-templates.ts — it is sent to generateStudioAsset as the
+ * template hint. Previously these tiles were an inline array with labels only and
+ * the index was never sent, so the server fell back to selecting a template
+ * pseudo-randomly from the background URL: you picked "Minimal" and got whatever
+ * the seed hashed to.
+ */
+export const TEMPLATES = [
+  { id: "bold", n: "Bold", bg: "linear-gradient(135deg,#2a2118,#16161a)", c: "#ecd596", fs: 13, fst: "normal" as const, ff: "var(--serif)" },
+  { id: "editorial", n: "Editorial", bg: "linear-gradient(135deg,#22222a,#16161a)", c: "#f1ede2", fs: 13, fst: "italic" as const, ff: "var(--serif)" },
+  { id: "minimal", n: "Minimal", bg: "#1b1b20", c: "#b9b9c0", fs: 12, fst: "normal" as const, ff: "inherit" },
+];
+
+/** Fallback accents when the workspace has no brand palette yet. */
+const FALLBACK_SWATCHES = ["#c8a24a", "#7fb89a", "#5b8fd6", "#cc6666", "#f1ede2"];
 const SESSION: { id: string; tag: string; item: Item }[] = [
   { id: "v0", tag: "Current", item: { s: SC.roof, l: "Roof — exterior", p: "real" } },
   { id: "v1", tag: "v2", item: { s: SC.ai, l: "Variation 2", p: "ai" } },
@@ -120,7 +135,7 @@ const SESSION: { id: string; tag: string; item: Item }[] = [
 type CampaignRef = { id: string; name: string; href: string };
 type StudioDraft = { campaignId: string; assetId: string; url: string; source: string; format: string; title: string; status: string };
 
-export function StudioView({ brandName, libraryItems, live = false, campaigns = [], mediaEnabled = false }: { brandName: string; libraryItems?: Item[]; live?: boolean; campaigns?: CampaignRef[]; mediaEnabled?: boolean }) {
+export function StudioView({ brandName, libraryItems, live = false, campaigns = [], mediaEnabled = false, brandPalette = [] }: { brandName: string; libraryItems?: Item[]; live?: boolean; campaigns?: CampaignRef[]; mediaEnabled?: boolean; brandPalette?: string[] }) {
   const initial = "Storm season";
   // The "Approved media" source shows the workspace's real media_assets. Live, it
   // shows ONLY those — never the built-in samples, which would present stock art as
@@ -148,7 +163,15 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
   const [selSession, setSelSession] = useState("v0");
   const [fmt, setFmt] = useState(0);
   const [mode, setMode] = useState<"image" | "video">("image");
-  const [accent, setAccent] = useState("#c8a24a");
+  // The accent swatches are the workspace's OWN brand palette when it has one — the
+  // note under them claimed "Pulled from your Brand kit palette" while the list was a
+  // hardcoded constant. Falls back to defaults (and says so) for a workspace with no
+  // palette set. The first swatch is the initial accent so the canvas opens on-brand.
+  const swatches = useMemo(
+    () => (brandPalette.length > 0 ? brandPalette : FALLBACK_SWATCHES),
+    [brandPalette],
+  );
+  const [accent, setAccent] = useState(swatches[0] ?? "#c8a24a");
   const [kicker, setKicker] = useState(initial);
   const [headline, setHeadline] = useState("Your roof, ready before the next storm.");
   const [sub, setSub] = useState("Free assessment · same-week scheduling");
@@ -298,6 +321,12 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
           headline: shown("Headline") ? headline : "",
           kicker: shown("Kicker") ? kicker : "",
           ctaLabel: shown("CTA button") ? cta : "",
+          // Send what the operator actually picked, so the render matches the canvas
+          // they just approved by eye. Both were previously dropped: the server chose
+          // a template from a hash of the background URL and always used the brand
+          // kit's accent, whatever the swatches showed.
+          template: TEMPLATES[tmpl]?.id,
+          accent,
           campaignId,
         });
         if (res.ok && res.assetId && res.media) {
@@ -526,15 +555,15 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
 
                 <div className="psec">
                   <h3 className="ph2">Brand color</h3>
-                  <div className="swatches">{SWATCHES.map((c) => <span key={c} className={`sw${accent === c ? " on" : ""}`} style={{ background: c }} onClick={() => setAccent(c)} />)}</div>
-                  <div className="swnote">Pulled from your Brand kit palette · used by the renderer for accents + CTA.</div>
+                  <div className="swatches">{swatches.map((c) => <span key={c} className={`sw${accent === c ? " on" : ""}`} style={{ background: c }} onClick={() => setAccent(c)} />)}</div>
+                  <div className="swnote">{brandPalette.length > 0 ? "From your Brand kit palette — the renderer uses this accent for the CTA." : "Default accents — set a palette in Brand and these become your own. The renderer uses this accent for the CTA."}</div>
                 </div>
 
                 <div className="psec">
                   <h3 className="ph2">Template</h3>
                   <div className="tmpl">
-                    {[{ n: "Bold", bg: "linear-gradient(135deg,#2a2118,#16161a)", c: "#ecd596", fs: 13, fst: "normal", ff: "var(--serif)" }, { n: "Editorial", bg: "linear-gradient(135deg,#22222a,#16161a)", c: "#f1ede2", fs: 13, fst: "italic", ff: "var(--serif)" }, { n: "Minimal", bg: "#1b1b20", c: "#b9b9c0", fs: 12, fst: "normal", ff: "inherit" }].map((tm, i) => (
-                      <div key={tm.n} className={`tmplc${tmpl === i ? " on" : ""}`} onClick={() => setTmpl(i)}><div className="tmi" style={{ background: tm.bg }}><span style={{ fontFamily: tm.ff, color: tm.c, fontSize: tm.fs, fontStyle: tm.fst, fontWeight: 600 }}>Aa</span></div><div className="tmn">{tm.n}</div></div>
+                    {TEMPLATES.map((tm, i) => (
+                      <div key={tm.id} className={`tmplc${tmpl === i ? " on" : ""}`} onClick={() => setTmpl(i)}><div className="tmi" style={{ background: tm.bg }}><span style={{ fontFamily: tm.ff, color: tm.c, fontSize: tm.fs, fontStyle: tm.fst, fontWeight: 600 }}>Aa</span></div><div className="tmn">{tm.n}</div></div>
                     ))}
                   </div>
                 </div>
