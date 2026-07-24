@@ -45,7 +45,7 @@ describe("metaAdsToFlights", () => {
 
 describe("metaAdLibrarySource", () => {
   it("queries each term and dedups advertisers across them", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ data: [{ id: "1", page_id: "p1", page_name: "Rival Co" }] }));
+    const fetchImpl = vi.fn(async (_url: string | URL, _init?: RequestInit) => jsonResponse({ data: [{ id: "1", page_id: "p1", page_name: "Rival Co" }] }));
     const src = metaAdLibrarySource("tok", {
       searchTerms: ["water damage", "flood repair"],
       countries: ["US"],
@@ -58,7 +58,7 @@ describe("metaAdLibrarySource", () => {
   });
 
   it("sends the token, countries and ad_type in the query", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ data: [] }));
+    const fetchImpl = vi.fn(async (_url: string | URL, _init?: RequestInit) => jsonResponse({ data: [] }));
     const src = metaAdLibrarySource("tok", { searchTerms: ["x"], countries: ["US", "CA"], adType: "ALL", fetchImpl: fetchImpl as unknown as typeof fetch });
     await src.listAdFlights(NOW);
     const url = String(fetchImpl.mock.calls[0][0]);
