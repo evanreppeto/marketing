@@ -34,7 +34,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!ctx.workspaceId) redirect("/onboarding");
 
   const user = await getSupabaseAuthenticatedUser();
-  const userName = await resolveViewerName(ctx.orgId, user);
+  const resolvedName = await resolveViewerName(ctx.orgId, user);
+  // Offline demo has no signed-in identity, so the account row would read the
+  // literal "Account". Name the sample operator instead (demo only — a real
+  // viewer's own name always wins).
+  const userName = resolvedName || (isDemoDataEnabled() ? "Maya Ellis" : "");
   // Rail attention counts from the shared summary — same source the screens
   // render, so a badge never disagrees with the page it points at.
   const navBadges = await getNavBadges(ctx.orgId).catch(() => ({}));
@@ -61,7 +65,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       workspaceName={ctx.workspaceName}
       orgName={ctx.orgName}
       userName={userName}
-      userEmail={user?.email ?? ""}
+      userEmail={user?.email ?? (isDemoDataEnabled() ? "maya@meridian.example" : "")}
       logoUrl={logoUrl}
       avatarUrl={viewerAvatarUrl}
       industry={industry}
