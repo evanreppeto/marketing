@@ -6,6 +6,7 @@ import { getSettingsWorkspacesView } from "@/lib/auth/workspaces-view";
 import { getSettingsUsageView } from "@/lib/ai-usage/settings-summary";
 import { getSettingsBillingView } from "@/lib/billing/settings-billing";
 import { getSettingsConnectorsView } from "@/lib/connectors/settings-connectors";
+import { isHubspotOAuthConfigured } from "@/lib/connectors/hubspot-oauth";
 import { getEmailConnection } from "@/lib/connections/read-model";
 import { getConnectorSpendView } from "@/lib/connectors/spend-summary";
 import { isLiveSendEnabled } from "@/lib/dispatch/live-send";
@@ -46,5 +47,8 @@ export default async function SettingsPage() {
   // email card can tell the truth: an enabled Resend connection still sends
   // nothing while this is dark.
   const liveSendEnabled = isLiveSendEnabled();
-  return <SettingsView brandName={brandName} email={email} avatarUrl={avatarUrl} team={team} usage={usage} connectorSpend={connectorSpend} billing={billing} settings={settings} connectors={connectors} workspaces={workspaces} emailConnection={emailConnection} liveSendEnabled={liveSendEnabled} agentConnection={agentConnection} personaOptions={personaOptions} />;
+  // Whether the deployment has a HubSpot app configured — gates the OAuth "Connect
+  // with HubSpot" button (falls back to the private-app-token form when absent).
+  const hubspotOAuthConfigured = isHubspotOAuthConfigured();
+  return <SettingsView brandName={brandName} email={email} avatarUrl={avatarUrl} team={team} usage={usage} connectorSpend={connectorSpend} billing={billing} settings={settings} connectors={connectors} workspaces={workspaces} emailConnection={emailConnection} liveSendEnabled={liveSendEnabled} agentConnection={agentConnection} personaOptions={personaOptions} hubspotOAuthConfigured={hubspotOAuthConfigured} />;
 }

@@ -528,7 +528,7 @@ const DENSITY_LABEL: Record<AppSettings["appearanceDensity"], string> = { comfor
 const MOTION_LABEL: Record<AppSettings["appearanceMotion"], string> = { standard: "Standard", reduced: "Reduced" };
 const PROFILE_LABEL: Record<AppSettings["workspaceProfile"], string> = { individual: "Individual", company: "Company", agency: "Agency" };
 
-export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, billing = null, settings, connectors, workspaces, emailConnection = null, liveSendEnabled = true, agentConnection = null, personaOptions = [] }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; billing?: SettingsBillingView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null; liveSendEnabled?: boolean; agentConnection?: EffectiveAgentConnection | null; personaOptions?: readonly PersonaOption[] }) {
+export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, billing = null, settings, connectors, workspaces, emailConnection = null, liveSendEnabled = true, agentConnection = null, personaOptions = [], hubspotOAuthConfigured = false }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; billing?: SettingsBillingView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null; liveSendEnabled?: boolean; agentConnection?: EffectiveAgentConnection | null; personaOptions?: readonly PersonaOption[]; hubspotOAuthConfigured?: boolean }) {
   const [cur, setCur] = useState("overview");
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
@@ -945,7 +945,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
         </div>
       </div>
       {selectedConnector && (
-        <ConnectorModal view={selectedConnector} configured={connectors.configured} onClose={closeConnector} />
+        <ConnectorModal view={selectedConnector} configured={connectors.configured} hubspotOAuthConfigured={hubspotOAuthConfigured} onClose={closeConnector} />
       )}
       {resendModalOpen && emailConnection && <ResendModal view={emailConnection} liveSendEnabled={liveSendEnabled} onClose={closeConnector} />}
       {modelSel && <ModelModal model={modelSel} onClose={() => setModelSel(null)} />}
@@ -1545,7 +1545,7 @@ function ConnectorCard({ view, onOpen }: { view: ConnectorView; onOpen: () => vo
 // connect / rotate / disconnect (or an enable switch for no-credential ones), any
 // per-workspace config, and a plain-language "About". Opened from a card click and
 // deep-linkable (?s=connections&c=<key>). Nothing here is developer-facing.
-function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; configured: boolean; onClose: () => void }) {
+function ConnectorModal({ view, configured, hubspotOAuthConfigured = false, onClose }: { view: ConnectorView; configured: boolean; hubspotOAuthConfigured?: boolean; onClose: () => void }) {
   const meta = CONNECTOR_META[view.key] ?? { c: "#9aa0ac", l: view.label.slice(0, 2), credLabel: "API key", credHint: "" };
   const reg = findConnector(view.key);
   const pill = CONNECTOR_STATUS_PILL[view.status];
@@ -1566,22 +1566,26 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
   const [credential, setCredential] = useState("");
   // Seed status from the OAuth round-trip marker (?hf=connected | <error-code>)
   // Higgsfield redirects back with — computed at init so no setState-in-effect.
+  // OAuth round-trip marker: Higgsfield redirects back with ?hf=, HubSpot with ?hs=.
+  const oauthMarker = view.key === "higgsfield" ? "hf" : view.key === "hubspot-import" ? "hs" : null;
   const [status, setStatus] = useState<SaveStatus>(() => {
-    if (typeof window === "undefined" || view.key !== "higgsfield") return null;
-    const hf = new URLSearchParams(window.location.search).get("hf");
-    if (!hf) return null;
-    return hf === "connected" ? { tone: "ok", text: "Higgsfield connected." } : { tone: "err", text: `Couldn’t connect Higgsfield (${hf.replace(/_/g, " ")}).` };
+    if (typeof window === "undefined" || !oauthMarker) return null;
+    const marker = new URLSearchParams(window.location.search).get(oauthMarker);
+    if (!marker) return null;
+    return marker === "connected"
+      ? { tone: "ok", text: `${view.label} connected.` }
+      : { tone: "err", text: `Couldn’t connect ${view.label} (${marker.replace(/_/g, " ")}).` };
   });
   const [pending, setPending] = useState(false);
 
-  // Strip the ?hf marker after mount so a refresh doesn't re-show it (no setState).
+  // Strip the marker after mount so a refresh doesn't re-show it (no setState).
   useEffect(() => {
-    if (view.key !== "higgsfield") return;
+    if (!oauthMarker) return;
     const params = new URLSearchParams(window.location.search);
-    if (!params.has("hf")) return;
-    params.delete("hf");
+    if (!params.has(oauthMarker)) return;
+    params.delete(oauthMarker);
     window.history.replaceState(null, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
-  }, [view.key]);
+  }, [oauthMarker]);
 
   async function connect() {
     if (!credential.trim()) { setStatus({ tone: "err", text: "Paste a credential." }); return; }
@@ -1689,6 +1693,21 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
             <div className="cxm-label" style={{ marginTop: 16 }}>Option 2 — Personal account (OAuth)</div>
             <p className="cxm-hint">Sign in to your Higgsfield Ultra account. Arc gets its own key for this workspace and refreshes it automatically — no token to copy.</p>
             <button className="btn sm" disabled={pending || !configured} onClick={() => { window.location.href = "/api/connectors/higgsfield/authorize"; }}>Connect with Higgsfield</button>
+          </div>
+        ) : view.key === "hubspot-import" && hubspotOAuthConfigured ? (
+          <div className="cxm-sec">
+            <div className="cxm-label">Option 1 — Connect with HubSpot (OAuth)</div>
+            <p className="cxm-hint">
+              Sign in to HubSpot and authorize read access to your contacts &amp; companies. Arc gets a token for this
+              workspace and refreshes it automatically — nothing to copy, and read-only.
+            </p>
+            <button className="btn gold" disabled={pending || !configured} onClick={() => { window.location.href = "/api/connectors/hubspot/authorize"; }}>Connect with HubSpot</button>
+            <div className="cxm-label" style={{ marginTop: 16 }}>Option 2 — Private-app token</div>
+            <p className="cxm-hint">{meta.credHint}</p>
+            <div className="cxm-field">
+              <input className="inp" type="password" placeholder={`Paste your ${meta.credLabel}`} value={credential} onChange={(e) => setCredential(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") connect(); }} />
+              <button className="btn sm" disabled={pending || !credential.trim()} onClick={connect}>{pending ? "Connecting…" : "Connect"}</button>
+            </div>
           </div>
         ) : (
           <div className="cxm-sec">
