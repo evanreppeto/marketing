@@ -14,6 +14,8 @@ import { checkHiggsfieldToken } from "@/lib/connectors/higgsfield-health";
 import { runCrmImport, runCsvImport, runMailchimpImport, CSV_IMPORT_CONNECTOR_KEY, MAILCHIMP_IMPORT_CONNECTOR_KEY } from "@/lib/connectors/import";
 import { checkHubspotConnection } from "@/lib/integrations/crm/hubspot";
 import { checkMailchimpConnection } from "@/lib/integrations/crm/mailchimp";
+import { checkGbpConnection } from "@/lib/integrations/reviews/gbp";
+import { resolveGoogleAccessToken } from "@/lib/connectors/google-oauth";
 import { buildOpportunityDigest, postSlackWebhook } from "@/lib/integrations/slack/notify";
 import { listOpenOpportunities } from "@/lib/opportunities/read-model";
 import { checkNwsConnection } from "@/lib/integrations/weather/nws-source";
@@ -202,6 +204,26 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
       if (!hs.ok) return { ok: false, error: `Test failed: ${hs.error ?? "HubSpot unreachable"}` };
       const countNote = typeof hs.count === "number" ? `${hs.count} contact(s) available to import` : "contacts available to import";
       return { ok: true, persisted: true, message: `HubSpot reachable — ${countNote}.` };
+    }
+
+    // Google Business reviews: resolve/refresh the OAuth token, then read one page
+    // of reviews for the configured location so Test reports real reachability.
+    if (connector.key === "reviews-signals") {
+      const config = await getConnectorConfig(client, workspaceId, connector.key);
+      const location = typeof config.gbpLocation === "string" ? config.gbpLocation.trim() : "";
+      if (!location) return { ok: false, error: "Set the Business Profile location first, then test." };
+      const resolved = await resolveGoogleAccessToken(client, ref, plaintext);
+      if (!resolved.ok) {
+        await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: { ok: false, error: resolved.error } });
+        revalidatePath("/settings");
+        return { ok: false, error: `Test failed: ${resolved.error}` };
+      }
+      const gb = await checkGbpConnection(resolved.accessToken, location);
+      await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: gb.ok ? { ok: true } : { ok: false, error: gb.error } });
+      revalidatePath("/settings");
+      return gb.ok
+        ? { ok: true, persisted: true, message: `Google Business Profile reachable — reviews readable for this location.` }
+        : { ok: false, error: `Test failed: ${gb.error}` };
     }
 
     // Slack: the natural test is posting a message to the webhook.

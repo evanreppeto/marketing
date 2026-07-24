@@ -142,9 +142,14 @@ describe("computeConnectorStatus", () => {
 describe("availability — a connector with no integration must be unreachable, not just undocumented", () => {
   // permit-data USED to invent "Paid permit records flagged fresh filings in {X}" at
   // confidence 65 from nothing but a municipality name, and meter a paid lookup for
-  // each one. reviews/competitor-ads never invented anything, but claimed to "watch"
-  // Google/Yelp and Meta with no client behind either.
-  const PLANNED = ["reviews-signals", "competitor-ads", "permit-data"];
+  // each one. competitor-ads never invented anything, but claimed to "watch" Meta
+  // with no client behind it.
+  //
+  // reviews-signals GRADUATED off this list: it now has a real Google Business
+  // Profile OAuth flow + review-fetch client (src/lib/integrations/reviews/gbp.ts),
+  // so it is reachable. It still needs the location config + a connected credential
+  // to report `connected` — the gates are now real ones, not an availability fence.
+  const PLANNED = ["competitor-ads", "permit-data"];
 
   it.each(PLANNED)("%s is marked planned", (key) => {
     expect(connectorIsAvailable(findConnector(key)!)).toBe(false);

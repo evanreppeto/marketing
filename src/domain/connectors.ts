@@ -294,15 +294,10 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     key: "reviews-signals",
     kind: "signal_source",
     label: "Reviews & Reputation",
-    // "watches" was a promise it couldn't keep: there is no GBP/Yelp client, and the
-    // live OAuth pull is the unbuilt part. The classifier and the injectable source
-    // seam are real — the thing that would fetch reviews is not.
     description:
-      "PLANNED — the Google Business Profile / Yelp review pull isn't built yet, so this can't be switched on. " +
-      "When it lands it will be a read-only signal source: it proposes service-recovery opportunities (negative " +
-      "reviews) and referral/testimonial opportunities (positive reviews). It will never reply — proposals only; " +
-      "any response stays an approval-gated draft.",
-    availability: "planned",
+      "Read-only Google Business Profile reviews. Connect via OAuth and set the business location; Arc reads recent " +
+      "reviews and proposes service-recovery opportunities (negatives) and referral/testimonial opportunities " +
+      "(positives). It never replies — proposals only; any response stays an approval-gated draft.",
     costTier: "byo_key",
     verticals: [
       "restoration",
@@ -322,9 +317,11 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     credentialSchema: {
       kind: "oauth",
       label: "Google Business Profile",
-      hint: "Connect your Google Business Profile (and optionally Yelp) to pull recent reviews. Stored encrypted in your Vault; used read-only.",
-      optional: true,
+      hint: "Sign in to Google Business Profile to pull recent reviews. Stored encrypted in your Vault; used read-only.",
     },
+    // Needs the location resource name (accounts/{id}/locations/{id}) the reviews
+    // endpoint is keyed on — without it there's nothing to read, so gate it.
+    requiredConfigKeys: ["gbpLocation"],
     authKind: "oauth",
     access: "read_only",
     mcpUrl: null,
