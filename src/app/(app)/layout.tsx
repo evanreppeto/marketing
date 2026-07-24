@@ -6,6 +6,7 @@ import { getSettingsWorkspacesView } from "@/lib/auth/workspaces-view";
 import { getBusinessProfile } from "@/lib/brand-kit/persistence";
 import { getAppSettings } from "@/lib/settings/store";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getNavBadges } from "@/lib/workspace-summary/read-model";
 
 import { AppShell } from "./_components/app-shell";
@@ -46,7 +47,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     getBusinessProfile(ctx.orgId).catch(() => null),
     getViewerAvatarUrl(user).catch(() => null),
   ]);
-  const logoUrl = appSettings?.brandLogoUrl?.startsWith("http") ? appSettings.brandLogoUrl : null;
+  const viewerAvatarUrl = avatarUrl ?? (isDemoDataEnabled() ? "/brand/demo/avatar-operator.jpg" : null);
+  // A real workspace logo is an uploaded absolute URL. The offline demo has no
+  // uploads, so it falls back to bundled sample branding — that's what makes the
+  // rail show a company logo + operator photo instead of initials monograms in
+  // the marketing screenshots. Never overrides a workspace's own logo.
+  const uploadedLogo = appSettings?.brandLogoUrl?.startsWith("http") ? appSettings.brandLogoUrl : null;
+  const logoUrl = uploadedLogo ?? (isDemoDataEnabled() ? "/brand/demo/meridian-logo.png" : null);
   const industry = appSettings?.industry || businessProfile?.industry || "general";
 
   return (
@@ -56,7 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       userName={userName}
       userEmail={user?.email ?? ""}
       logoUrl={logoUrl}
-      avatarUrl={avatarUrl}
+      avatarUrl={viewerAvatarUrl}
       industry={industry}
       workspaces={workspacesView.workspaces}
       navBadges={navBadges}
