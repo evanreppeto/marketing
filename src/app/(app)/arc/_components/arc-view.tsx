@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import CircularProgress from "@mui/material/CircularProgress";
 import {
   Fragment,
   useCallback,
@@ -1268,11 +1267,11 @@ export function ArcView({
   const contextState = visibleMessages.length > 0
     ? contextUsage(visibleMessages.map((message) => message.body ?? ""))
     : { tokens: 4_320, pct: 18, level: "ok" as const };
-  const showContextMeter = contextInfoOpen
-    || selectedMentions.length > 0
-    || attachments.length > 0
-    || contextState.level !== "ok"
-    || contextState.pct >= 65;
+  // The context meter is a persistent affordance again: it always shows so the
+  // operator can see (and click into) how full the window is at any point, not
+  // only once usage crosses a threshold. Its ring still colors by level, so a
+  // calm low-usage state reads differently from a warning.
+  const showContextMeter = true;
   const mentionItems = mentionGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label }))).slice(0, 12);
   const skillQuery = draft.match(/^\s*\/([^\s]*)$/)?.[1]?.toLowerCase() ?? "";
   const unresolvedSkillToken = /^\s*\/[^\s]*$/.test(draft);
@@ -1841,11 +1840,11 @@ export function ArcView({
             <div className="arc-composer-toolbar">
               <div className="arc-composer-tools">
                 <button type="button" className="arc-composer-add" aria-label="Add attachment, mention, or command" aria-haspopup="menu" aria-controls={composerMenu === "tools" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "tools"} onClick={(event) => toggleComposerMenu("tools", event.currentTarget)}><Plus size={18} /></button>
-                <button type="button" className="arc-composer-pill arc-mode-button" data-mode={mode === "ask" ? "ask" : "act"} aria-label={`Capability: ${capabilityLabel}. ${capabilityDetail}.`} aria-haspopup="menu" aria-controls={composerMenu === "mode" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "mode"} disabled={Boolean(command)} title={command ? "This skill chooses the required capability" : "Choose whether Arc can change the workspace"} onClick={(event) => toggleComposerMenu("mode", event.currentTarget)}><ArcCapabilityIcon mode={mode} size={14} /><span>{capabilityLabel}<small> · {capabilityDetail}</small></span><ChevronDown size={12} /></button>
+                <button type="button" className="arc-composer-pill arc-mode-button" data-mode={mode === "ask" ? "ask" : "act"} aria-label={`Capability: ${capabilityLabel}. ${capabilityDetail}.`} aria-haspopup="menu" aria-controls={composerMenu === "mode" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "mode"} disabled={Boolean(command)} title={command ? "This skill chooses the required capability" : "Choose whether Arc can change the workspace"} onClick={(event) => toggleComposerMenu("mode", event.currentTarget)}><ArcCapabilityIcon mode={mode} size={14} /><span>{capabilityLabel}</span><ChevronDown size={12} /></button>
                 <button type="button" className="arc-composer-pill arc-model-button" data-auto={modelPreference === "auto" ? "true" : "false"} title={modelPreference === "auto" ? `Arc Auto is routing this request to ${resolvedModelName}` : `Model: ${currentModel.label}`} aria-label={`Model: ${currentModel.label}${modelPreference === "auto" ? `. Currently routes to Arc ${resolvedModelName}.` : ""}`} aria-haspopup="menu" aria-controls={composerMenu === "model" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "model"} onClick={(event) => toggleComposerMenu("model", event.currentTarget)}><ArcModelIcon model={modelPreference} size={14} /><span>{currentModel.label}{modelPreference === "auto" ? <small> · {resolvedModelName}</small> : null}</span><ChevronDown size={12} /></button>
                 {showContextMeter ? <div className="arc-context-control">
-                  <button type="button" className="arc-context-meter" data-level={contextState.level} aria-label={`Context window: ${contextState.pct}% used. Full workspace memory is always on.`} aria-expanded={contextInfoOpen} aria-controls="arc-context-info" onClick={() => { setComposerMenu(null); setContextInfoOpen((current) => !current); }} onKeyDown={(event) => { if (event.key === "Escape") setContextInfoOpen(false); }}>
-                    <CircularProgress className="arc-context-progress" variant="determinate" value={contextState.pct} size={24} thickness={2.2} role="presentation" aria-hidden="true" />
+                  <button type="button" className="arc-context-meter" data-level={contextState.level} style={{ "--arc-ctx-pct": String(contextState.pct) } as React.CSSProperties} aria-label={`Context window: ${contextState.pct}% used. Full workspace memory is always on.`} aria-expanded={contextInfoOpen} aria-controls="arc-context-info" onClick={() => { setComposerMenu(null); setContextInfoOpen((current) => !current); }} onKeyDown={(event) => { if (event.key === "Escape") setContextInfoOpen(false); }}>
+                    <span className="arc-context-ring" aria-hidden="true" />
                   </button>
                   <AnimatePresence>
                     {contextInfoOpen ? (

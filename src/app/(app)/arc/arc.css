@@ -295,8 +295,18 @@
 }
 .arc-assistant-message.is-active { margin-top: 2px; }
 .arc-assistant-content { min-width: 0; }
+
+/* Comfortable reading measure. Arc's prose was sprawling to ~107 characters per
+   line across the full column — a top tell of an unrefined chat. Constrain the
+   text blocks to a book-width measure so replies read like considered writing,
+   while code, tables, media, and receipt cards keep the full width they need
+   (they live in their own wrappers, not these top-level prose elements). */
+.arc-assistant-content :where(.arc-stream, .arc-markdown, .arc-answer) > :where(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote) {
+  max-width: 52ch;
+}
+
 .arc-assistant-footer {
-  max-width: 76ch;
+  max-width: 52ch;
   min-height: 18px;
   display: flex;
   align-items: center;
@@ -1395,9 +1405,15 @@
 .arc-mode-button:disabled { opacity: .62; cursor: not-allowed; }
 .arc-model-button { padding-left: 7px; }
 .arc-model-button > svg:first-child { color: var(--muted); }
-.arc-model-button[data-auto="true"] { width: 32px; padding: 0; }
-.arc-model-button[data-auto="true"] span,
-.arc-model-button[data-auto="true"] > svg:last-child { display: none; }
+/* On auto, keep the label visible ("Arc Auto · Spark/Forge") so the operator can
+   always see which model the request is routing to — the icon-only collapse hid
+   the model name, which is exactly the thing worth surfacing. The `· Spark` half
+   is the resolved route; it warms to the accent so the live routing reads at a
+   glance. */
+.arc-model-button[data-auto="true"] small {
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
 .arc-auto-mark { color: currentColor; overflow: visible; }
 .arc-auto-mark path,
 .arc-auto-mark circle {
@@ -1433,14 +1449,33 @@
   top: 50%;
   width: var(--arc-context-ring);
   height: var(--arc-context-ring);
-  border: 1px solid color-mix(in srgb, var(--text) 11%, transparent);
+  border: 2px solid color-mix(in srgb, var(--text) 22%, transparent);
   border-radius: 50%;
   transform: translate(-50%, -50%);
 }
-.arc-context-progress { position: absolute !important; left: 50%; top: 50%; width: var(--arc-context-ring) !important; height: var(--arc-context-ring) !important; color: var(--text-2); pointer-events: none; transform: translate(-50%, -50%); }
-.arc-context-progress .MuiCircularProgress-circle { stroke-linecap: round; transition: stroke-dashoffset var(--arc-base) var(--arc-curve); }
-.arc-context-meter[data-level="warn"] .arc-context-progress { color: var(--accent); }
-.arc-context-meter[data-level="full"] .arc-context-progress { color: var(--priority); }
+/* Self-drawn fill ring — concentric with the ::before track by construction.
+   A conic-gradient fills clockwise from 12 o'clock by --arc-ctx-pct, masked to the
+   same 2px band as the track. (MUI's CircularProgress rendered its arc off-center
+   and off-radius, which read as a stray line hooking off the ring.) */
+.arc-context-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--arc-context-ring);
+  height: var(--arc-context-ring);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: conic-gradient(var(--ctx-fill, var(--text-secondary)) calc(var(--arc-ctx-pct, 0) * 1%), transparent 0);
+  /* closest-side pins the gradient's 100% to the edge (12px), not the corner, so
+     the fill band is exactly 2px — matching the track ring's stroke. */
+  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  mask: radial-gradient(circle closest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  transition: background var(--arc-base) var(--arc-curve);
+  pointer-events: none;
+}
+.arc-context-meter[data-level="ok"] { --ctx-fill: var(--text-secondary); }
+.arc-context-meter[data-level="warn"] { --ctx-fill: var(--accent); }
+.arc-context-meter[data-level="full"] { --ctx-fill: var(--priority); }
 .arc-context-popover {
   position: absolute;
   right: -8px;

@@ -58,6 +58,7 @@ import { removeResendKey, saveResendKey, setEmailConnectionEnabled, testEmailCon
 import type { ConnectionView } from "@/lib/connections/read-model";
 import { setConnectorSpendCap } from "../spend-actions";
 import { Modal } from "../../_components/modal";
+import { BrandBadge } from "./brand-badge";
 import { ImageUploadField } from "./image-upload-field";
 import { NewWorkspaceModal, type NewWorkspaceValue } from "./new-workspace-modal";
 
@@ -721,7 +722,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
                 return okCat && okQ;
               }).map((x) => (
                 <div className="ccard" key={x.n} style={{ opacity: 0.72 }}>
-                  <div className="ct"><span className="clogo" style={{ background: `${x.c}22`, border: `1px solid ${x.c}55`, color: x.c }}>{x.l}</span><div><div className="cnm">{x.n}</div><div className="ccat">{x.cat}</div></div></div>
+                  <div className="ct"><BrandBadge className="clogo" name={x.n} initials={x.l} color={x.c} /><div><div className="cnm">{x.n}</div><div className="ccat">{x.cat}</div></div></div>
                   <div className="cdsc">{x.d || DCAT[x.cat] || ""}</div>
                   <div className="cfoot"><span className="badge">Planned</span><span className="grow" /><span style={{ fontSize: 11, color: "var(--muted)" }}>{x.auth || "oauth"}</span></div>
                 </div>
@@ -775,7 +776,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
                   const open = () => setModelSel({ id, label, prov, rec, cat: mediaCat });
                   return (
                     <div className="mrow mrow-btn" key={id} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === "Enter") open(); }}>
-                      <span className="mlogo" style={{ background: `${col}22`, border: `1px solid ${col}55`, color: col }}>{pinit(prov)}</span>
+                      <BrandBadge className="mlogo" name={prov} initials={pinit(prov)} color={col} glyphSize={16} />
                       <div className="mi"><div className="mn">{label}{rec ? <span className="mbadge">Arc’s pick</span> : null}</div><div className="mp">{prov}</div></div>
                       <span className="mrow-go" aria-hidden="true">→</span>
                     </div>
@@ -1525,7 +1526,7 @@ function ConnectorCard({ view, onOpen }: { view: ConnectorView; onOpen: () => vo
   return (
     <div className="ccard ccard-btn" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}>
       <div className="ct">
-        <span className="clogo" style={{ background: `${meta.c}22`, border: `1px solid ${meta.c}55`, color: meta.c }}>{meta.l}</span>
+        <BrandBadge className="clogo" name={view.label} initials={meta.l} color={meta.c} />
         <div><div className="cnm">{view.label}</div><div className="ccat">{kindLabel} · {view.access === "read_only" ? "read-only" : "gated write"}</div></div>
       </div>
       <div className="cdsc">{view.description}</div>
@@ -2012,7 +2013,7 @@ function ResendCard({ view, liveSendEnabled, onOpen }: { view: ConnectionView; l
   return (
     <div className="ccard ccard-btn" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}>
       <div className="ct">
-        <span className="clogo" style={{ background: "#9aa0ac22", border: "1px solid #9aa0ac55", color: "#9aa0ac" }}>Re</span>
+        <BrandBadge className="clogo" name="Resend" initials="Re" color="#9aa0ac" />
         <div><div className="cnm">Resend</div><div className="ccat">Channel · email delivery</div></div>
       </div>
       <div className="cdsc">Send approved campaign &amp; transactional email. Sending stays off until you turn it on.</div>
@@ -2140,7 +2141,7 @@ function ModelModal({ model, onClose }: { model: RosterModel; onClose: () => voi
       <div className="cxm">
         <div className="cxm-status">
           <span className="pillrow">
-            <span className="mlogo" style={{ background: `${col}22`, border: `1px solid ${col}55`, color: col, width: 30, height: 30 }}>{pinit(model.prov)}</span>
+            <BrandBadge className="mlogo" name={model.prov} initials={pinit(model.prov)} color={col} glyphSize={18} style={{ width: 30, height: 30 }} />
             <span className="badge">{catLabel}</span>
             {isPick ? <Pill kind="ok">Arc’s pick</Pill> : <Pill kind="off">In roster</Pill>}
           </span>
