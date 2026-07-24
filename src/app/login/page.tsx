@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AuthBrandPanel } from "@/components/ui/auth-brand-panel";
+import { isSelfServeSignupOpen } from "@/lib/auth/auth-mode";
 import { FormValidityMessages } from "@/components/ui/form-validity";
 import { PasswordField } from "@/components/ui/password-field";
 
@@ -129,9 +130,15 @@ export default async function LoginPage({
 
           <p className="mt-6 text-[0.875rem] text-[var(--text-secondary)]">
             New to Arc?{" "}
-            <Link href="/sign-up" className="font-medium text-[var(--accent)] underline-offset-4 hover:underline">
-              Create your workspace
-            </Link>
+            {isSelfServeSignupOpen() ? (
+              <Link href="/sign-up" className="font-medium text-[var(--accent)] underline-offset-4 hover:underline">
+                Create your workspace
+              </Link>
+            ) : (
+              <Link href="/#waitlist" className="font-medium text-[var(--accent)] underline-offset-4 hover:underline">
+                Join the waitlist
+              </Link>
+            )}
           </p>
         </div>
       </section>

@@ -15,7 +15,11 @@ export function getWorkspaceAccessDecision(input: WorkspaceAccessDecisionInput):
   if (input.pathname === "/accept-invite" || input.pathname.startsWith("/accept-invite/")) {
     return { action: "allow" };
   }
-  if (!input.isSignedIn) return { action: "login" };
+  // A signed-out visitor on the root gets the public marketing landing page
+  // served at the root itself (the root page renders it) — not a login wall.
+  if (!input.isSignedIn) {
+    return input.pathname === "/" ? { action: "allow" } : { action: "login" };
+  }
   if (input.hasWorkspace) {
     // A signed-in member hitting the root goes into the app (/home) rather than
     // sitting on the bare redirect page.
