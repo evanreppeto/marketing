@@ -336,12 +336,12 @@ export async function getPersistedPersonaIntelligenceForRecord(
             basePersona: snapshot.persona ?? "unassigned_persona",
             confidence: `${snapshot.confidence_score ?? 0}%`,
             nextBestAction: snapshot.next_best_action ?? "Review next best action.",
-            messagePosture: snapshot.message_posture ?? "Use approval-safe restoration language.",
+            messagePosture: snapshot.message_posture ?? "Use approval-safe product messaging.",
             relationshipStage: snapshot.relationship_stage ?? "profile_building",
             valueTier: snapshot.value_tier ?? "medium",
             dominantLossPattern: snapshot.dominant_loss_pattern ?? "water_loss_context",
             preferredChannel: snapshot.preferred_channel ?? "email",
-            recommendedOffer: snapshot.recommended_offer ?? "Reviewable restoration handoff",
+            recommendedOffer: snapshot.recommended_offer ?? "Reviewable next-step handoff",
             riskFlags: snapshot.risk_flags?.length ? snapshot.risk_flags : ["human_approval_required"],
           }
         : null,
@@ -412,7 +412,7 @@ function buildPersonaRows(snapshots: PersonaSnapshotRow[], knowledge: PersonaKno
         valueTier: snapshot?.value_tier ?? "medium",
         dominantLossPattern: snapshot?.dominant_loss_pattern ?? "water_loss_context",
         preferredChannel: snapshot?.preferred_channel ?? "email",
-        recommendedOffer: snapshot?.recommended_offer ?? cta?.body ?? "Reviewable restoration handoff",
+        recommendedOffer: snapshot?.recommended_offer ?? cta?.body ?? "Reviewable next-step handoff",
         riskFlags: snapshot?.risk_flags?.length ? snapshot.risk_flags : ["human_approval_required"],
       },
     };
@@ -482,7 +482,7 @@ function recordMatches(
 
 function segmentForPersona(persona: string) {
   if (persona.includes("partner")) return "Partner";
-  if (persona.includes("homeowner")) return "Homeowner";
+  if (persona.includes("homeowner")) return "Evaluator";
   return "Professional";
 }
 

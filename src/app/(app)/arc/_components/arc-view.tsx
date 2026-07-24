@@ -502,12 +502,12 @@ function ThreadDrawer({
 
   const sourceGroups = live ? groups : demoGroups;
   const availableCampaigns: ArcMention[] = campaignItems.length > 0 ? campaignItems : [
-    { type: "campaign", id: "demo-camp", label: "Storm Rapid Response", href: "/campaigns" },
+    { type: "campaign", id: "demo-camp", label: "Pricing-Intent Fast Track", href: "/campaigns" },
     { type: "campaign", id: "past-customer", label: "Past Customer Re-engagement", href: "/campaigns" },
     { type: "campaign", id: "property-partners", label: "Property Partner Growth", href: "/campaigns" },
   ];
   const campaignNames = new Map<string, string>([
-    ["demo-camp", "Storm Rapid Response"],
+    ["demo-camp", "Pricing-Intent Fast Track"],
     ["past-customer", "Past Customer Re-engagement"],
     ["property-partners", "Property Partner Growth"],
     ...availableCampaigns.map((campaign) => [campaign.id, campaign.label] as [string, string]),

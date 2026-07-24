@@ -294,15 +294,10 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     key: "reviews-signals",
     kind: "signal_source",
     label: "Reviews & Reputation",
-    // "watches" was a promise it couldn't keep: there is no GBP/Yelp client, and the
-    // live OAuth pull is the unbuilt part. The classifier and the injectable source
-    // seam are real — the thing that would fetch reviews is not.
     description:
-      "PLANNED — the Google Business Profile / Yelp review pull isn't built yet, so this can't be switched on. " +
-      "When it lands it will be a read-only signal source: it proposes service-recovery opportunities (negative " +
-      "reviews) and referral/testimonial opportunities (positive reviews). It will never reply — proposals only; " +
-      "any response stays an approval-gated draft.",
-    availability: "planned",
+      "Read-only Google Business Profile reviews. Connect via OAuth and set the business location; Arc reads recent " +
+      "reviews and proposes service-recovery opportunities (negatives) and referral/testimonial opportunities " +
+      "(positives). It never replies — proposals only; any response stays an approval-gated draft.",
     costTier: "byo_key",
     verticals: [
       "restoration",
@@ -322,9 +317,11 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     credentialSchema: {
       kind: "oauth",
       label: "Google Business Profile",
-      hint: "Connect your Google Business Profile (and optionally Yelp) to pull recent reviews. Stored encrypted in your Vault; used read-only.",
-      optional: true,
+      hint: "Sign in to Google Business Profile to pull recent reviews. Stored encrypted in your Vault; used read-only.",
     },
+    // Needs the location resource name (accounts/{id}/locations/{id}) the reviews
+    // endpoint is keyed on — without it there's nothing to read, so gate it.
+    requiredConfigKeys: ["gbpLocation"],
     authKind: "oauth",
     access: "read_only",
     mcpUrl: null,
@@ -334,14 +331,14 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     key: "competitor-ads",
     kind: "signal_source",
     label: "Competitor Ad Intel",
-    // Same shape as reviews-signals: the classifier is real, the ad-library client
-    // isn't. Official APIs only when it lands (ToS) — no scraping.
+    // Meta's official Ad Library API only (ToS) — no scraping. Google has no
+    // official ads-transparency API, so this is Meta-only by necessity.
     description:
-      "PLANNED — the public ad-library pull (Meta Ad Library / Google Ads Transparency) isn't built yet, so this " +
-      "can't be switched on. When it lands it will be a read-only signal source: it proposes defensive / " +
-      "contested-territory opportunities with the competitor's keywords and creative intel attached. It will never " +
-      "contact anyone — proposals only.",
-    availability: "planned",
+      "Read-only competitor ad intel from Meta's official Ad Library. Proposes defensive / contested-territory " +
+      "opportunities with the competitor's keywords and creative intel attached — never contacts anyone. " +
+      "COVERAGE NOTE: outside the EU, Meta's Ad Library API only returns political & social-issue ads; general " +
+      "commercial ads are broadly queryable for EU-delivered ads. A quiet result may mean Meta doesn't expose " +
+      "those ads, not that competitors are inactive.",
     costTier: "byo_key",
     verticals: [
       "home_services",
@@ -360,10 +357,11 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     },
     credentialSchema: {
       kind: "api_key",
-      label: "Ad library API access token",
-      hint: "Meta Ad Library API token and/or Google Ads Transparency access. Stored encrypted in your Vault; used read-only. Official APIs only — no scraping.",
-      optional: true,
+      label: "Meta Ad Library access token",
+      hint: "A Meta access token with Ad Library API access. Stored encrypted in your Vault; used read-only. Official API only — no scraping.",
     },
+    // Needs BOTH who to watch and where — a token alone can't query the library.
+    requiredConfigKeys: ["competitors"],
     authKind: "api_key",
     access: "read_only",
     mcpUrl: null,

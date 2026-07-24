@@ -63,8 +63,8 @@ export function getArcConversationHeader({
 
   if (selectedDemoId === "storm") {
     return {
-      title: "Storm Rapid Response",
-      subtitle: "Storm-damage homeowners · 4 assets · Naperville, IL",
+      title: "Pricing-Intent Fast Track",
+      subtitle: "High-intent accounts · 4 assets · Team & Business plans",
     };
   }
 

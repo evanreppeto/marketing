@@ -50,7 +50,7 @@ import {
 import type { ArcWaiting, DemoTurn } from "./arc-view.types";
 
 export const LAUNCHER_SHORTCUTS: Array<{ icon: typeof Target; label: string; prompt: string }> = [
-  { icon: Target, label: "Find priority leads", prompt: "Which homeowners should we reach first right now, and why?" },
+  { icon: Target, label: "Find priority leads", prompt: "Which accounts should we reach first right now, and why?" },
   { icon: MessageSquareText, label: "Draft a campaign", prompt: "Draft a multi-channel campaign for our highest-priority segment." },
   { icon: ShieldCheck, label: "Review approvals", prompt: "What's waiting for my approval right now?" },
   { icon: Zap, label: "Check new signals", prompt: "What changed in my workspace, and what deserves attention now?" },
@@ -535,15 +535,15 @@ export function DemoConversation({
       {includeSeed ? (
         <>
           <div className="arc-day"><span>July 14, 2026</span></div>
-          <OperatorMessage time="9:34 AM" body="Here’s a reference photo from our last storm job — match this look in the creative." attachments={DEMO_ATTACHMENTS} onEdit={editable} onContextMenu={operatorMenu("Here’s a reference photo from our last storm job — match this look in the creative.")} />
-          <OperatorMessage time="9:35 AM" body="Which homeowners should we reach first after the Naperville hailstorm?" onEdit={editable} onContextMenu={operatorMenu("Which homeowners should we reach first after the Naperville hailstorm?")} />
-          <AssistantMessage time="9:38 AM" onContextMenu={(event) => openMenu(event, demoArcItems("142 homes took the heaviest hail and still haven’t booked an inspection.", "Which homeowners should we reach first after the Naperville hailstorm?"))}>
+          <OperatorMessage time="9:34 AM" body="Here’s a reference shot from our last product tour — match this look in the creative." attachments={DEMO_ATTACHMENTS} onEdit={editable} onContextMenu={operatorMenu("Here’s a reference shot from our last product tour — match this look in the creative.")} />
+          <OperatorMessage time="9:35 AM" body="Which accounts should we reach first after the pricing-page surge?" onEdit={editable} onContextMenu={operatorMenu("Which accounts should we reach first after the pricing-page surge?")} />
+          <AssistantMessage time="9:38 AM" onContextMenu={(event) => openMenu(event, demoArcItems("142 accounts hit pricing repeatedly and still haven’t booked a demo.", "Which accounts should we reach first after the pricing-page surge?"))}>
             <div className="arc-answer">
-              <h2>142 homes took the heaviest hail and still haven’t booked an inspection.</h2>
-              <p>That’s 23% of the storm zone and about $1.4M in estimated restoration work. The clearest urgency signals across them:</p>
-              <ul><li>Sit in the <b>worst-hit hail swath</b>, with no inspection on file — <b>3.1× more likely</b> to have hidden damage</li><li>No inspection booked in the six days since the storm</li><li>Roof age 8+ years or prior claim history</li></ul>
+              <h2>142 accounts hit pricing repeatedly and still haven’t booked a demo.</h2>
+              <p>That’s 23% of the active pipeline and about $1.4M in estimated ARR. The clearest urgency signals across them:</p>
+              <ul><li>Sit in the <b>highest-intent tier</b>, with no demo on file — <b>3.1× more likely</b> to convert this quarter</li><li>No demo booked in the six days since the surge</li><li>Trial expiring within 14 days or prior evaluation history</li></ul>
             </div>
-            <RunTrace pending={false} thoughtSeconds={8} reasoning="I combined the storm footprint with property condition and recent CRM activity, then favored an inspection-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "act", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
+            <RunTrace pending={false} thoughtSeconds={8} reasoning="I combined the pricing-intent signal with account health and recent CRM activity, then favored a demo-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "act", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
             <div className="arc-response-evidence">
               <SourcesRow mentions={DEMO_SOURCES} onMentionContextMenu={(event, mention) => openMenu(event, mentionMenuItems(mention, navigate))} />
               <RecallRow recall={DEMO_RECALL} onRecallContextMenu={(event, item) => openMenu(event, recallMenuItems(item, navigate))} />
@@ -552,13 +552,13 @@ export function DemoConversation({
           <AssistantMessage time="9:40 AM" onContextMenu={(event) => openMenu(event, demoArcItems(DEMO_BREAKDOWN_MD))}>
             <div className="arc-markdown"><ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_HIGHLIGHT_PLUGINS} components={MARKDOWN_COMPONENTS}>{DEMO_BREAKDOWN_MD}</ReactMarkdown></div>
           </AssistantMessage>
-          <AssistantMessage time="9:42 AM" onContextMenu={(event) => openMenu(event, demoArcItems("I built the Storm Rapid Response package for the 142 highest-urgency homes."))}>
-            <div className="arc-answer"><p>I built the Storm Rapid Response package for the 142 highest-urgency homes.</p></div>
+          <AssistantMessage time="9:42 AM" onContextMenu={(event) => openMenu(event, demoArcItems("I built the Pricing-Intent Fast Track package for the 142 highest-urgency accounts."))}>
+            <div className="arc-answer"><p>I built the Pricing-Intent Fast Track package for the 142 highest-urgency accounts.</p></div>
             <ReviewableWork><DraftPackageCard cards={DEMO_PACKAGE_CARDS} statuses={packageStatuses} onReview={() => onReview(DEMO_PACKAGE_CARDS)} onContextMenu={(event) => openMenu(event, packageMenuItems({ cards: DEMO_PACKAGE_CARDS, statusOf, onOpen: () => onReview(DEMO_PACKAGE_CARDS), onAssetStatus }))} /></ReviewableWork>
           </AssistantMessage>
           <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." onEdit={editable} onContextMenu={operatorMenu("Looks good. Draft the email.")} />
-          <AssistantMessage time="9:45 AM" onContextMenu={(event) => openMenu(event, demoArcItems("The inspection email for the 64 insured, fresh-damage homes is ready for review."))}>
-            <div className="arc-answer"><p>The inspection email for the 64 insured, fresh-damage homes is ready for review.</p></div>
+          <AssistantMessage time="9:45 AM" onContextMenu={(event) => openMenu(event, demoArcItems("The demo email for the 64 active-trial, high-intent accounts is ready for review."))}>
+            <div className="arc-answer"><p>The demo email for the 64 active-trial, high-intent accounts is ready for review.</p></div>
             <ReviewableWork><DraftReceiptCard card={DEMO_DRAFT_CARD} status={statusOf(DEMO_DRAFT_CARD)} onReview={() => onReview([DEMO_DRAFT_CARD])} onContextMenu={(event) => openMenu(event, receiptMenuItems({ card: DEMO_DRAFT_CARD, status: statusOf(DEMO_DRAFT_CARD), onOpen: () => onReview([DEMO_DRAFT_CARD]), onAssetStatus }))} /></ReviewableWork>
           </AssistantMessage>
         </>
