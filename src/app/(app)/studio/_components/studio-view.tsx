@@ -191,7 +191,6 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
     });
   const [tab, setTab] = useState<"design" | "arc">("design");
   const [tool, setTool] = useState("overlay");
-  const [traceOpen, setTraceOpen] = useState(false);
   const [tmpl, setTmpl] = useState(0);
   const [cmode, setCmode] = useState("Draft");
   const [msg, setMsg] = useState("");
@@ -277,6 +276,9 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
   };
 
   const [campaignId, setCampaignId] = useState<string>(campaigns[0]?.id ?? "");
+  // The campaign actually selected in the picker — the Arc pane header used to name a
+  // hardcoded campaign ("Storm-Season Reactivation") that no workspace owns.
+  const selectedCampaignLabel = campaigns.find((c) => c.id === campaignId)?.name ?? null;
   const [drafts, setDrafts] = useState<StudioDraft[]>([]);
   const [gen, startGen] = useTransition();
   const [genErr, setGenErr] = useState<string | null>(null);
@@ -660,32 +662,33 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
           ) : (
             <div className="ipane">
               <div className="arc">
-                <div className="archead"><span className="am">A</span><div><div className="at">Arc · Creative copilot</div><div className="ad"><i />Working in Storm-Season Reactivation</div></div></div>
+                {/* This pane is a LAUNCHER, not a transcript: askArc() starts a real Arc
+                    conversation and routes to /arc, so no reply is ever rendered here.
+                    It used to show a hardcoded conversation — a fake operator message, a
+                    fake "Thought for 4s" trace asserting Arc had read the workspace's
+                    Library and brand kit (with the real brand name interpolated), and
+                    three fake draft cards with no-op Approve/Revise/Decline buttons.
+                    None of it came from Arc. Replaced with an honest description of what
+                    the composer below actually does. */}
+                <div className="archead">
+                  <span className="am">A</span>
+                  <div>
+                    <div className="at">Arc · Creative copilot</div>
+                    <div className="ad"><i />{selectedCampaignLabel ? `Working in ${selectedCampaignLabel}` : "No campaign selected"}</div>
+                  </div>
+                </div>
                 <div className="arcscroll">
-                  <div className="amsg op"><div className="bub">Make a 9:16 version for Reels — try the real before/after photo as the hero.</div></div>
-                  <div className="amsg ar">
-                    <div className="who"><b>Arc</b> · drafted 3 options</div>
-                    <div className={`trace${traceOpen ? " open" : ""}`}>
-                      <div className="tracehd" onClick={() => setTraceOpen((o) => !o)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c8a24a" strokeWidth={1.8}><path d="M12 3a5 5 0 00-5 5c0 1.5.6 2.7 1.5 3.6L9 14h6l.5-2.4A5 5 0 0012 3z" /><path d="M9 18h6M10 21h4" /></svg><span>Thought for 4s</span><span className="tk">brief · library · brand</span><span className="tcv">▾</span></div>
-                      <div className="tracebd">
-                        <div className="tl"><i>›</i>Read the <b>Storm-Season Reactivation</b> brief — angle &ldquo;act before the next storm&rdquo;, proof: before/after + reviews.</div>
-                        <div className="tl"><i>›</i>Found <b>2 approved before/after photos</b> in Library (real media, available to Arc).</div>
-                        <div className="tl"><i>›</i>Pulled {brandName}&rsquo;s <b>brand kit</b> — antique-gold accent, Fraunces headline.</div>
-                        <div className="tl"><i>›</i>Reframed the hero to <b>9:16</b> and composited the kicker + CTA.</div>
-                      </div>
-                    </div>
-                    <div className="arbody">Three directions, all on your <b>approved before/after photo</b> — no stock, no invented claims. I kept the &ldquo;same-week scheduling&rdquo; proof and reframed to 9:16.<span className="lock"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 018 0v3" /></svg>Outbound stays locked until you approve.</span></div>
-                    {[["Before / After · 9:16", "comp", "Composite", SC.beforeafter], ["Before / After · 9:16 (bold)", "comp", "Composite", SC.beforeafter], ["Crew on site · 9:16", "real", "Real media", SC.roof]].map(([an, pv, pl, svg], i) => (
-                      <div className="acard" key={i}>
-                        <div className="atop"><div className="ath"><Raw html={svg as string} /></div><div className="ainfo"><div className="an">{an}</div><span className={`apv pv ${pv}`}>{pl}</span><div className="ameta">draft · social_ad · 1080×1920<br />via Arc</div></div></div>
-                        <div className="actl"><button className="abtn ap" data-soon="Approving drafts is coming soon"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg>Approve</button><button className="abtn" data-soon="Requesting a revision is coming soon">Revise</button><button className="abtn" data-soon="Declining drafts is coming soon">Decline</button></div>
-                      </div>
-                    ))}
-                    <div className="achips">
-                      {[["Make 1:1 + 4:5 too", '<rect x="4" y="4" width="16" height="16" rx="2"/>'], ["Softer headline", '<path d="M4 7h16M4 12h10M4 17h7"/>'], ["Check virality", '<path d="M3 17l5-5 4 3 5-7 4 4"/>'], ["Swap proof point", '<path d="M12 4l2.5 5 5.5.8-4 4 1 5.5L12 17l-5 2.6 1-5.5-4-4 5.5-.8z"/>']].map(([label, d]) => (
-                        <span className="achip" key={label} data-soon={`“${label}” is coming soon`}><svg viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: d }} />{label}</span>
-                      ))}
-                    </div>
+                  <div className="arcempty">
+                    <div className="arcempty-t">Ask Arc about this creative</div>
+                    <p className="arcempty-d">
+                      Your message starts a new Arc conversation seeded with what&rsquo;s on the canvas — the
+                      format, the headline, and the campaign you picked — and opens it in Arc, where the reply
+                      and any drafts appear.
+                    </p>
+                    <p className="arcempty-d">
+                      Arc drafts only; nothing it produces goes outbound until you approve it. Drafts you
+                      generate here show up under <b>Drafts</b> on the Design tab.
+                    </p>
                   </div>
                 </div>
                 <div className="composer">
