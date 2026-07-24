@@ -44,26 +44,26 @@ type DemoTaskSeed = {
 };
 
 const PERSONA_LABEL: Record<string, string> = {
-  persona_homeowner_emergency: "Homeowner / Emergency",
-  persona_homeowner_preventative: "Homeowner / Preventative",
-  persona_homeowner_rebuild: "Homeowner / Rebuild",
-  persona_landlord: "Landlord",
-  persona_hoa_board: "HOA Board",
-  persona_property_manager: "Property Manager",
-  persona_insurance_agent: "Insurance Agent",
-  persona_listing_agent: "Listing Agent",
-  persona_plumbing_partner: "Plumbing Partner",
-  persona_hvac_roof_electrical_partner: "HVAC / Roof Partner",
-  persona_gc_remodeler_partner: "GC / Remodeler Partner",
+  persona_homeowner_emergency: "Evaluator / Active trial",
+  persona_homeowner_preventative: "Evaluator / Nurture",
+  persona_homeowner_rebuild: "Evaluator / Win-back",
+  persona_landlord: "Multi-seat owner",
+  persona_hoa_board: "Buying committee",
+  persona_property_manager: "Team admin",
+  persona_insurance_agent: "Referral advisor",
+  persona_listing_agent: "Renewal manager",
+  persona_plumbing_partner: "Integration Partner",
+  persona_hvac_roof_electrical_partner: "Reseller Partner",
+  persona_gc_remodeler_partner: "Solutions Partner",
 };
 
 const TASK_SEEDS: DemoTaskSeed[] = [
   // Review / needs you
   {
     id: "demo-task-emergency-fb",
-    objective: "Approve paid social set for Emergency Water Response 2026",
+    objective: "Approve paid social set for Pricing-Intent Fast Track 2026",
     task: "campaign_asset_review",
-    campaign: "Emergency Water Response 2026",
+    campaign: "Pricing-Intent Fast Track 2026",
     persona: "persona_homeowner_emergency",
     status: "needs_approval",
     priority: "urgent",
@@ -76,9 +76,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   },
   {
     id: "demo-task-landing-rebuild",
-    objective: "Review landing page copy for Fire & Smoke Rebuild one-pager",
+    objective: "Review landing page copy for Customer Win-Back one-pager",
     task: "landing_page_review",
-    campaign: "Fire & Smoke Rebuild",
+    campaign: "Customer Win-Back",
     persona: "persona_homeowner_rebuild",
     status: "needs_approval",
     priority: "high",
@@ -91,9 +91,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   },
   {
     id: "demo-task-pm-email",
-    objective: "Approve property-manager reactivation email batch",
+    objective: "Approve team-admin reactivation email batch",
     task: "email_campaign_review",
-    campaign: "Property Manager Reactivation",
+    campaign: "Team Admin Reactivation",
     persona: "persona_property_manager",
     status: "needs_approval",
     priority: "high",
@@ -107,9 +107,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   // Working / Arc active
   {
     id: "demo-task-storm-creative",
-    objective: "Generate creative variants for Spring Storm Prep 2026",
+    objective: "Generate creative variants for Quarterly Nurture Refresh 2026",
     task: "creative_generation",
-    campaign: "Spring Storm Prep 2026",
+    campaign: "Quarterly Nurture Refresh 2026",
     persona: "persona_homeowner_preventative",
     status: "running",
     priority: "high",
@@ -121,9 +121,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   },
   {
     id: "demo-task-mold-copy",
-    objective: "Draft SMS + email copy for Mold Remediation Awareness",
+    objective: "Draft SMS + email copy for Feature Adoption Awareness",
     task: "copy_drafting",
-    campaign: "Mold Remediation Awareness",
+    campaign: "Feature Adoption Awareness",
     persona: "persona_landlord",
     status: "running",
     priority: "medium",
@@ -135,9 +135,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   },
   {
     id: "demo-task-insurance-angle",
-    objective: "Build message angles for Insurance Agent Co-Marketing",
+    objective: "Build message angles for Referral Advisor Co-Marketing",
     task: "message_angle_research",
-    campaign: "Insurance Agent Co-Marketing",
+    campaign: "Referral Advisor Co-Marketing",
     persona: "persona_insurance_agent",
     status: "running",
     priority: "medium",
@@ -150,9 +150,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   // Waiting / queued + scheduled
   {
     id: "demo-task-plumbing-outreach",
-    objective: "Prepare plumbing-partner referral outreach package",
+    objective: "Prepare integration-partner referral outreach package",
     task: "partner_outreach_draft",
-    campaign: "Plumbing Partner Network",
+    campaign: "Integration Partner Network",
     persona: "persona_plumbing_partner",
     status: "queued",
     priority: "high",
@@ -164,9 +164,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   },
   {
     id: "demo-task-storm-schedule",
-    objective: "Stage Spring Storm Prep email for approved send window",
+    objective: "Stage Quarterly Nurture Refresh email for approved send window",
     task: "scheduled_send",
-    campaign: "Spring Storm Prep 2026",
+    campaign: "Quarterly Nurture Refresh 2026",
     persona: "persona_homeowner_preventative",
     status: "queued",
     priority: "medium",
@@ -178,9 +178,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   },
   {
     id: "demo-task-hoa-onepager",
-    objective: "Assemble HOA board winter-burst-pipe one-pager",
+    objective: "Assemble buying-committee enablement one-pager",
     task: "asset_assembly",
-    campaign: "HOA Winter Readiness",
+    campaign: "Buying Committee Enablement",
     persona: "persona_hoa_board",
     status: "queued",
     priority: "low",
@@ -192,9 +192,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   },
   {
     id: "demo-task-listing-agent",
-    objective: "Draft listing-agent pre-sale moisture inspection offer",
+    objective: "Draft renewal-manager pre-check walkthrough offer",
     task: "copy_drafting",
-    campaign: "Listing Agent Pre-Sale",
+    campaign: "Renewal Manager Pre-Check",
     persona: "persona_listing_agent",
     status: "queued",
     priority: "medium",
@@ -207,9 +207,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   // Blocked
   {
     id: "demo-task-blocked-claim",
-    objective: "Resolve claim-language risk in Emergency Water ad headline",
+    objective: "Resolve overclaim risk in Pricing-Intent Fast Track ad headline",
     task: "compliance_revision",
-    campaign: "Emergency Water Response 2026",
+    campaign: "Pricing-Intent Fast Track 2026",
     persona: "persona_homeowner_emergency",
     status: "blocked",
     priority: "high",
@@ -220,9 +220,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   },
   {
     id: "demo-task-blocked-media",
-    objective: "Awaiting approved before/after media for Mold campaign",
+    objective: "Awaiting approved before/after media for Feature Adoption campaign",
     task: "media_sourcing",
-    campaign: "Mold Remediation Awareness",
+    campaign: "Feature Adoption Awareness",
     persona: "persona_landlord",
     status: "blocked",
     priority: "medium",
@@ -234,9 +234,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   // Done
   {
     id: "demo-task-done-storm-brief",
-    objective: "Complete Spring Storm Prep campaign brief + audience plan",
+    objective: "Complete Quarterly Nurture Refresh campaign brief + audience plan",
     task: "campaign_brief",
-    campaign: "Spring Storm Prep 2026",
+    campaign: "Quarterly Nurture Refresh 2026",
     persona: "persona_homeowner_preventative",
     status: "completed",
     priority: "high",
@@ -248,9 +248,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   },
   {
     id: "demo-task-done-emergency-launch",
-    objective: "Emergency Water Response launch package approved & locked",
+    objective: "Pricing-Intent Fast Track launch package approved & locked",
     task: "campaign_package",
-    campaign: "Emergency Water Response 2026",
+    campaign: "Pricing-Intent Fast Track 2026",
     persona: "persona_homeowner_emergency",
     status: "completed",
     priority: "urgent",
@@ -262,9 +262,9 @@ const TASK_SEEDS: DemoTaskSeed[] = [
   },
   {
     id: "demo-task-done-gc-partner",
-    objective: "GC / remodeler partner referral sheet approved",
+    objective: "Solutions partner referral sheet approved",
     task: "partner_asset",
-    campaign: "GC Remodeler Partnerships",
+    campaign: "Solutions Partner Program",
     persona: "persona_gc_remodeler_partner",
     status: "completed",
     priority: "medium",
@@ -315,9 +315,9 @@ const DEMO_AGENTS: AgentOperationsAgent[] = [
   {
     key: "arc",
     name: ARC,
-    purpose: "BSR lead marketing operator — finds opportunities, drafts campaigns, prepares creative.",
+    purpose: "Meridian lead marketing operator — finds opportunities, drafts campaigns, prepares creative.",
     status: "Ready",
-    currentTask: "Generating creative variants for Spring Storm Prep 2026",
+    currentTask: "Generating creative variants for Quarterly Nurture Refresh 2026",
     riskFlags: ["human_required_before_outbound"],
     href: "/agent-operations/arc",
   },
@@ -327,7 +327,7 @@ const DEMO_APPROVALS: AgentOperationsApproval[] = [
   {
     id: "demo-task-emergency-fb",
     source: "Paid Social Set",
-    campaign: "Emergency Water Response 2026",
+    campaign: "Pricing-Intent Fast Track 2026",
     channel: "Paid Social",
     status: "Pending Owner Approval",
     risk: "Medium",
@@ -336,7 +336,7 @@ const DEMO_APPROVALS: AgentOperationsApproval[] = [
   {
     id: "demo-task-landing-rebuild",
     source: "Landing Page",
-    campaign: "Fire & Smoke Rebuild",
+    campaign: "Customer Win-Back",
     channel: "Landing Page",
     status: "Needs Review",
     risk: "Medium",
@@ -345,7 +345,7 @@ const DEMO_APPROVALS: AgentOperationsApproval[] = [
   {
     id: "demo-task-pm-email",
     source: "Email Batch",
-    campaign: "Property Manager Reactivation",
+    campaign: "Team Admin Reactivation",
     channel: "Email",
     status: "Needs Review",
     risk: "Low",
@@ -354,11 +354,11 @@ const DEMO_APPROVALS: AgentOperationsApproval[] = [
 ];
 
 const DEMO_OUTPUTS: AgentOperationsOutput[] = [
-  { output: "Emergency Water paid social — 4 variants (1:1, 4:5, 9:16)", agent: ARC, status: "Pending Owner Approval", time: iso(-25 * 60_000) },
-  { output: "Spring Storm Prep creative set in progress", agent: ARC, status: "Draft", time: iso(-8 * 60_000) },
-  { output: "Fire & Smoke Rebuild landing one-pager copy", agent: ARC, status: "Needs Review", time: iso(-2 * HOUR) },
-  { output: "Mold Remediation SMS + email draft", agent: ARC, status: "Draft", time: iso(-18 * 60_000) },
-  { output: "Plumbing partner referral package outline", agent: ARC, status: "Draft", time: iso(-1 * HOUR) },
+  { output: "Pricing-Intent Fast Track paid social — 4 variants (1:1, 4:5, 9:16)", agent: ARC, status: "Pending Owner Approval", time: iso(-25 * 60_000) },
+  { output: "Quarterly Nurture Refresh creative set in progress", agent: ARC, status: "Draft", time: iso(-8 * 60_000) },
+  { output: "Customer Win-Back landing one-pager copy", agent: ARC, status: "Needs Review", time: iso(-2 * HOUR) },
+  { output: "Feature Adoption SMS + email draft", agent: ARC, status: "Draft", time: iso(-18 * 60_000) },
+  { output: "Integration partner referral package outline", agent: ARC, status: "Draft", time: iso(-1 * HOUR) },
 ];
 
 const DEMO_ARC_RUNNER: ArcRunnerStatus = {

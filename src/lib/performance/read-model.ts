@@ -361,7 +361,7 @@ function buildDemoPerformanceReadModel(rangeDays: number): PerformanceReadModel 
 
   const kpis: PerformanceKpi[] = [
     { key: "campaigns", label: "Active campaigns", value: "6", hint: "2 awaiting approval", tone: "neutral", delta: "+2", deltaTone: "ok", spark: trend.map(() => 5 + rng()) },
-    { key: "booked", label: "Booked work", value: String(bookedJobs), hint: "jobs this range", tone: "ok", delta: "+18%", deltaTone: "ok", spark: bookedSpark },
+    { key: "booked", label: "Booked work", value: String(bookedJobs), hint: "demos this range", tone: "ok", delta: "+18%", deltaTone: "ok", spark: bookedSpark },
     { key: "revenue", label: "Revenue impact", value: formatMoney(revenueImpactCents), hint: "attributed to marketing", tone: "accent", delta: "+24%", deltaTone: "ok", spark: revenueSpark },
     { key: "conversion", label: "Lead → booked", value: `${conversionPct}%`, hint: "qualified leads booked", tone: "ok", delta: "+6 pts", deltaTone: "ok", spark: convSpark },
     { key: "score", label: "Avg lead score", value: String(avgLeadScore), hint: "across new leads", tone: "neutral", delta: "+4", deltaTone: "ok", spark: scoreSpark },
@@ -377,25 +377,25 @@ function buildDemoPerformanceReadModel(rangeDays: number): PerformanceReadModel 
 
   // Per-campaign rows for the demo library (names mirror the campaigns demo fallback).
   const campaignRows: CampaignPerformanceRow[] = [
-    { id: "demo-emergency-water-response-2026", name: "Emergency Water Response 2026", persona: "Distressed Homeowner", impressions: 68_400, clicks: 3_120, leads: 188, booked: 31, revenueCents: 7_240_000, conversion: 16, trend: "up" },
-    { id: "demo-spring-storm-prep", name: "Spring Storm Prep", persona: "Proactive Homeowner", impressions: 52_100, clicks: 2_410, leads: 142, booked: 18, revenueCents: 3_960_000, conversion: 13, trend: "up" },
-    { id: "demo-commercial-water-mitigation", name: "Commercial Water Mitigation", persona: "Property Manager", impressions: 31_900, clicks: 1_180, leads: 74, booked: 14, revenueCents: 5_120_000, conversion: 19, trend: "flat" },
-    { id: "demo-mold-remediation-awareness", name: "Mold Remediation Awareness", persona: "Health-Conscious Homeowner", impressions: 28_600, clicks: 1_040, leads: 61, booked: 8, revenueCents: 1_840_000, conversion: 13, trend: "down" },
-    { id: "demo-burst-pipe-rapid-response", name: "Burst Pipe Rapid Response", persona: "Distressed Homeowner", impressions: 19_300, clicks: 980, leads: 58, booked: 7, revenueCents: 1_690_000, conversion: 12, trend: "up" },
-    { id: "demo-insurance-partner-referral", name: "Insurance Partner Referral", persona: "Insurance Adjuster", impressions: 14_500, clicks: 540, leads: 41, booked: 4, revenueCents: 1_020_000, conversion: 10, trend: "flat" },
+    { id: "demo-emergency-water-response-2026", name: "Pricing-Intent Fast Track 2026", persona: "High-Intent Evaluator", impressions: 68_400, clicks: 3_120, leads: 188, booked: 31, revenueCents: 7_240_000, conversion: 16, trend: "up" },
+    { id: "demo-spring-storm-prep", name: "Quarterly Nurture Refresh", persona: "Proactive Evaluator", impressions: 52_100, clicks: 2_410, leads: 142, booked: 18, revenueCents: 3_960_000, conversion: 13, trend: "up" },
+    { id: "demo-commercial-water-mitigation", name: "Enterprise Expansion Play", persona: "Team admin", impressions: 31_900, clicks: 1_180, leads: 74, booked: 14, revenueCents: 5_120_000, conversion: 19, trend: "flat" },
+    { id: "demo-mold-remediation-awareness", name: "Feature Adoption Awareness", persona: "Feature-Focused Evaluator", impressions: 28_600, clicks: 1_040, leads: 61, booked: 8, revenueCents: 1_840_000, conversion: 13, trend: "down" },
+    { id: "demo-burst-pipe-rapid-response", name: "Stalled-Trial Rescue", persona: "High-Intent Evaluator", impressions: 19_300, clicks: 980, leads: 58, booked: 7, revenueCents: 1_690_000, conversion: 12, trend: "up" },
+    { id: "demo-insurance-partner-referral", name: "Partner Referral Growth", persona: "Procurement", impressions: 14_500, clicks: 540, leads: 41, booked: 4, revenueCents: 1_020_000, conversion: 10, trend: "flat" },
   ];
 
   const anomalies: PerformanceAnomaly[] = [
     {
       id: "anom-storm-spike",
-      title: "Spring Storm Prep leads up 34% week-over-week",
-      detail: "Storm-driven demand spiked after the regional weather alert. Capacity to book is the current constraint, not demand.",
+      title: "Quarterly Nurture Refresh leads up 34% week-over-week",
+      detail: "Pricing-intent demand spiked after the latest product update. Capacity to book demos is the current constraint, not demand.",
       tone: "ok",
       metric: "+34% leads",
     },
     {
       id: "anom-mold-decay",
-      title: "Mold Remediation Awareness conversion slipping",
+      title: "Feature Adoption Awareness conversion slipping",
       detail: "Click-to-lead held steady but lead-to-booked fell to 13%. The landing CTA may be under-qualifying inquiries.",
       tone: "amber",
       metric: "13% booked",
@@ -412,22 +412,22 @@ function buildDemoPerformanceReadModel(rangeDays: number): PerformanceReadModel 
   const nextMoves: PerformanceNextMove[] = [
     {
       id: "move-storm-capacity",
-      title: "Resize Spring Storm Prep creative for capacity",
-      detail: "Demand outpaces booking capacity. Arc drafted a 'priority scheduling' variant — review before it goes live.",
+      title: "Resize Quarterly Nurture Refresh creative for capacity",
+      detail: "Demand outpaces demo booking capacity. Arc drafted a 'priority scheduling' variant — review before it goes live.",
       cta: "Review draft",
       href: "/campaigns",
     },
     {
       id: "move-mold-cta",
-      title: "Tighten the Mold Awareness landing CTA",
+      title: "Tighten the Feature Adoption landing CTA",
       detail: "Arc proposes a qualifying question on the form to lift lead-to-booked. Approval-gated; nothing publishes until you sign off.",
       cta: "Open campaign",
       href: "/campaigns/demo-mold-remediation-awareness",
     },
     {
       id: "move-referral-expand",
-      title: "Expand the Insurance Partner Referral package",
-      detail: "Referral ROI is strong but volume is thin. Arc prepared an outreach packet for three new adjuster partners.",
+      title: "Expand the Partner Referral package",
+      detail: "Referral ROI is strong but volume is thin. Arc prepared an outreach packet for three new channel partners.",
       cta: "See package",
       href: "/campaigns",
     },
@@ -438,22 +438,22 @@ function buildDemoPerformanceReadModel(rangeDays: number): PerformanceReadModel 
     isDemo: true,
     metrics: [
       { label: "Lead records", value: totalLeads, detail: "Across all live demo campaigns", tone: "blue" },
-      { label: "Booked work", value: totalBooked, detail: "Jobs attributed to marketing", tone: "green" },
+      { label: "Booked work", value: totalBooked, detail: "Demos attributed to marketing", tone: "green" },
       { label: "Campaign packages", value: 6, detail: "Drafted, in approval, or live", tone: "blue" },
       { label: "Revenue impact", value: formatMoney(revenueImpactCents), detail: "Marketing-attributed outcomes", tone: "green" },
     ],
     leadVolumeByPersona: [
-      { label: "Distressed Homeowner", value: 246, detail: "246 leads in current data.", tone: "blue" },
-      { label: "Property Manager", value: 138, detail: "138 leads in current data.", tone: "blue" },
-      { label: "Proactive Homeowner", value: 142, detail: "142 leads in current data.", tone: "blue" },
-      { label: "Insurance Adjuster", value: 74, detail: "74 leads in current data.", tone: "blue" },
-      { label: "Health-Conscious Homeowner", value: 61, detail: "61 leads in current data.", tone: "blue" },
+      { label: "High-Intent Evaluator", value: 246, detail: "246 leads in current data.", tone: "blue" },
+      { label: "Team admin", value: 138, detail: "138 leads in current data.", tone: "blue" },
+      { label: "Proactive Evaluator", value: 142, detail: "142 leads in current data.", tone: "blue" },
+      { label: "Procurement", value: 74, detail: "74 leads in current data.", tone: "blue" },
+      { label: "Feature-Focused Evaluator", value: 61, detail: "61 leads in current data.", tone: "blue" },
     ],
     leadVolumeBySource: channelPerformance.map((c) => ({ label: c.channel, value: c.leads, detail: `${c.leads} leads in current data.`, tone: "blue" as PerformanceTone })),
     conversionSignals: [
       { label: "Lead → booked rate", value: `${conversionPct}%`, detail: "Qualified leads that became booked work.", tone: "green" },
       { label: "Estimate pipeline", value: formatMoney(24_600_000), detail: "Open estimates not yet won.", tone: "green" },
-      { label: "Avg revenue / job", value: formatMoney(Math.round(revenueImpactCents / bookedJobs)), detail: "Marketing-attributed revenue per booked job.", tone: "green" },
+      { label: "Avg revenue / demo", value: formatMoney(Math.round(revenueImpactCents / bookedJobs)), detail: "Marketing-attributed revenue per booked demo.", tone: "green" },
     ],
     funnelStages,
     trend,
@@ -471,14 +471,14 @@ function buildDemoPerformanceReadModel(rangeDays: number): PerformanceReadModel 
       { label: "Referral revenue", value: 22900, detail: "Booked revenue attributed to referrals.", tone: "green" },
     ],
     revenueByPersona: [
-      { label: "Distressed Homeowner", value: 89300, detail: "gross_revenue grouped by outcome persona.", tone: "green" },
-      { label: "Property Manager", value: 51200, detail: "gross_revenue grouped by outcome persona.", tone: "green" },
-      { label: "Proactive Homeowner", value: 39600, detail: "gross_revenue grouped by outcome persona.", tone: "green" },
-      { label: "Insurance Adjuster", value: 10200, detail: "gross_revenue grouped by outcome persona.", tone: "green" },
+      { label: "High-Intent Evaluator", value: 89300, detail: "gross_revenue grouped by outcome persona.", tone: "green" },
+      { label: "Team admin", value: 51200, detail: "gross_revenue grouped by outcome persona.", tone: "green" },
+      { label: "Proactive Evaluator", value: 39600, detail: "gross_revenue grouped by outcome persona.", tone: "green" },
+      { label: "Procurement", value: 10200, detail: "gross_revenue grouped by outcome persona.", tone: "green" },
     ],
     ctaSignals: [
       { label: "Form submissions", value: 318, detail: "318 events in current data.", tone: "blue" },
-      { label: "Photo uploads", value: 142, detail: "142 events in current data.", tone: "blue" },
+      { label: "File uploads", value: 142, detail: "142 events in current data.", tone: "blue" },
       { label: "Landing CTA clicks", value: 1240, detail: "1240 events in current data.", tone: "blue" },
     ],
     contracts: buildContracts(),
