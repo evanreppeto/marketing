@@ -339,7 +339,16 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
       "COVERAGE NOTE: outside the EU, Meta's Ad Library API only returns political & social-issue ads; general " +
       "commercial ads are broadly queryable for EU-delivered ads. A quiet result may mean Meta doesn't expose " +
       "those ads, not that competitors are inactive.",
-    costTier: "byo_key",
+    // FREE, not byo_key: the Ad Library API bills nothing per call (it is rate-limited,
+    // not metered), so a platform-key call must NOT flip to `metered` and charge for a
+    // free API — effectiveCostTier keeps `free` free on the platform path.
+    costTier: "free",
+    // Platform-credits: one deployment-level token serves every workspace, exactly like
+    // the HubSpot/Google OAuth apps — the operator sets it once and customers connect
+    // without sourcing their own Meta token. A workspace may still paste its own token
+    // (BYO wins in resolveConnectorCredential), which also gives it a private rate-limit
+    // budget rather than sharing the platform token's.
+    platformEnvVar: "META_AD_LIBRARY_TOKEN",
     verticals: [
       "home_services",
       "restoration",
@@ -358,7 +367,10 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     credentialSchema: {
       kind: "api_key",
       label: "Meta Ad Library access token",
-      hint: "A Meta access token with Ad Library API access. Stored encrypted in your Vault; used read-only. Official API only — no scraping.",
+      hint: "Optional — competitor ad intel is included, so you only need this to run searches on your own Meta token (your own rate-limit budget). Stored encrypted in your Vault; used read-only. Official API only — no scraping.",
+      // The platform token satisfies the credential gate, so a workspace never has to
+      // source its own Meta token just to switch this on.
+      optional: true,
     },
     // Needs BOTH who to watch and where — a token alone can't query the library.
     requiredConfigKeys: ["competitors"],

@@ -268,7 +268,7 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
     c: "#c47f7f",
     l: "Ad",
     credLabel: "Meta Ad Library access token",
-    credHint: "A Meta access token with Ad Library API access, stored in your Vault. Read-only competitive intel from Meta's official API — it proposes defensive opportunities and never contacts anyone. (Google has no official ads-transparency API, so this is Meta-only.)",
+    credHint: "Optional — competitor ad intel is included, so you only need your own Meta token to search on your own rate-limit budget. Stored in your Vault. Read-only competitive intel from Meta's official API — it proposes defensive opportunities and never contacts anyone. (Google has no official ads-transparency API, so this is Meta-only.)",
   },
   "webhook-dispatch": {
     c: "#9aa0ac",
