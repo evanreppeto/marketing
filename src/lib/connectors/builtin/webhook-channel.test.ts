@@ -31,7 +31,7 @@ describe("dispatchWebhook", () => {
   });
 
   it("performs a real POST and returns a provider ref on success", async () => {
-    const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }) as Response);
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({ ok: true, status: 200 }) as Response);
     vi.stubGlobal("fetch", fetchMock);
     const res = await dispatchWebhook(input());
     expect(res.ok).toBe(true);
@@ -42,7 +42,7 @@ describe("dispatchWebhook", () => {
   });
 
   it("surfaces a delivery failure as an error result", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 502 }) as Response));
+    vi.stubGlobal("fetch", vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({ ok: false, status: 502 }) as Response));
     const res = await dispatchWebhook(input());
     expect(res.ok).toBe(false);
   });
