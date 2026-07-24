@@ -28,6 +28,44 @@ const SRC: Record<string, { title: string; items: Item[] }> = {
 };
 function provShort(p: Prov) { return p === "real" ? "Real" : p === "ai" ? "AI" : p === "upload" ? "Imported" : p === "comp" ? "Composite" : "Stock"; }
 
+export type ProvenanceNote = { tone: "ok" | "warn"; title: string; detail: string };
+
+/**
+ * The one media guardrail Studio can honestly compute, as a pure function so every
+ * branch is testable. It reports ONLY what the selected item actually carries:
+ * its provenance tag (`p`) and whether it resolves to a stored asset (`url` —
+ * built-in preview art has none).
+ *
+ * Deliberately narrow. The panel this replaced also claimed a logo-legibility check,
+ * a privacy/face scan and a claim check, all rendered as unconditional green
+ * checkmarks; none of those detectors exist, so they were removed rather than left
+ * asserting a compliance pass that never ran. Do not add a line here that isn't
+ * derived from the item.
+ */
+export function describeProvenance(item: Item | undefined): ProvenanceNote {
+  if (!item) {
+    return { tone: "warn", title: "No background selected", detail: "Pick an image from the sources panel to see where it came from." };
+  }
+  const label = PVLABEL[item.p];
+  // No stored asset wins over the tag: preview art can't be approved media whatever
+  // it's labelled, and it can't be generated from or sent either.
+  if (!item.url) {
+    return {
+      tone: "warn",
+      title: "Sample art — not a stored asset",
+      detail: `“${item.l}” is built-in preview art, not something in your Library. It can't be generated from or sent.`,
+    };
+  }
+  if (item.p === "real" || item.p === "comp") {
+    return { tone: "ok", title: `Approved Library media · ${label}`, detail: `“${item.l}” came from your approved Library.` };
+  }
+  return {
+    tone: "warn",
+    title: `${label} — not approved Library media`,
+    detail: `“${item.l}” is tagged ${label.toLowerCase()}. Confirm you have the rights to use it before this goes anywhere.`,
+  };
+}
+
 const Raw = ({ html }: { html: string }) => <span style={{ position: "absolute", inset: 0 }} dangerouslySetInnerHTML={{ __html: html }} />;
 
 // Real library assets carry a `url` (image/video from media_assets); mock/demo
@@ -231,6 +269,13 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
         : !bg?.url
           ? "Select an approved photo as the background"
           : null;
+
+  // The one media guardrail this app can honestly compute: the provenance tag of the
+  // background you actually picked (Item.p), plus whether it resolves to a real stored
+  // asset (Item.url — sample/demo art has none). Everything shown in the panel is
+  // derived from this; nothing is asserted. `comp` (a composite of approved media)
+  // counts as approved-source, AI/stock/imported explicitly do not.
+  const provenance = useMemo(() => describeProvenance(bg), [bg]);
 
   // Compose the current canvas (selected background + Brand Kit + copy) into one
   // approval-gated draft per format. The action lands pending_approval + dispatch_
@@ -503,22 +548,42 @@ export function StudioView({ brandName, libraryItems, live = false, campaigns = 
                   </div>
                 )}
 
+                {/* Media provenance — the ONE guardrail this app can actually compute.
+                    It reads the provenance tag of the background you picked (Item.p) plus
+                    whether it resolves to a real stored asset (Item.url), so every line
+                    here is derived from state, never asserted.
+
+                    The panel used to also claim "Brand logo present & legible", "Privacy
+                    scan clear" and a claim-check on hardcoded copy — all rendered
+                    unconditionally with green checkmarks. No logo detection, face
+                    detection or claim checker exists, so those were removed rather than
+                    left as a compliance gate that never ran. */}
                 <div className="psec">
-                  <h3 className="ph2">Guardrails</h3>
-                  <div className="grow"><span className="gic ok"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg></span><div><div className="gt">Brand logo present &amp; legible</div><div className="gd">{brandName} lockup detected, on-brand placement.</div></div></div>
-                  <div className="grow"><span className="gic ok"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg></span><div><div className="gt">Real, approved media</div><div className="gd">Background is an approved Library photo — not stock or invented.</div></div></div>
-                  <div className="grow"><span className="gic warn"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9l-8 14A2 2 0 004 21h16a2 2 0 001.7-3l-8-14a2 2 0 00-3.4 0z" /></svg></span><div><div className="gt">Claim check: &ldquo;same-week scheduling&rdquo;</div><div className="gd">Needs a proof point on file before send. <span className="fix" data-soon="Attaching proof is coming soon">Attach proof →</span></div></div></div>
-                  <div className="grow"><span className="gic ok"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg></span><div><div className="gt">No faces requiring redaction</div><div className="gd">Privacy scan clear.</div></div></div>
+                  <h3 className="ph2">Media provenance</h3>
+                  <div className="grow">
+                    <span className={`gic ${provenance.tone}`}>
+                      {provenance.tone === "ok"
+                        ? <svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg>
+                        : <svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9l-8 14A2 2 0 004 21h16a2 2 0 001.7-3l-8-14a2 2 0 00-3.4 0z" /></svg>}
+                    </span>
+                    <div><div className="gt">{provenance.title}</div><div className="gd">{provenance.detail}</div></div>
+                  </div>
+                  <div className="grow">
+                    <span className="gic warn"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9l-8 14A2 2 0 004 21h16a2 2 0 001.7-3l-8-14a2 2 0 00-3.4 0z" /></svg></span>
+                    <div><div className="gt">Review before you send</div><div className="gd">Arc doesn&rsquo;t scan creatives for faces, logo legibility, or unsupported claims — check those yourself. Nothing goes out until you approve it.</div></div>
+                  </div>
                 </div>
 
                 <div className="psec">
-                  <h3 className="ph2">Virality <span className="tagv">Higgsfield · video</span></h3>
-                  <div className="score">
-                    {[["Hook (0–3s)", 78], ["Sustain", 64], ["Viral pot.", 71]].map(([sn, v]) => (
-                      <div className="srow" key={sn}><span className="sn">{sn}</span><span className="sbar"><span className="sfill" style={{ width: `${v}%` }} /></span><span className="sv">{v}</span></div>
-                    ))}
-                    <div className="scapt"><b>Video only.</b> Scores come from Higgsfield&rsquo;s virality predictor on the rendered clip. This still image uses a fit proxy instead:</div>
-                    <div className="imgproxy"><span className="pxchip">Format matches channel ✓</span><span className="pxchip">Brand present ✓</span><span className="pxchip">{FORMATS[fmt].dim}</span></div>
+                  <h3 className="ph2">Output spec</h3>
+                  <div className="imgproxy">
+                    <span className="pxchip">{FORMATS[fmt].label}</span>
+                    <span className="pxchip">{FORMATS[fmt].r}</span>
+                    <span className="pxchip">{FORMATS[fmt].dim}</span>
+                  </div>
+                  <div className="scapt">
+                    Performance scoring isn&rsquo;t available — Arc has no virality model wired up. These are the
+                    dimensions this creative will render at.
                   </div>
                 </div>
 
