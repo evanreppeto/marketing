@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AuthBrandPanel } from "@/components/ui/auth-brand-panel";
 import { FormValidityMessages } from "@/components/ui/form-validity";
 
-export const metadata = { title: "Reset your password — Arc" };
+export const metadata = { title: "Reset your password — Arc Studio" };
 
 const FORGOT_ERRORS: Record<string, string> = {
   config: "Password reset isn't available right now. Try again shortly.",
@@ -32,7 +32,7 @@ export default async function ForgotPasswordPage({
       <section className="flex items-center justify-center px-6 py-12 sm:px-10">
         <div className="w-full max-w-[27rem]">
           <div className="mb-9 lg:hidden">
-            <img src="/icon.png" alt="Arc" className="h-8 w-auto" />
+            <span className="flex items-center gap-2.5"><img src="/icon.png" alt="" className="h-8 w-auto" /><img src="/brand/arc-studio-wordmark.png" alt="Arc Studio" className="h-[1.3rem] w-auto" /></span>
           </div>
 
           <h2 className="font-[family-name:var(--font-display)] text-[1.6rem] font-semibold leading-tight text-[var(--text-primary)]">

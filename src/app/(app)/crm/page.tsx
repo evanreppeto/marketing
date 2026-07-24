@@ -11,7 +11,7 @@ import { getAppSettings } from "@/lib/settings/store";
 import { type KpiCell } from "../_components/kpi-strip";
 import { CrmBoard, type CrmObjectVM, type CrmRowVM } from "./_components/crm-board";
 
-export const metadata = { title: "CRM — Arc" };
+export const metadata = { title: "CRM — Arc Studio" };
 
 const OBJECT_KEYS: CrmObjectKey[] = ["companies", "contacts", "properties", "leads", "jobs", "outcomes"];
 

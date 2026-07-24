@@ -6,7 +6,7 @@ import { getPerformanceReadModel } from "@/lib/performance/read-model";
 
 import { AnalyticsView, type ActivityDayVM } from "./_components/analytics-view";
 
-export const metadata = { title: "Analytics — Arc" };
+export const metadata = { title: "Analytics — Arc Studio" };
 
 const TONE_DOT: Record<ActivityTone, string> = {
   green: "var(--ok)",

@@ -10,7 +10,7 @@ import { PasswordField } from "@/components/ui/password-field";
 import { INDUSTRY_OPTIONS } from "@/lib/personas/industry-templates";
 
 export const metadata = {
-  title: "Create your workspace — Arc",
+  title: "Create your workspace — Arc Studio",
 };
 
 const WORKSPACE_TYPES = [
@@ -73,7 +73,7 @@ export default async function SignUpPage({
         <div className="relative z-10 flex h-full flex-col justify-between px-12 py-14">
           <Image
             src="/icon.png"
-            alt="Arc"
+            alt="Arc Studio"
             width={36}
             height={36}
             priority
@@ -103,14 +103,24 @@ export default async function SignUpPage({
       <section className="flex items-center justify-center px-6 py-8 sm:px-10">
         <div className="w-full max-w-[27rem]">
           <div className="mb-9 lg:hidden">
-            <Image src="/icon.png" alt="Arc" width={32} height={32} priority className="h-8 w-8" />
+            <span className="flex items-center gap-2.5">
+              <Image src="/icon.png" alt="" width={32} height={32} priority className="h-8 w-8" />
+              <Image
+                src="/brand/arc-studio-wordmark.png"
+                alt="Arc Studio"
+                width={152}
+                height={27}
+                priority
+                className="h-[1.3rem] w-auto"
+              />
+            </span>
           </div>
 
           <h2 className="font-[family-name:var(--font-display)] text-[1.6rem] font-semibold leading-tight text-[var(--text-primary)]">
             Create your workspace
           </h2>
           <p className="mt-2 text-[0.925rem] text-[var(--text-secondary)]">
-            Set up your company on Arc. You can invite your team next.
+            Set up your company on Arc Studio. You can invite your team next.
           </p>
 
           {error ? (

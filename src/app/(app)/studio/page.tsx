@@ -8,7 +8,7 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
 import { StudioView, type Item } from "./_components/studio-view";
 import "./studio.css";
 
-export const metadata = { title: "Studio — Arc" };
+export const metadata = { title: "Studio — Arc Studio" };
 
 function provFromSource(source: string): Item["p"] {
   switch (source) {

@@ -4,7 +4,7 @@ import { KIND_COLOR, KIND_LABEL, normalizeConfidence, titleize, toFact } from ".
 import { BrainView, type BrainData } from "./_components/brain-view";
 import type { GraphEdge, GraphNode } from "./_components/knowledge-graph";
 
-export const metadata = { title: "Brain — Arc" };
+export const metadata = { title: "Brain — Arc Studio" };
 
 // "Refresh memory" (rebuildBrainMemoryAction) resyncs CRM/campaigns/media and
 // backfills embeddings — network-heavy work. Give the server action headroom

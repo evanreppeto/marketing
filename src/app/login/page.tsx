@@ -6,7 +6,7 @@ import { FormValidityMessages } from "@/components/ui/form-validity";
 import { PasswordField } from "@/components/ui/password-field";
 
 export const metadata = {
-  title: "Sign in — Arc",
+  title: "Sign in — Arc Studio",
 };
 
 const SIGN_IN_ERRORS: Record<string, string> = {
@@ -44,14 +44,14 @@ export default async function LoginPage({
       <section className="flex items-center justify-center px-6 py-12 sm:px-10">
         <div className="w-full max-w-[27rem]">
           <div className="mb-9 lg:hidden">
-            <img src="/icon.png" alt="Arc" className="h-8 w-auto" />
+            <span className="flex items-center gap-2.5"><img src="/icon.png" alt="" className="h-8 w-auto" /><img src="/brand/arc-studio-wordmark.png" alt="Arc Studio" className="h-[1.3rem] w-auto" /></span>
           </div>
 
           <h2 className="font-[family-name:var(--font-display)] text-[1.6rem] font-semibold leading-tight text-[var(--text-primary)]">
             Sign in
           </h2>
           <p className="mt-2 text-[0.925rem] text-[var(--text-secondary)]">
-            Welcome back to Arc.
+            Welcome back to Arc Studio.
           </p>
 
           {error ? (
@@ -129,7 +129,7 @@ export default async function LoginPage({
           </form>
 
           <p className="mt-6 text-[0.875rem] text-[var(--text-secondary)]">
-            New to Arc?{" "}
+            New to Arc Studio?{" "}
             {isSelfServeSignupOpen() ? (
               <Link href="/sign-up" className="font-medium text-[var(--accent)] underline-offset-4 hover:underline">
                 Create your workspace

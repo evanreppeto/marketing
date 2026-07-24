@@ -9,7 +9,7 @@ import { canonicalIndustryKey } from "@/lib/product-language";
 import { classify } from "./classify";
 import { OpportunityInbox, type OpportunityVM } from "./_components/opportunity-inbox";
 
-export const metadata = { title: "Opportunities — Arc" };
+export const metadata = { title: "Opportunities — Arc Studio" };
 
 function humanize(value: string): string {
   const s = (value || "").replace(/[_-]+/g, " ").trim();

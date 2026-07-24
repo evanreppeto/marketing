@@ -4,7 +4,7 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
 
 import { PersonasView, type PersonaVM } from "./_components/personas-view";
 
-export const metadata = { title: "Personas — Arc" };
+export const metadata = { title: "Personas — Arc Studio" };
 
 const SEG_COLOR: Record<string, string> = {
   acquisition: "#88b6d8",

@@ -6,7 +6,7 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
 import { LibraryView, type Asset, type Folder } from "./_components/library-view";
 import "./library.css";
 
-export const metadata = { title: "Library — Arc" };
+export const metadata = { title: "Library — Arc Studio" };
 
 const FOLDER_PALETTE = ["#c47055", "#7fb89a", "#c8a24a", "#9678c8", "#88b6d8", "#bd6a58"];
 

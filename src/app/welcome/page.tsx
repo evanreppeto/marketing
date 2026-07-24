@@ -4,7 +4,7 @@ import { AuthBrandPanel } from "@/components/ui/auth-brand-panel";
 import { getSafeOperatorReturnPath } from "@/lib/auth/operator-shared";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 
-export const metadata = { title: "Welcome — Arc" };
+export const metadata = { title: "Welcome — Arc Studio" };
 
 // Landing page for a freshly-accepted invite. `authedRedirectLocation` routes
 // `invited_member` here after the session + membership are established, so by the
@@ -30,7 +30,7 @@ export default async function WelcomePage({
       <section className="flex items-center justify-center px-6 py-12 sm:px-10">
         <div className="w-full max-w-[27rem]">
           <div className="mb-9 lg:hidden">
-            <img src="/icon.png" alt="Arc" className="h-8 w-auto" />
+            <span className="flex items-center gap-2.5"><img src="/icon.png" alt="" className="h-8 w-auto" /><img src="/brand/arc-studio-wordmark.png" alt="Arc Studio" className="h-[1.3rem] w-auto" /></span>
           </div>
 
           <span className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[color:color-mix(in_srgb,var(--ok)_45%,transparent)] bg-[color:color-mix(in_srgb,var(--ok)_12%,transparent)]">
