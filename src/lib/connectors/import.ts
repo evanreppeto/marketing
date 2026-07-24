@@ -16,6 +16,7 @@ import { vendorEnrichmentProvider } from "@/lib/integrations/enrichment/vendor";
 
 import { getConnectorConfig } from "./config";
 import { readConnectorCredential } from "./credentials";
+import { resolveHubspotAccessToken } from "./hubspot-oauth";
 import { meterConnectorCall } from "./metering";
 import { listWorkspaceConnectors, resolveConnectorCredentialRef } from "./read-model";
 
@@ -119,8 +120,13 @@ export async function runCrmImport(input: RunCrmImportInput): Promise<RunCrmImpo
   }
 
   const ref = await resolveConnectorCredentialRef(client, input.workspaceId, HUBSPOT_IMPORT_CONNECTOR_KEY);
-  const token = await readConnectorCredential(client, ref);
-  if (!token) return { ok: false, error: "missing_credential" };
+  const rawCredential = await readConnectorCredential(client, ref);
+  if (!rawCredential) return { ok: false, error: "missing_credential" };
+  // The stored credential is either an OAuth bundle (refreshed here) or a pasted
+  // private-app token (used as-is) — resolveHubspotAccessToken hides the difference.
+  const resolved = await resolveHubspotAccessToken(client, ref, rawCredential);
+  if (!resolved.ok) return { ok: false, error: "hubspot_auth_failed" };
+  const token = resolved.accessToken;
 
   const config = await getConnectorConfig(client, input.workspaceId, HUBSPOT_IMPORT_CONNECTOR_KEY);
   const defaultPersona = asAllowedPersona(config.defaultPersona, input.allowedPersonaKeys);

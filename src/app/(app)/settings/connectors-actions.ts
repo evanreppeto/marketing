@@ -13,6 +13,7 @@ import { checkConnectorCredential, checkEnrichmentEndpoint } from "@/lib/connect
 import { checkHiggsfieldToken } from "@/lib/connectors/higgsfield-health";
 import { runCrmImport, runCsvImport, runMailchimpImport, CSV_IMPORT_CONNECTOR_KEY, MAILCHIMP_IMPORT_CONNECTOR_KEY } from "@/lib/connectors/import";
 import { checkHubspotConnection } from "@/lib/integrations/crm/hubspot";
+import { resolveHubspotAccessToken } from "@/lib/connectors/hubspot-oauth";
 import { checkMailchimpConnection } from "@/lib/integrations/crm/mailchimp";
 import { checkGbpConnection } from "@/lib/integrations/reviews/gbp";
 import { checkMetaAdLibrary } from "@/lib/integrations/ads/meta-ad-library";
@@ -240,7 +241,15 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
     // CRM import: a real HubSpot probe that also reports how many contacts an
     // import would see, so Test connection returns record counts (BSR-368).
     if (connector.key === "hubspot-import") {
-      const hs = await checkHubspotConnection(plaintext);
+      // Resolve a live access token from whichever path connected: an OAuth bundle
+      // (refreshed) or a pasted private-app token (used as-is).
+      const resolved = await resolveHubspotAccessToken(client, ref, plaintext);
+      if (!resolved.ok) {
+        await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: { ok: false, error: resolved.error } });
+        revalidatePath("/settings");
+        return { ok: false, error: `Test failed: ${resolved.error}` };
+      }
+      const hs = await checkHubspotConnection(resolved.accessToken);
       await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: { ok: hs.ok, error: hs.error } });
       revalidatePath("/settings");
       if (!hs.ok) return { ok: false, error: `Test failed: ${hs.error ?? "HubSpot unreachable"}` };
