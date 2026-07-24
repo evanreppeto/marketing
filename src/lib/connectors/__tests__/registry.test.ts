@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 
 import { findConnector } from "@/domain";
 
@@ -87,8 +87,9 @@ describe("weather-signals — detect() maps NWS alerts to candidates (injected s
   });
 });
 
-describe("webhook-dispatch stub — dispatch() never sends without approval", () => {
+describe("webhook-dispatch — dispatch() never sends without approval", () => {
   const base = { client: {} as never, orgId: "o", workspaceId: "w", credential: null, payload: { body: "hi" } };
+  afterEach(() => vi.restoreAllMocks());
 
   it("refuses to dispatch without an approvalId", async () => {
     const res = await dispatchWebhook({ ...base, approvalId: "", config: { endpoint: "https://x" } });
@@ -100,9 +101,10 @@ describe("webhook-dispatch stub — dispatch() never sends without approval", ()
     expect(res.ok).toBe(false);
   });
 
-  it("with an approval + endpoint, returns a dry-run ref (stub does not actually send)", async () => {
+  it("with an approval + endpoint, performs a real POST and returns a webhook ref", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 }) as Response));
     const res = await dispatchWebhook({ ...base, approvalId: "appr-1", config: { endpoint: "https://x/hook" } });
     expect(res.ok).toBe(true);
-    if (res.ok) expect(res.providerRef).toContain("dry-run");
+    if (res.ok) expect(res.providerRef).toBe("webhook:https://x/hook");
   });
 });

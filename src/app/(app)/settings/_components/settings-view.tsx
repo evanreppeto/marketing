@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 import type { SettingsTeamInvite, SettingsTeamMember, SettingsTeamView, WorkspaceActivityEntry } from "@/lib/auth/team-view";
+import type { WaitlistView } from "@/lib/waitlist/read-model";
 import { WORKSPACE_ROLES } from "@/lib/auth/workspace-roles";
 import type { SettingsWorkspace, SettingsWorkspacesView } from "@/lib/auth/workspaces-view";
 import type { SettingsUsageView } from "@/lib/ai-usage/settings-summary";
@@ -67,6 +68,7 @@ type SettingsWriteResult = { ok: true; persisted: boolean; message?: string } | 
 const ROLE_OPTIONS = ["Owner", "Admin", "Marketer", "Reviewer", "Member", "Viewer"];
 
 const ICON: Record<string, string> = {
+  waitlist: '<path d="M4 7h10M4 12h10M4 17h6"/><path d="M15 17l2 2 4-4"/>',
   general: '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1l-.3-2.5h-4l-.3 2.5a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1l.3 2.5h4l.3-2.5a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5a7 7 0 00.1-1z"/>',
   appearance: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 000 18 4 4 0 000-8 3 3 0 010-6 4 4 0 000-4z"/>',
   team: '<circle cx="8" cy="9" r="2.5"/><circle cx="16" cy="9" r="2.5"/><path d="M3 19c0-3 2-4.5 5-4.5M21 19c0-3-2-4.5-5-4.5M9 19c0-2 1.5-3 3-3s3 1 3 3"/>',
@@ -100,11 +102,15 @@ const SUBTABS: Record<string, string[]> = {
   account: ["Identity", "Sign-in"],
   usage: ["Overview", "Connectors", "By day", "By model", "Recent"],
 };
-const SECTION_LABEL: Record<string, string> = Object.fromEntries(NAVGROUPS.flatMap((g) => g.items.map((it) => [it[0], it[1]])));
+const SECTION_LABEL: Record<string, string> = {
+  ...Object.fromEntries(NAVGROUPS.flatMap((g) => g.items.map((it) => [it[0], it[1]]))),
+  waitlist: "Waitlist",
+};
 
 // Synonyms so search jumps on intent, not just the literal section name.
 const SECTION_KEYWORDS: Record<string, string> = {
   overview: "home dashboard health",
+  waitlist: "waitlist signups leads early access launch interest",
   general: "workspace name industry support email brand from-name identity",
   appearance: "theme accent color colour dark light density motion look feel",
   team: "members invite invitation role permission access seat",
@@ -553,8 +559,13 @@ const DENSITY_LABEL: Record<AppSettings["appearanceDensity"], string> = { comfor
 const MOTION_LABEL: Record<AppSettings["appearanceMotion"], string> = { standard: "Standard", reduced: "Reduced" };
 const PROFILE_LABEL: Record<AppSettings["workspaceProfile"], string> = { individual: "Individual", company: "Company", agency: "Agency" };
 
-export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, billing = null, settings, connectors, workspaces, emailConnection = null, liveSendEnabled = true, agentConnection = null, personaOptions = [], hubspotOAuthConfigured = false, googleOAuthConfigured = false }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; billing?: SettingsBillingView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null; liveSendEnabled?: boolean; agentConnection?: EffectiveAgentConnection | null; personaOptions?: readonly PersonaOption[]; hubspotOAuthConfigured?: boolean; googleOAuthConfigured?: boolean }) {
+export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, billing = null, settings, connectors, workspaces, emailConnection = null, liveSendEnabled = true, agentConnection = null, personaOptions = [], hubspotOAuthConfigured = false, googleOAuthConfigured = false, waitlist = null }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; billing?: SettingsBillingView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null; liveSendEnabled?: boolean; agentConnection?: EffectiveAgentConnection | null; personaOptions?: readonly PersonaOption[]; hubspotOAuthConfigured?: boolean; googleOAuthConfigured?: boolean; waitlist?: WaitlistView | null }) {
   const [cur, setCur] = useState("overview");
+  // The waitlist is platform-level, not workspace-level: the server sends null
+  // unless the viewer is a platform admin, so the group is absent for everyone else.
+  const navGroups: ReadonlyArray<{ g: string; items: ReadonlyArray<readonly [string, string]> }> = waitlist
+    ? [...NAVGROUPS, { g: "PLATFORM", items: [["waitlist", "Waitlist"] as const] }]
+    : NAVGROUPS;
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
   const usageView = usage ?? EMPTY_USAGE;
@@ -573,7 +584,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
     const apply = () => {
       const p = new URLSearchParams(window.location.search);
       const s = p.get("s");
-      const section = s && SECTION_LABEL[s] ? s : "overview";
+      const section = s && SECTION_LABEL[s] && (s !== "waitlist" || waitlist) ? s : "overview";
       const t = p.get("t");
       setCur(section);
       setConnSel(section === "connections" ? p.get("c") : null);
@@ -612,7 +623,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
   // rail filter. Each entry carries synonyms so intent-y queries land right.
   type Dest = { label: string; sub?: string; keywords: string; go: () => void };
   const destinations: Dest[] = [];
-  for (const grp of NAVGROUPS) {
+  for (const grp of navGroups) {
     for (const [key, label] of grp.items) {
       destinations.push({ label, keywords: `${label} ${grp.g} ${SECTION_KEYWORDS[key] ?? ""}`, go: () => navTo(key) });
       for (const tab of SUBTABS[key] ?? []) {
@@ -677,6 +688,51 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
         : "Idle";
 
   const sections: Record<string, ReactNode> = {
+    waitlist: waitlist ? (
+      <>
+        <Head t="Waitlist" d="Everyone who asked for early access from the public site. Platform-wide, not workspace-scoped." />
+        <div className="panel">
+          <div className="panel-h"><h3>Signups</h3><span className="ph-d" style={{ marginLeft: 6 }}>{waitlist.total.toLocaleString()} total</span></div>
+          <div className="panel-b" style={{ paddingTop: 12, paddingBottom: 14 }}>
+            <div className="wl-stats">
+              <div className="wl-stat"><div className="wl-stat-v">{waitlist.total.toLocaleString()}</div><div className="wl-stat-l">Total signups</div></div>
+              <div className="wl-stat"><div className="wl-stat-v">{waitlist.last7.toLocaleString()}</div><div className="wl-stat-l">Last 7 days</div></div>
+              {waitlist.bySource.map((row) => (
+                <div className="wl-stat" key={row.source}>
+                  <div className="wl-stat-v">{row.count.toLocaleString()}</div>
+                  <div className="wl-stat-l">{row.source}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="panel">
+          <div className="panel-h">
+            <h3>Recent signups</h3>
+            <span className="ph-d" style={{ marginLeft: 6 }}>
+              {waitlist.total > waitlist.recent.length
+                ? `newest ${waitlist.recent.length} of ${waitlist.total.toLocaleString()}`
+                : "newest first"}
+            </span>
+          </div>
+          <div className="panel-b" style={{ padding: waitlist.recent.length === 0 ? "2px 16px" : "0 16px" }}>
+            {waitlist.recent.length === 0 ? (
+              <div className="sr-empty">No signups yet — they&apos;ll appear here as they come in.</div>
+            ) : (
+              <div className="wl-rows">
+                {waitlist.recent.map((row) => (
+                  <div className="wl-row" key={`${row.email}-${row.createdAt}`}>
+                    <span className="wl-email">{row.email}</span>
+                    <span className="wl-src">{row.source}</span>
+                    <span className="wl-when">{new Date(row.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </>
+    ) : null,
     overview: (
       <>
         <Head t="Overview" d="Your workspace at a glance — health, what needs you, and quick links." />
@@ -951,7 +1007,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
             )}
           </div>
         ) : (
-          NAVGROUPS.map((grp) => (
+          navGroups.map((grp) => (
             <div key={grp.g}>
               <div className="setgrp">{grp.g}</div>
               {grp.items.map((it) => (

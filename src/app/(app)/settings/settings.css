@@ -280,3 +280,15 @@
 .arc-settings .imgup-pv.circle { border-radius: 50%; }
 .arc-settings .imgup-pv img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .arc-settings .imgup-err { font-size: 11px; color: var(--red-text); }
+
+/* Waitlist (platform-admin only): signup counts + the newest signups. */
+.arc-settings .wl-stats { display: flex; flex-wrap: wrap; gap: 10px; }
+.arc-settings .wl-stat { flex: 1 1 120px; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; background: var(--inset); }
+.arc-settings .wl-stat-v { font-family: var(--serif); font-size: 22px; font-weight: 600; color: var(--text); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.arc-settings .wl-stat-l { margin-top: 3px; font-size: 11px; color: var(--muted); }
+.arc-settings .wl-rows { display: flex; flex-direction: column; }
+.arc-settings .wl-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 9px 10px; border-top: 1px solid var(--line); font-size: 12.5px; }
+.arc-settings .wl-row:first-child { border-top: 0; }
+.arc-settings .wl-email { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arc-settings .wl-src { font-family: var(--mono); font-size: 10.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+.arc-settings .wl-when { font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
