@@ -87,18 +87,37 @@ export async function createInvite(input: {
   });
   if (!result.ok) return { ok: false, error: result.message ?? "Could not create the invite." };
 
-  // Best-effort branded email — a send hiccup must not fail the invite.
+  // Best-effort branded email — a send hiccup must not fail the invite, because the
+  // code is valid either way. But it must not be REPORTED as sent either: this used
+  // to swallow the failure (and the missing-host case) and then say "Invite sent to
+  // X" unconditionally, so an operator would sit waiting for mail that never left.
+  let emailed = false;
+  let emailError: string | null = null;
   try {
     const h = await headers();
     const host = h.get("x-forwarded-host") ?? h.get("host");
     const proto = h.get("x-forwarded-proto") ?? "https";
-    if (host) await sendWorkspaceInviteEmail({ code: result.code, invitedEmail: email, origin: `${proto}://${host}` });
-  } catch {
-    // ignore; the invite code is still valid and shown in the list
+    if (!host) {
+      emailError = "no request host to build the invite link from";
+    } else {
+      await sendWorkspaceInviteEmail({ code: result.code, invitedEmail: email, origin: `${proto}://${host}` });
+      emailed = true;
+    }
+  } catch (error) {
+    emailError = error instanceof Error ? error.message : "the email provider rejected it";
+  }
+  if (!emailed) {
+    console.warn(`[settings] invite email not sent to ${email} — ${emailError ?? "unknown reason"}`);
   }
 
   revalidatePath("/settings");
-  return { ok: true, persisted: true, message: `Invite sent to ${email}.` };
+  return {
+    ok: true,
+    persisted: true,
+    message: emailed
+      ? `Invite sent to ${email}.`
+      : `Invite created for ${email}, but the email couldn't be sent — share the code from the pending list instead.`,
+  };
 }
 
 /**

@@ -1,4 +1,5 @@
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { getBrandProfileView } from "@/lib/brand-kit/profile-view";
 import { listCampaignNames } from "@/lib/campaigns/read-model";
 import { resolveMediaGeneration } from "@/lib/media/enablement";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
@@ -50,6 +51,14 @@ export default async function StudioPage() {
   // Per-workspace: the gemini-media connector (legacy env flag still honored).
   const mediaEnabled = (await resolveMediaGeneration(ctx?.workspaceId ?? null)).enabled;
 
+  // The workspace's real brand palette drives Studio's accent swatches — the picker
+  // used to show a hardcoded list under a note claiming it came from the Brand kit.
+  const brandPalette = ctx?.orgId
+    ? await getBrandProfileView(ctx.orgId, brandName)
+        .then((v) => v.palette.map((c) => c.hex).filter((hex) => /^#[0-9a-f]{6}$/i.test(hex)))
+        .catch(() => [])
+    : [];
+
   return (
     <StudioView
       brandName={brandName}
@@ -57,6 +66,7 @@ export default async function StudioPage() {
       live={live}
       campaigns={campaigns}
       mediaEnabled={mediaEnabled}
+      brandPalette={brandPalette}
     />
   );
 }

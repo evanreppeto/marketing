@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { SettingsTeamInvite, SettingsTeamMember, SettingsTeamView, WorkspaceActivityEntry } from "@/lib/auth/team-view";
 import type { WaitlistView } from "@/lib/waitlist/read-model";
@@ -576,6 +577,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
   const [modelSel, setModelSel] = useState<RosterModel | null>(null);
   const [sub, setSub] = useState<Record<string, string>>({});
   const [connSel, setConnSel] = useState<string | null>(null);
+  const router = useRouter();
 
   // Deep-linkable navigation: the section + sub-tab live in the URL (?s=…&t=…),
   // so Back/Forward step through sub-pages and a shared link lands on the exact
@@ -618,6 +620,61 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
     setConnSel(null);
     window.history.pushState(null, "", `${window.location.pathname}?s=connections`);
   };
+
+  /**
+   * Real deployment/workspace health, derived from the SAME props the rest of
+   * Settings renders from — never asserted. Replaces a hardcoded all-green array
+   * that told every deployment its Gemini key was "Present" and its runner
+   * "Connected · 2m ago". Each row links to the screen where you'd fix it.
+   */
+  const systemStatus = useMemo(() => {
+    const rows: { label: string; desc?: string; kind: string; value: string; go?: { label: string; run: () => void } }[] = [];
+
+    // A connected workspace is proof Supabase is reachable — this view was rendered from it.
+    rows.push({
+      label: "Workspace database",
+      desc: connectors.configured ? "Supabase is reachable — this page was rendered from it." : "No workspace is connected, so nothing here persists.",
+      kind: connectors.configured ? "ok" : "warn",
+      value: connectors.configured ? "Connected" : "Not connected",
+    });
+
+    if (emailConnection) {
+      const e = emailConnection;
+      const ready = e.enabled && (e.credentialPresent || Boolean(e.envVar));
+      rows.push({
+        label: "Email delivery (Resend)",
+        desc: !liveSendEnabled ? "Sending is disarmed deployment-wide (ARC_SEND_ENABLED)." : e.fromEmail ? `From ${e.fromEmail}.` : "No from-address set.",
+        kind: !ready ? "warn" : liveSendEnabled ? "ok" : "warn",
+        value: !e.credentialPresent && !e.envVar ? "No key" : !e.enabled ? "Disabled" : liveSendEnabled ? "Ready" : "Key set · sending off",
+        go: { label: "Manage", run: () => openConnector("resend") },
+      });
+    }
+
+    if (agentConnection) {
+      const h = agentConnection.health;
+      const seen = h.lastSeenAt ? new Date(h.lastSeenAt).toLocaleString() : null;
+      rows.push({
+        label: "Arc runner",
+        desc: !agentConnection.enabled ? "Disabled for this workspace." : h.lastError ? h.lastError : seen ? `Last seen ${seen}.` : "No check-in recorded yet.",
+        kind: !agentConnection.enabled ? "warn" : h.lastStatus === "ok" ? "ok" : h.lastStatus ? "err" : "warn",
+        value: !agentConnection.enabled ? "Disabled" : h.lastStatus === "ok" ? "Healthy" : h.lastStatus ?? "Never checked in",
+        go: { label: "Agent", run: () => navTo("agent") },
+      });
+    }
+
+    // Connector health comes straight from the connectors read-model — no guessing
+    // which providers a deployment has.
+    for (const c of connectors.connectors.filter((v) => v.enabled || v.status === "error")) {
+      rows.push({
+        label: c.label,
+        kind: c.status === "connected" ? "ok" : c.status === "error" ? "err" : "warn",
+        value: c.status === "connected" ? "Connected" : c.status === "error" ? "Last test failed" : c.status.replace(/_/g, " "),
+        go: { label: "Manage", run: () => openConnector(c.key) },
+      });
+    }
+
+    return rows;
+  }, [connectors, emailConnection, agentConnection, liveSendEnabled]);
 
   // Search jumps to a destination (section, sub-tab, or connector), not just a
   // rail filter. Each entry carries synonyms so intent-y queries land right.
@@ -898,14 +955,14 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
         {subBar}
         {activeSub === "Sign-in" ? (
           <Panel title="Sign-in methods" tag={TGEST} foot="operator gate + /api/auth · ARC_AUTH_MODE (controls not yet wired)">
-            <Row label="Password" desc="Email + password operator sign-in."><span className="pillrow"><Pill kind="ok">Configured</Pill><button className="btn sm">Change</button></span></Row>
+            <Row label="Password" desc="Email + password operator sign-in."><span className="pillrow"><Pill kind="ok">Configured</Pill><button type="button" className="btn sm" data-soon="Changing your password from here is coming soon">Change</button></span></Row>
             <Row label="Passkey" desc="Hardware / biometric sign-in."><span className="pillrow"><Pill kind="off">Planned</Pill></span></Row>
-            <Row label="Google" desc="SSO via Google."><span className="pillrow"><Pill kind="warn">Available</Pill><button className="btn sm">Connect</button></span></Row>
-            <div style={{ padding: "13px 0 4px", display: "flex", gap: 9 }}><button className="btn">Reset access token</button><form action="/api/auth/sign-out" method="post" style={{ display: "inline" }}><button type="submit" className="btn danger">Sign out</button></form></div>
+            <Row label="Google" desc="SSO via Google."><span className="pillrow"><Pill kind="off">Planned</Pill><button type="button" className="btn sm" data-soon="Google SSO isn't built yet">Connect</button></span></Row>
+            <div style={{ padding: "13px 0 4px", display: "flex", gap: 9 }}><button type="button" className="btn" data-soon="Rotating the access token is done in your deployment env (OPERATOR_ACCESS_TOKEN)">Reset access token</button><form action="/api/auth/sign-out" method="post" style={{ display: "inline" }}><button type="submit" className="btn danger">Sign out</button></form></div>
           </Panel>
         ) : (
           <Panel title="Operator" tag={TGEST}>
-            <Row label="Signed in as"><span className="pillrow"><span style={{ display: "flex", alignItems: "center", gap: 9 }}><span style={{ width: 30, height: 30, borderRadius: 8, display: "grid", placeItems: "center", fontFamily: "var(--serif)", fontWeight: 600, color: "var(--accent)", background: "var(--accent-soft)", border: "1px solid var(--accent-border)" }}>{(email || "O").charAt(0).toUpperCase()}</span><span><span style={{ fontSize: "12.5px", fontWeight: 600, display: "block" }}>{email.split("@")[0] || "Operator"}</span><span style={{ fontSize: 11, color: "var(--muted)" }}>{email || "No email on this session"}</span></span></span><button className="btn sm">Edit</button></span></Row>
+            <Row label="Signed in as"><span className="pillrow"><span style={{ display: "flex", alignItems: "center", gap: 9 }}><span style={{ width: 30, height: 30, borderRadius: 8, display: "grid", placeItems: "center", fontFamily: "var(--serif)", fontWeight: 600, color: "var(--accent)", background: "var(--accent-soft)", border: "1px solid var(--accent-border)" }}>{(email || "O").charAt(0).toUpperCase()}</span><span><span style={{ fontSize: "12.5px", fontWeight: 600, display: "block" }}>{email.split("@")[0] || "Operator"}</span><span style={{ fontSize: 11, color: "var(--muted)" }}>{email || "No email on this session"}</span></span></span><button type="button" className="btn sm" data-soon="Editing your operator profile is coming soon">Edit</button></span></Row>
             <Row label="Profile photo" desc="Shown on your account and across the app. Square works best.">
               <ImageUploadField
                 currentUrl={avatarUrl}
@@ -915,7 +972,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
                 removeAction={removeUserAvatarAction}
               />
             </Row>
-            <Row label="Access gate" desc="OPERATOR_ACCESS_TOKEN protects the console."><span className="pillrow"><Pill kind="ok">Protected</Pill><button className="btn sm">Configure</button></span></Row>
+            <Row label="Access gate" desc="OPERATOR_ACCESS_TOKEN protects the console. Set in your deployment env, not here."><span className="pillrow"><Pill kind="ok">Protected</Pill></span></Row>
           </Panel>
         )}
       </>
@@ -944,7 +1001,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
               <div className="panel-f"><Ic d={CHECK} />loadWorkspaceUsage → summarizeUsageForSettings · scoped to this workspace</div>
             </div>
             <BillingPlanControl billing={billing} />
-            <div style={{ display: "flex", gap: 9 }}><button className="btn gold"><Ic d='<path d="M4 19V5M4 19h16M8 16v-4M12 16V8M16 16v-6"/>' />Open full usage report</button></div>
+            <div style={{ display: "flex", gap: 9 }}><button type="button" className="btn gold" onClick={() => navTo("usage")}><Ic d='<path d="M4 19V5M4 19h16M8 16v-4M12 16V8M16 16v-6"/>' />Open usage &amp; billing</button></div>
           </>
         )}
       </>
@@ -962,14 +1019,29 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
     ),
     system: (
       <>
-        <Head t="System status" d="Configuration health for this deployment. Values below are placeholder — a live status probe isn’t wired yet." />
-        <Panel title="Services" tag={TGEST} foot="scaffold — static placeholders; target: a live status probe (e.g. GET /api/auth/status)">
-          {[["Supabase", "Configured", "Manage"], ["Resend (email)", "Configured", "Manage"], ["Gemini API key", "Present", "Rotate"], ["Arc runner", "Connected · 2m ago", "Test"], ["Higgsfield connector", "Enabled", "Manage"]].map((r) => (
-            <Row key={r[0]} label={r[0]}><span className="pillrow"><Pill kind="ok">{r[1]}</Pill><button className="btn sm">{r[2]}</button></span></Row>
+        <Head t="System status" d="What this workspace actually has configured, read from the same sources the features use." />
+        {/* This board used to be a hardcoded array of all-green pills — "Gemini API
+            key: Present", "Arc runner: Connected · 2m ago" — shown identically to
+            every deployment regardless of reality. It carried a "placeholder" note,
+            but a green pill reading "Connected · 2m ago" is a claim, not a mockup.
+            Every row below is now derived from the same props the rest of Settings
+            renders from, and each links to the page where you'd actually fix it. */}
+        <Panel title="Services" tag={<span className="tg ok">wired</span>}>
+          {systemStatus.map((s) => (
+            <Row key={s.label} label={s.label} desc={s.desc}>
+              <span className="pillrow">
+                <Pill kind={s.kind}>{s.value}</Pill>
+                {s.go && <button type="button" className="btn sm" onClick={s.go.run}>{s.go.label}</button>}
+              </span>
+            </Row>
           ))}
           <Row label="Demo data" desc="Seed example data for screenshots."><Sw /></Row>
         </Panel>
-        <div><button className="btn"><Ic d='<path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 10a8 8 0 00-14-3M4 14a8 8 0 0014 3"/>' />Re-run checks</button></div>
+        <div>
+          <button type="button" className="btn" onClick={() => router.refresh()}>
+            <Ic d='<path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 10a8 8 0 00-14-3M4 14a8 8 0 0014 3"/>' />Re-check
+          </button>
+        </div>
       </>
     ),
   };
