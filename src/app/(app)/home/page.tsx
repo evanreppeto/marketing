@@ -12,7 +12,7 @@ import { Sparkline } from "../_components/sparkline";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getWorkspaceSummary } from "@/lib/workspace-summary/read-model";
 
-export const metadata = { title: "Home — Arc" };
+export const metadata = { title: "Home — Arc Studio" };
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();

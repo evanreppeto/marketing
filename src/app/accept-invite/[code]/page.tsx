@@ -7,7 +7,7 @@ import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 
 import { redeemInviteAction } from "./actions";
 
-export const metadata = { title: "Accept invite — Arc" };
+export const metadata = { title: "Accept invite — Arc Studio" };
 
 const ROLE_LABEL: Record<string, string> = {
   admin: "Admin",

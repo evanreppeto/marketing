@@ -27,11 +27,10 @@ export function AuthBrandPanel({
       <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[var(--canvas-deep)] to-transparent" />
 
       <div className="relative z-10 flex h-full flex-col justify-between px-12 py-14">
-        <img
-          src="/icon.png"
-          alt="Arc"
-          className="h-9 w-auto self-start drop-shadow-[0_4px_14px_rgba(0,0,0,0.55)]"
-        />
+        <div className="flex items-center gap-3 self-start drop-shadow-[0_4px_14px_rgba(0,0,0,0.55)]">
+          <img src="/icon.png" alt="" className="h-9 w-auto" />
+          <img src="/brand/arc-studio-wordmark.png" alt="Arc Studio" className="h-[1.5rem] w-auto" />
+        </div>
 
         <div className="max-w-[30ch]">
           <h1 className="font-serif text-[2.6rem] font-normal leading-[1.08] text-[var(--text-primary)]">

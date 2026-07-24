@@ -11,7 +11,7 @@ import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { CampaignDetailView } from "./_components/campaign-detail-view";
 import "./campaign.css";
 
-export const metadata = { title: "Campaign — Arc" };
+export const metadata = { title: "Campaign — Arc Studio" };
 
 // Offline preview only: a small set of "approved Library media" so the attach
 // picker has something to show without a backend. Live mode reads the real library.
