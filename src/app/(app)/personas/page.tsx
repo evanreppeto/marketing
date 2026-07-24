@@ -46,9 +46,15 @@ function driverText(drivers: string[], value: number, kind: "engagement" | "fit"
 // the slug AS the record key, so perf lookup tries the slug directly first.
 const personaEnum = (slug: string) => `persona_${slug.replace(/-/g, "_")}`;
 
-async function personaPerf(orgId: string): Promise<Map<string, PerfRow>> {
+/**
+ * Per-persona attributed performance. Returns `failed` when a CRM query ERRORED
+ * rather than returned nothing: postgrest reports errors in `{ error }` instead of
+ * throwing, so ignoring it turned an RLS denial or a timeout into a confident
+ * "0 leads · attributed" that looks exactly like a persona nobody has converted.
+ */
+async function personaPerf(orgId: string): Promise<{ rows: Map<string, PerfRow>; failed: boolean }> {
   const out = new Map<string, PerfRow>();
-  if (!isSupabaseAdminConfigured()) return out;
+  if (!isSupabaseAdminConfigured()) return { rows: out, failed: false };
   const admin = getSupabaseAdminClient();
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
   const bump = (key: string, patch: Partial<PerfRow>) => {
@@ -60,10 +66,15 @@ async function personaPerf(orgId: string): Promise<Map<string, PerfRow>> {
     admin.from("jobs").select("persona").eq("org_id", orgId),
     admin.from("outcomes").select("persona, gross_revenue_cents, status").eq("org_id", orgId).in("status", ["won", "paid"]),
   ]);
+  const errors = [leads.error, jobs.error, outcomes.error].filter(Boolean);
+  if (errors.length > 0) {
+    console.warn(`[personas] perf query failed for org ${orgId} — ${errors.map((e) => e!.message).join("; ")}`);
+    return { rows: out, failed: true };
+  }
   for (const r of (leads.data ?? []) as { persona: string | null }[]) if (r.persona) bump(r.persona, { leads: 1 });
   for (const r of (jobs.data ?? []) as { persona: string | null }[]) if (r.persona) bump(r.persona, { jobs: 1 });
   for (const r of (outcomes.data ?? []) as { persona: string | null; gross_revenue_cents: number | null }[]) if (r.persona) bump(r.persona, { revenueCents: r.gross_revenue_cents ?? 0 });
-  return out;
+  return { rows: out, failed: false };
 }
 
 function money(cents: number): string {
@@ -71,7 +82,7 @@ function money(cents: number): string {
   return d >= 1000 ? `$${Math.round(d / 1000)}k` : `$${d}`;
 }
 
-function toVM(p: Persona, perf: Map<string, PerfRow>): PersonaVM {
+function toVM(p: Persona, perf: Map<string, PerfRow>, perfFailed: boolean): PersonaVM {
   const segColor = SEG_COLOR[p.segment] ?? "#c8a24a";
   const stage = STAGE_COLOR[p.stage] ?? { color: "#b8b4aa", bg: "rgba(255,255,255,.04)" };
   const share = Math.round(p.audienceShare > 1 ? p.audienceShare : p.audienceShare * 100);
@@ -110,6 +121,7 @@ function toVM(p: Persona, perf: Map<string, PerfRow>): PersonaVM {
       intent: driverText(p.signalDrivers.intent, radar.intent, "intent"),
     },
     perf: { leads: pr.leads, jobs: pr.jobs, revenue: money(pr.revenueCents) },
+    perfUnavailable: perfFailed,
   };
 }
 
@@ -117,7 +129,9 @@ export default async function PersonasPage() {
   const ctx = await getCurrentWorkspaceContext().catch(() => null);
   const [personas, perf] = await Promise.all([
     listPersonas().catch(() => [] as Persona[]),
-    ctx ? personaPerf(ctx.orgId).catch(() => new Map<string, PerfRow>()) : Promise.resolve(new Map<string, PerfRow>()),
+    ctx
+      ? personaPerf(ctx.orgId).catch(() => ({ rows: new Map<string, PerfRow>(), failed: true }))
+      : Promise.resolve({ rows: new Map<string, PerfRow>(), failed: false }),
   ]);
-  return <PersonasView personas={personas.map((p) => toVM(p, perf))} />;
+  return <PersonasView personas={personas.map((p) => toVM(p, perf.rows, perf.failed))} />;
 }

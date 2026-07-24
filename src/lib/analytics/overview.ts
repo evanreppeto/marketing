@@ -46,6 +46,14 @@ export type AnalyticsOverview = {
   leadsBySource: BreakdownRow[];
   arcRead: { text: string; cites: string[]; rec: string };
   hasHistory: boolean;
+  /**
+   * Set when a CRM query FAILED rather than returned nothing. postgrest reports
+   * errors in `{ error }` instead of throwing, so an RLS denial, a dropped column
+   * or a timeout used to arrive here as `data: null` → `[]` → a page of zeros
+   * rendered under "org-scoped, straight from CRM". A workspace whose data we
+   * couldn't read must never be presented as a workspace with no data.
+   */
+  dataError?: string | null;
 };
 
 const PERSONA_DOTS = ["#c8a24a", "#7fb89a", "#88b6d8", "#9678c8", "#cc6a6a", "#d8935a", "#6ea8a0", "#b08fd0"];
@@ -214,6 +222,24 @@ export async function getAnalyticsOverview(
     admin.from("jobs").select("created_at").eq("org_id", orgId).gte("created_at", since),
     admin.from("outcomes").select("created_at, persona, gross_revenue_cents, status").eq("org_id", orgId).gte("created_at", since),
   ]);
+  // postgrest returns `{ error }` rather than throwing, so an ignored error field
+  // is indistinguishable from an empty table: the page renders $0 / 0 leads / flat
+  // under a banner claiming it came straight from CRM. Fail loudly instead — the
+  // caller shows an honest "couldn't read" state rather than a confident zero.
+  const failed = [
+    ["leads", leadsRes.error],
+    ["jobs", jobsRes.error],
+    ["outcomes", outcomesRes.error],
+  ].filter(([, error]) => Boolean(error)) as [string, { message: string }][];
+  if (failed.length > 0) {
+    const detail = failed.map(([table, error]) => `${table}: ${error.message}`).join("; ");
+    console.warn(`[analytics] overview query failed for org ${orgId} — ${detail}`);
+    return {
+      ...emptyOverview(windowDays),
+      dataError: `Couldn't read ${failed.map(([table]) => table).join(", ")} from your CRM.`,
+    };
+  }
+
   const leads = (leadsRes.data ?? []) as LeadRow[];
   const jobs = (jobsRes.data ?? []) as JobRow[];
   const outcomes = (outcomesRes.data ?? []) as OutcomeRow[];
