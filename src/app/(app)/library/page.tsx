@@ -1,5 +1,6 @@
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
+import { listCampaignNames } from "@/lib/campaigns/read-model";
 import type { MediaAssetView, MediaFolderView } from "@/lib/media-library/types";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -75,9 +76,21 @@ function mapFolders(views: MediaFolderView[]): Folder[] {
 export default async function LibraryPage() {
   const ctx = await getCurrentWorkspaceContext().catch(() => null);
   if (ctx?.orgId && isSupabaseAdminConfigured()) {
-    const data = await getMediaLibraryData(getSupabaseAdminClient(), ctx.orgId).catch(() => null);
+    const [data, campaigns] = await Promise.all([
+      getMediaLibraryData(getSupabaseAdminClient(), ctx.orgId).catch(() => null),
+      // Campaign options for the selection bar's "Add to campaign" picker.
+      listCampaignNames(ctx.orgId).catch(() => []),
+    ]);
     if (data && data.status === "live") {
-      return <LibraryView assets={data.assets.map(mapAsset)} folders={mapFolders(data.folders)} live totalBytes={data.totalBytes} />;
+      return (
+        <LibraryView
+          assets={data.assets.map(mapAsset)}
+          folders={mapFolders(data.folders)}
+          live
+          totalBytes={data.totalBytes}
+          campaigns={campaigns.map((c) => ({ id: c.id, name: c.name }))}
+        />
+      );
     }
   }
   // Offline / not configured → the built-in demo set (keeps the preview populated).

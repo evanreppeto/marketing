@@ -6,10 +6,12 @@ import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { removeMediaRecordFromBrain, syncMediaRecordToBrain } from "@/lib/brain-ingestion/sync";
 import { createFolder, deleteAsset, deleteFolder, insertAssetWithUrl, renameAsset, renameFolder, setAssetTags, setAvailableToArc } from "@/lib/media-library/persistence";
+import { getMediaLibraryData } from "@/lib/media-library/read-model";
+import { promoteAssetToCampaign } from "@/lib/campaigns/create";
 import { MAX_UPLOAD_BYTES, acceptUpload, kindForContentType } from "@/lib/media-library/upload-policy";
 import { scanMediaIngest } from "@/lib/media-library/ingest-intelligence";
 import { fetchRemoteMedia } from "@/lib/media-library/fetch-remote";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { type Asset } from "./_components/library-view";
 
@@ -339,5 +341,75 @@ export async function deleteLibraryAsset(assetId: string): Promise<DeleteAssetRe
     return { ok: true, persisted: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not delete the asset." };
+  }
+}
+
+export type AddToCampaignResult =
+  | { ok: true; persisted: boolean; added: number; campaignName?: string }
+  | { ok: false; error: string };
+
+/**
+ * Attach selected Library media to a campaign as approval-gated draft assets.
+ *
+ * This is the real backing for the Library's "Add to campaign" control, which used
+ * to be a bare link to /campaigns: it navigated away and the operator's selection
+ * was silently discarded — nothing was ever added.
+ *
+ * Each asset goes through `promoteAssetToCampaign`, the SAME path Studio uses, so
+ * everything lands `pending_approval` + `dispatch_locked` with provenance carried
+ * over. Nothing here reaches the outside world; the human gate is untouched.
+ */
+export async function addLibraryAssetsToCampaign(input: {
+  assetIds: string[];
+  campaignId: string;
+}): Promise<AddToCampaignResult> {
+  await requireOperator();
+
+  const assetIds = [...new Set((input.assetIds ?? []).map((id) => id?.trim()).filter(Boolean))] as string[];
+  const campaignId = input.campaignId?.trim();
+  if (assetIds.length === 0) return { ok: false, error: "Select at least one asset." };
+  if (!campaignId) return { ok: false, error: "Pick a campaign to add them to." };
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false, added: assetIds.length };
+
+  try {
+    const [orgId, operator] = await Promise.all([getCurrentOrgId(), getOperatorActor()]);
+    const client = getSupabaseAdminClient();
+
+    // Re-read the assets org-scoped rather than trusting ids from the browser, so a
+    // foreign id can't be promoted into this workspace's campaign.
+    const data = await getMediaLibraryData(client, orgId);
+    if (data.status !== "live") return { ok: false, error: "The Library isn't available right now." };
+    const wanted = data.assets.filter((a) => assetIds.includes(a.id));
+    if (wanted.length === 0) return { ok: false, error: "Those assets aren't in this workspace." };
+
+    const { data: campaign } = await client
+      .from("campaigns")
+      .select("id,name")
+      .eq("org_id", orgId)
+      .eq("id", campaignId)
+      .maybeSingle<{ id: string; name: string }>();
+    if (!campaign) return { ok: false, error: "That campaign isn't in this workspace." };
+
+    let added = 0;
+    for (const asset of wanted) {
+      await promoteAssetToCampaign({
+        operator,
+        campaignId: campaign.id,
+        assetType: asset.kind === "video" ? "video_ad" : "social_ad",
+        title: asset.fileName,
+        body: null,
+        mediaUrl: asset.url,
+        media: { source: asset.source, riskFlags: asset.riskFlags },
+        client,
+      });
+      added += 1;
+    }
+
+    revalidatePath("/library");
+    revalidatePath(`/campaigns/${campaign.id}`);
+    revalidatePath("/campaigns");
+    return { ok: true, persisted: true, added, campaignName: campaign.name };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not add those assets to the campaign." };
   }
 }
