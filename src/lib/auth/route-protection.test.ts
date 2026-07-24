@@ -35,10 +35,10 @@ describe("getWorkspaceAccessDecision", () => {
     }
   });
 
-  it("still sends a logged-out visitor on the root to login (no app redirect)", () => {
+  it("lets a logged-out visitor through on the root, where the landing page renders", () => {
     expect(
       getWorkspaceAccessDecision({ hasWorkspace: false, isSignedIn: false, pathname: "/" }),
-    ).toEqual({ action: "login" });
+    ).toEqual({ action: "allow" });
   });
 });
 

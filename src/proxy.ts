@@ -113,5 +113,5 @@ export const config = {
   // reached Sentry. It must stay open to signed-out visitors in particular — /login
   // is exactly where a browser error most needs reporting and nobody has a session
   // yet. The route forwards only to the configured Sentry DSN, so it exposes nothing.
-  matcher: ["/((?!api|monitoring|auth/callback|_next/static|_next/image|login|sign-in|sign-up|forgot-password|reset-password|favicon.ico|icon.png|brand|effects).*)"],
+  matcher: ["/((?!api|monitoring|auth/callback|_next/static|_next/image|landing|login|sign-in|sign-up|forgot-password|reset-password|favicon.ico|icon.png|brand|effects).*)"],
 };
