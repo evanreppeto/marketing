@@ -48,7 +48,7 @@ describe("exchangeHubspotCode", () => {
   it("posts the confidential-client body and maps the token response", async () => {
     vi.stubEnv("HUBSPOT_CLIENT_ID", "cid");
     vi.stubEnv("HUBSPOT_CLIENT_SECRET", "sec");
-    const fetchImpl = vi.fn(async () => ({
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({ access_token: "at", refresh_token: "rt", expires_in: 1800 }),
@@ -67,7 +67,7 @@ describe("exchangeHubspotCode", () => {
   it("surfaces a non-2xx exchange as an error", async () => {
     vi.stubEnv("HUBSPOT_CLIENT_ID", "cid");
     vi.stubEnv("HUBSPOT_CLIENT_SECRET", "sec");
-    const fetchImpl = vi.fn(async () => ({ ok: false, status: 400, text: async () => "bad" }) as unknown as Response);
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({ ok: false, status: 400, text: async () => "bad" }) as unknown as Response);
     const res = await exchangeHubspotCode({ code: "c", redirectUri: "https://app/cb", fetchImpl });
     expect(res.ok).toBe(false);
   });
@@ -99,7 +99,7 @@ describe("resolveHubspotAccessToken", () => {
   it("refreshes a stale bundle with the client secret and returns the new token", async () => {
     vi.stubEnv("HUBSPOT_CLIENT_ID", "cid");
     vi.stubEnv("HUBSPOT_CLIENT_SECRET", "sec");
-    const fetchImpl = vi.fn(async () => ({
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({ access_token: "rotated", expires_in: 1800 }),
