@@ -354,9 +354,26 @@ export function AnalyticsView({
               <div className="vhead">
                 <div>
                   <h1 className="pt">Performance overview</h1>
-                  <div className="psub">Last {range} days · compared to the prior {range} · org-scoped, straight from CRM</div>
+                  <div className="psub">
+                    {overview.dataError
+                      ? `Last ${range} days · org-scoped`
+                      : `Last ${range} days · compared to the prior ${range} · org-scoped, straight from CRM`}
+                  </div>
                 </div>
               </div>
+
+              {/* A failed CRM read is NOT an empty workspace. Without this the page
+                  renders $0 / 0 leads / flat under "straight from CRM", which reads
+                  exactly like a real workspace that has no data yet. */}
+              {overview.dataError && (
+                <div className="crm-error" role="alert" style={{ marginBottom: 16 }}>
+                  <span>
+                    <b>These numbers aren&rsquo;t your data.</b> {overview.dataError} The figures below are
+                    placeholders, not zeros from your CRM — reload, and if it persists check your workspace
+                    access.
+                  </span>
+                </div>
+              )}
 
               <div className="kpis">
                 {overview.kpis.map((k) => (
