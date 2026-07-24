@@ -88,8 +88,15 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
   // default page); a live query replaces the table with its matches.
   const [query, setQuery] = useState("");
   // Any change to the visible set (kind chip or search query) sends the pager back
-  // to page 1 so the operator never lands on an empty/stale page.
-  useEffect(() => setPage(1), [kind, query]);
+  // to page 1 so the operator never lands on an empty/stale page. Done as a
+  // render-time adjustment (React's "reset state when a value changes" pattern)
+  // rather than an effect, which would cascade an extra render.
+  const resetKey = `${kind}::${query}`;
+  const [pageResetKey, setPageResetKey] = useState(resetKey);
+  if (resetKey !== pageResetKey) {
+    setPageResetKey(resetKey);
+    setPage(1);
+  }
   const [results, setResults] = useState<FactVM[] | null>(null);
   const [resultsCapped, setResultsCapped] = useState(false);
   const [searching, setSearching] = useState(false);
