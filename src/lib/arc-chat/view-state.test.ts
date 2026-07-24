@@ -57,10 +57,10 @@ describe("getArcConversationHeader", () => {
     });
   });
 
-  it("keeps the campaign-specific metadata on the storm demo", () => {
+  it("keeps the campaign-specific metadata on the seeded demo conversation", () => {
     expect(getArcConversationHeader({ live: false, selectedDemoId: "storm" })).toEqual({
-      title: "Storm Rapid Response",
-      subtitle: "Storm-damage homeowners · 4 assets · Naperville, IL",
+      title: "Pricing-Intent Fast Track",
+      subtitle: "High-intent accounts · 4 assets · Team & Business plans",
     });
   });
 

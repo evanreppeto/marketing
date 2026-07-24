@@ -755,9 +755,9 @@ function toSavedVM(item: SavedItem): SavedArcItemVM {
 
 function buildDemoSavedItems(): SavedArcItemVM[] {
   return [
-    { id: "demo-saved-1", kind: "angle", title: "142 homes took the heaviest hail", preview: "Inspection-first outreach beat discount-led — lead with the free, no-pressure inspection angle for the fresh-damage segment.", note: "Saved from Arc chat", mediaUrl: null, conversationHref: "/arc?c=storm", createdAt: "2026-07-20T09:38:00Z" },
-    { id: "demo-saved-2", kind: "draft", title: "Inspection follow-up email", preview: "Hi {first_name}, the recent Naperville hailstorm hit your block harder than most. We’re offering a free, no-pressure inspection this week.", note: "Saved from Arc chat", mediaUrl: null, conversationHref: "/arc?c=storm", createdAt: "2026-07-19T14:05:00Z" },
-    { id: "demo-saved-3", kind: "angle", title: "Insured segment books fastest", preview: "For insured, fresh-damage homes an inspection-first message converts fastest — worth reusing next storm.", note: "Saved from Arc chat", mediaUrl: null, conversationHref: null, createdAt: "2026-07-18T11:20:00Z" },
+    { id: "demo-saved-1", kind: "angle", title: "142 accounts hit pricing repeatedly", preview: "Demo-first outreach beat discount-led — lead with the free, no-pressure walkthrough angle for the high-intent segment.", note: "Saved from Arc chat", mediaUrl: null, conversationHref: "/arc?c=storm", createdAt: "2026-07-20T09:38:00Z" },
+    { id: "demo-saved-2", kind: "draft", title: "Demo follow-up email", preview: "Hi {first_name}, your team looked at pricing three times this week. We’re offering a free, no-pressure walkthrough this week.", note: "Saved from Arc chat", mediaUrl: null, conversationHref: "/arc?c=storm", createdAt: "2026-07-19T14:05:00Z" },
+    { id: "demo-saved-3", kind: "angle", title: "Active-trial segment books fastest", preview: "For active-trial, high-intent accounts a demo-first message converts fastest — worth reusing next surge.", note: "Saved from Arc chat", mediaUrl: null, conversationHref: null, createdAt: "2026-07-18T11:20:00Z" },
   ];
 }
 
@@ -806,9 +806,9 @@ function shortWhen(iso: string): string {
 
 function buildDemoArchivedConversations(): ArchivedArcConversationVM[] {
   return [
-    { id: "demo-arch-1", title: "Winter-prep angle brainstorm", when: "Jul 12", campaignId: null },
+    { id: "demo-arch-1", title: "Renewal angle brainstorm", when: "Jul 12", campaignId: null },
     { id: "demo-arch-2", title: "Old adjuster follow-up sequence", when: "Jul 8", campaignId: "demo-camp" },
-    { id: "demo-arch-3", title: "Superseded storm draft", when: "Jul 3", campaignId: null },
+    { id: "demo-arch-3", title: "Superseded intent draft", when: "Jul 3", campaignId: null },
   ];
 }
 
