@@ -78,11 +78,18 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
       }
     });
   const [kind, setKind] = useState("all");
+  // Client-side paging so a long fact list is clickable pages, not one endless
+  // scroll. Reset-to-page-1 effect lives below, once `query` is declared.
+  const FACTS_PER_PAGE = 25;
+  const [page, setPage] = useState(1);
   // Whole-brain fact search. The loaded `data.facts` is only the 200 most-recently
   // updated nodes, so kind chips alone can't reach an older fact; this queries the
   // full memory server-side. `results === null` means "not searching" (show the
   // default page); a live query replaces the table with its matches.
   const [query, setQuery] = useState("");
+  // Any change to the visible set (kind chip or search query) sends the pager back
+  // to page 1 so the operator never lands on an empty/stale page.
+  useEffect(() => setPage(1), [kind, query]);
   const [results, setResults] = useState<FactVM[] | null>(null);
   const [resultsCapped, setResultsCapped] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -138,6 +145,14 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
   const visibleFacts = kind === "all" ? baseFacts : baseFacts.filter((f) => f.kind === kind);
   const counts: Record<string, number> = { facts: pageLive.length, review: review.length, learned: data.learned.length };
 
+  // Paged slice of the visible facts. `safePage` guards against a stale page index
+  // (e.g. a filter shrank the list below the current page) without needing an extra
+  // render to clamp it.
+  const totalPages = Math.max(1, Math.ceil(visibleFacts.length / FACTS_PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * FACTS_PER_PAGE;
+  const pagedFacts = visibleFacts.slice(pageStart, pageStart + FACTS_PER_PAGE);
+
   // Honest status line under the facts toolbar: while searching, how many matched
   // (and whether the match set itself hit the cap); otherwise, when the loaded page
   // is only a slice of the whole brain, say so — the table is never silently a page
@@ -181,7 +196,7 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
   const stats = data.stats.map((s) => (s.label === "Awaiting review" ? { ...s, value: review.length } : s));
 
   return (
-    <div className="arc-brain">
+    <div className={`arc-brain${tab === "web" ? " graph" : ""}`}>
       <div className="bhead">
         <div className="bh1row">
           <div>
@@ -276,7 +291,7 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
                         <tr><th>Kind</th><th>Fact</th><th>Trust</th><th>Confidence</th><th>Source</th><th aria-label="Actions" /></tr>
                       </thead>
                       <tbody>
-                        {visibleFacts.map((f) => (
+                        {pagedFacts.map((f) => (
                           <tr key={f.id}>
                             <td><span className="kindchip"><span className="d" style={{ background: f.kindColor }} />{f.kindLabel}</span></td>
                             <td>
@@ -302,6 +317,24 @@ export function BrainView({ data, focusNodeId }: { data: BrainData; focusNodeId?
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+                {visibleFacts.length > FACTS_PER_PAGE && (
+                  <div className="pager">
+                    <span className="prange">
+                      {pageStart + 1}–{Math.min(pageStart + FACTS_PER_PAGE, visibleFacts.length)} of {visibleFacts.length.toLocaleString()}
+                    </span>
+                    <div className="pnav">
+                      <button type="button" className="pbtn" disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                        <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg>
+                        Prev
+                      </button>
+                      <span className="pcur">Page {safePage} of {totalPages}</span>
+                      <button type="button" className="pbtn" disabled={safePage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                        Next
+                        <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+                      </button>
+                    </div>
                   </div>
                 )}
               </>

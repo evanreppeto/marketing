@@ -532,9 +532,11 @@
   --vio-text: #cdbbe6;
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
   min-width: 0;
+  /* The page scrolls as one column: title + KPI strip scroll away and the
+     channel-filter bar pins to the top (see .tabbar sticky below). */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .arc-app .arc-outbox .ohead { padding: 16px clamp(20px, 2.6vw, 30px) 0; flex-shrink: 0; }
 .arc-app .arc-outbox .otitle { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
@@ -554,7 +556,7 @@
 .arc-app .arc-outbox .kpi.alert .kv { color: var(--accent-contrast); }
 
 /* tabbar: view tabs + channel filters */
-.arc-app .arc-outbox .tabbar { display: flex; align-items: center; gap: 12px; margin: 14px clamp(20px, 2.6vw, 30px) 0; border-bottom: 1px solid var(--line-2); flex-shrink: 0; flex-wrap: wrap; }
+.arc-app .arc-outbox .tabbar { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 12px; padding: 14px clamp(20px, 2.6vw, 30px) 0; border-bottom: 1px solid var(--line-2); flex-shrink: 0; flex-wrap: wrap; background: var(--canvas); }
 .arc-app .arc-outbox .vtabs { display: flex; gap: 4px; }
 .arc-app .arc-outbox .vtab { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: .14s; font-family: inherit; }
 .arc-app .arc-outbox .vtab:hover { color: var(--text-2); }
@@ -636,7 +638,7 @@
 .arc-app .arc-outbox .ownb.system { color: var(--muted); background: var(--inset); border: 1px solid var(--line-2); }
 
 /* priority send queue (replaces the lifecycle kanban) */
-.arc-app .arc-outbox .oq { flex: 1; min-height: 0; overflow-y: auto; padding: 16px clamp(20px, 2.6vw, 30px) 40px; display: flex; flex-direction: column; gap: 20px; }
+.arc-app .arc-outbox .oq { padding: 16px clamp(20px, 2.6vw, 30px) 40px; display: flex; flex-direction: column; gap: 20px; }
 .arc-app .arc-outbox .oq-section { display: flex; flex-direction: column; gap: 11px; }
 .arc-app .arc-outbox .oq-head { display: flex; align-items: center; gap: 9px; }
 .arc-app .arc-outbox .oq-label { font-size: 12px; font-weight: 600; letter-spacing: .01em; color: var(--text); }
@@ -1031,7 +1033,12 @@
    The force-graph is deferred; these are the wired listNodes views.
    Scoped under `.arc-app .arc-brain`.
    ============================================================ */
-.arc-app .arc-brain { flex: 1; min-height: 0; display: flex; flex-direction: column; min-width: 0; }
+/* The page scrolls as one column: the header (title + stat tiles) scrolls away
+   and the tab bar pins to the top (see .btabs sticky below). The graph tab opts
+   back into a locked-height layout via .arc-brain.graph so the force-graph fills
+   its pane instead of collapsing in the page flow. */
+.arc-app .arc-brain { flex: 1; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; }
+.arc-app .arc-brain.graph { display: flex; flex-direction: column; overflow: hidden; }
 .arc-app .arc-brain .bhead { padding: 18px clamp(22px, 3vw, 38px) 0; flex-shrink: 0; }
 .arc-app .arc-brain .bh1row { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
 .arc-app .arc-brain .pt { font-family: var(--serif); font-weight: 500; font-size: 27px; letter-spacing: -.02em; margin: 0; color: var(--text); }
@@ -1049,7 +1056,7 @@
 .arc-app .arc-brain .covbanner .ct { font-size: 12.5px; color: var(--text-2); }
 .arc-app .arc-brain .covbanner .ct b { color: var(--text); font-weight: 600; }
 
-.arc-app .arc-brain .btabs { display: flex; gap: 2px; padding: 0 clamp(22px, 3vw, 38px); border-bottom: 1px solid var(--line-2); margin-top: 16px; flex-shrink: 0; overflow-x: auto; }
+.arc-app .arc-brain .btabs { position: sticky; top: 0; z-index: 6; display: flex; gap: 2px; padding: 0 clamp(22px, 3vw, 38px); border-bottom: 1px solid var(--line-2); margin-top: 16px; flex-shrink: 0; overflow-x: auto; background: var(--canvas); }
 .arc-app .arc-brain .btab { position: relative; display: flex; align-items: center; gap: 8px; padding: 11px 13px; font-size: 12.5px; font-weight: 500; color: var(--text-2); cursor: pointer; transition: color .15s; white-space: nowrap; background: none; border: none; font-family: inherit; }
 .arc-app .arc-brain .btab svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; opacity: .8; }
 .arc-app .arc-brain .btab:hover { color: var(--text); }
@@ -1058,8 +1065,10 @@
 .arc-app .arc-brain .btab.on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
 .arc-app .arc-brain .btab .cnt { font-family: var(--mono); font-size: 9px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 5px; padding: 0 5px; line-height: 15px; }
 
-.arc-app .arc-brain .bbody { flex: 1; min-height: 0; overflow: hidden; }
-.arc-app .arc-brain .scroll { height: 100%; overflow: auto; padding: 22px clamp(22px, 3vw, 38px) 44px; }
+.arc-app .arc-brain .bbody { min-width: 0; }
+.arc-app .arc-brain.graph .bbody { flex: 1; min-height: 0; overflow: hidden; }
+.arc-app .arc-brain .scroll { padding: 22px clamp(22px, 3vw, 38px) 44px; }
+.arc-app .arc-brain.graph .scroll { height: 100%; overflow: auto; }
 .arc-app .arc-brain .inner { max-width: 1080px; }
 .arc-app .arc-brain .sh { font-size: 10px; font-weight: 700; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; margin: 0 0 14px; display: flex; align-items: center; gap: 9px; }
 .arc-app .arc-brain .tg { font-family: var(--mono); font-size: 8.5px; letter-spacing: .02em; border-radius: 4px; padding: 1px 6px; font-weight: 600; color: var(--ok-text); background: var(--ok-soft); border: 1px solid var(--ok-border); text-transform: none; letter-spacing: 0; }
@@ -1094,6 +1103,15 @@
 .arc-app .arc-brain .ft .farch:focus-visible { opacity: 1; }
 .arc-app .arc-brain .ft .farch:disabled { opacity: 0.4; cursor: default; }
 .arc-app .arc-brain .ft .farch svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+/* Pager — keeps long fact lists to a page at a time instead of one endless scroll. */
+.arc-app .arc-brain .pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+.arc-app .arc-brain .pager .prange { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.arc-app .arc-brain .pager .pnav { display: flex; align-items: center; gap: 6px; }
+.arc-app .arc-brain .pager .pbtn { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 11px; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; transition: .14s; }
+.arc-app .arc-brain .pager .pbtn:hover:not(:disabled) { border-color: var(--accent-border); color: var(--text); }
+.arc-app .arc-brain .pager .pbtn:disabled { opacity: 0.4; cursor: default; }
+.arc-app .arc-brain .pager .pbtn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+.arc-app .arc-brain .pager .pcur { font-family: var(--mono); font-size: 11.5px; color: var(--text-2); padding: 0 6px; white-space: nowrap; }
 .arc-app .arc-brain .fact-label { color: var(--text); font-weight: 500; }
 .arc-app .arc-brain .fact-sum { color: var(--muted); font-size: 11px; margin-top: 2px; max-width: 52ch; }
 .arc-app .arc-brain .kindchip { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
