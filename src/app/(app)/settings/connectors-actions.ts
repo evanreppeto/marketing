@@ -9,11 +9,15 @@ import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config";
 import { platformCredentialFor, readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
 import { listWorkspaceConnectors, resolveConnectorCredentialRef } from "@/lib/connectors/read-model";
-import { checkConnectorCredential } from "@/lib/connectors/health";
+import { checkConnectorCredential, checkEnrichmentEndpoint } from "@/lib/connectors/health";
 import { checkHiggsfieldToken } from "@/lib/connectors/higgsfield-health";
 import { runCrmImport, runCsvImport, runMailchimpImport, CSV_IMPORT_CONNECTOR_KEY, MAILCHIMP_IMPORT_CONNECTOR_KEY } from "@/lib/connectors/import";
 import { checkHubspotConnection } from "@/lib/integrations/crm/hubspot";
 import { checkMailchimpConnection } from "@/lib/integrations/crm/mailchimp";
+import { checkGbpConnection } from "@/lib/integrations/reviews/gbp";
+import { checkMetaAdLibrary } from "@/lib/integrations/ads/meta-ad-library";
+import { parseAdWatchConfig } from "@/lib/connectors/builtin/competitor-ads";
+import { resolveGoogleAccessToken } from "@/lib/connectors/google-oauth";
 import { buildOpportunityDigest, postSlackWebhook } from "@/lib/integrations/slack/notify";
 import { postWebhook } from "@/lib/integrations/webhook/post";
 import { readEndpoint as readWebhookEndpoint } from "@/lib/connectors/builtin/webhook-channel";
@@ -40,6 +44,14 @@ import type { SettingsWriteResult } from "./actions";
  * browser. The runner later reads it through GET /api/v1/arc/connectors. Nothing
  * here goes outbound; a connected connector still only acts under approval.
  */
+/**
+ * API-key connectors whose provider health check needs only the key (no extra
+ * per-workspace config), so it can run at connect time. Higgsfield is validated by
+ * its own dedicated branch above; config-dependent connectors (Mailchimp, HubSpot,
+ * lead-enrichment, Slack) are validated by Test once their config is set.
+ */
+const CONNECT_TIME_VALIDATED = new Set(["gemini-research", "gemini-media", "news-search"]);
+
 export async function connectConnector(input: {
   connectorKey: string;
   credential: string;
@@ -68,6 +80,17 @@ export async function connectConnector(input: {
     const health = await checkHiggsfieldToken(accessToken);
     if (!health.ok) {
       return { ok: false, error: `Higgsfield rejected that credential (${health.error ?? "unknown error"}) — check the key and try again.` };
+    }
+  }
+
+  // Config-free API-key connectors: validate the key against the provider BEFORE
+  // storing, so a wrong key is rejected at connect time instead of silently reading
+  // "Connected" until someone hits Test. Connectors whose health needs extra config
+  // (Mailchimp audience id, enrichment endpoint) are validated by Test instead.
+  if (CONNECT_TIME_VALIDATED.has(connector.key)) {
+    const health = await checkConnectorCredential(connector.key, credential);
+    if (!health.ok) {
+      return { ok: false, error: `That credential was rejected (${health.error ?? "unknown error"}) — check it and try again.` };
     }
   }
 
@@ -225,12 +248,65 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
       return { ok: true, persisted: true, message: `HubSpot reachable — ${countNote}.` };
     }
 
+    // Google Business reviews: resolve/refresh the OAuth token, then read one page
+    // of reviews for the configured location so Test reports real reachability.
+    if (connector.key === "reviews-signals") {
+      const config = await getConnectorConfig(client, workspaceId, connector.key);
+      const location = typeof config.gbpLocation === "string" ? config.gbpLocation.trim() : "";
+      if (!location) return { ok: false, error: "Set the Business Profile location first, then test." };
+      const resolved = await resolveGoogleAccessToken(client, ref, plaintext);
+      if (!resolved.ok) {
+        await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: { ok: false, error: resolved.error } });
+        revalidatePath("/settings");
+        return { ok: false, error: `Test failed: ${resolved.error}` };
+      }
+      const gb = await checkGbpConnection(resolved.accessToken, location);
+      await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: gb.ok ? { ok: true } : { ok: false, error: gb.error } });
+      revalidatePath("/settings");
+      return gb.ok
+        ? { ok: true, persisted: true, message: `Google Business Profile reachable — reviews readable for this location.` }
+        : { ok: false, error: `Test failed: ${gb.error}` };
+    }
+
+    // Competitor ads: probe the Meta Ad Library with the configured terms. A zero
+    // match is reported honestly (Meta's non-EU coverage is political ads only), so
+    // an empty result never reads as "no competitor activity".
+    if (connector.key === "competitor-ads") {
+      const config = await getConnectorConfig(client, workspaceId, connector.key);
+      const watch = parseAdWatchConfig(config);
+      const ma = await checkMetaAdLibrary(plaintext, { searchTerms: watch.terms, countries: watch.countries, adType: watch.adType });
+      await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: ma.ok ? { ok: true } : { ok: false, error: ma.error } });
+      revalidatePath("/settings");
+      if (!ma.ok) return { ok: false, error: `Test failed: ${ma.error}` };
+      return {
+        ok: true,
+        persisted: true,
+        message: ma.count
+          ? `Meta Ad Library reachable — matching ads found for “${watch.terms[0]}”.`
+          : `Meta Ad Library reachable, but no ads matched “${watch.terms[0]}”. Outside the EU only political & social-issue ads are exposed by Meta's API.`,
+      };
+    }
+
     // Slack: the natural test is posting a message to the webhook.
     if (connector.key === SLACK_ALERTS_CONNECTOR_KEY) {
       const sl = await postSlackWebhook(plaintext, { text: "✅ Arc is connected. Opportunity alerts will post here when you send them." });
       await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: { ok: sl.ok, error: sl.ok ? undefined : sl.error } });
       revalidatePath("/settings");
       return sl.ok ? { ok: true, persisted: true, message: "Test alert posted to your Slack channel." } : { ok: false, error: `Test failed: ${sl.error}` };
+    }
+
+    // Lead enrichment needs both the vendor key and the configured endpoint to probe
+    // — the endpoint is where the key gets exercised, so a key-only test is meaningless.
+    if (connector.key === "lead-enrichment") {
+      const config = await getConnectorConfig(client, workspaceId, connector.key);
+      const endpoint = typeof config.endpoint === "string" ? config.endpoint.trim() : "";
+      if (!endpoint) return { ok: false, error: "Set the enrichment endpoint URL first, then test." };
+      const en = await checkEnrichmentEndpoint(endpoint, plaintext);
+      await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: en });
+      revalidatePath("/settings");
+      return en.ok
+        ? { ok: true, persisted: true, message: "Enrichment vendor reachable — the key authenticated." }
+        : { ok: false, error: `Test failed: ${en.error ?? "endpoint unreachable"}` };
     }
 
     // Mailchimp needs both the key and the configured audience id to probe.

@@ -104,11 +104,11 @@ function demoAnalyticsOverview(windowDays: number): AnalyticsOverview {
   const series = (): TrendSeries => ({ cur: Array(windowDays).fill(0), prev: Array(windowDays).fill(0) });
   const trend: Record<TrendKey, TrendSeries> = { revenue: series(), leads: series(), bookings: series() };
 
-  const spikeCenter = Math.floor(windowDays * 0.55); // storm surge sits just past mid-window
+  const spikeCenter = Math.floor(windowDays * 0.55); // demand surge sits just past mid-window
   for (let i = 0; i < windowDays; i++) {
     const progress = windowDays > 1 ? i / (windowDays - 1) : 0;
-    const stormSpike = Math.abs(i - spikeCenter) <= 2 ? 7 : 0; // storm surge, window-relative
-    const baseLeads = 18 + progress * 10 + stormSpike; // ramps ~18 → ~28
+    const demandSpike = Math.abs(i - spikeCenter) <= 2 ? 7 : 0; // demand surge, window-relative
+    const baseLeads = 18 + progress * 10 + demandSpike; // ramps ~18 → ~28
     const lc = Math.max(0, Math.round(baseLeads + (rng() - 0.5) * 6));
     const lp = Math.max(0, Math.round(baseLeads * 0.82 + (rng() - 0.5) * 6));
     trend.leads.cur[i] = lc;
@@ -150,11 +150,11 @@ function demoAnalyticsOverview(windowDays: number): AnalyticsOverview {
   ];
 
   const personaRev: Array<[string, number]> = [
-    ["Distressed Homeowner", 8_930_000],
-    ["Property Manager", 5_120_000],
-    ["Proactive Homeowner", 3_960_000],
-    ["Health-Conscious Homeowner", 1_840_000],
-    ["Insurance Adjuster", 1_020_000],
+    ["High-Intent Evaluator", 8_930_000],
+    ["Team Admin", 5_120_000],
+    ["Proactive Evaluator", 3_960_000],
+    ["Feature-Focused Evaluator", 1_840_000],
+    ["Procurement", 1_020_000],
   ];
   const revMax = Math.max(1, ...personaRev.map(([, v]) => v));
   const revenueByPersona: BreakdownRow[] = personaRev.map(([label, v], i) => ({
@@ -193,9 +193,9 @@ function demoAnalyticsOverview(windowDays: number): AnalyticsOverview {
     revenueByPersona,
     leadsBySource,
     arcRead: {
-      text: `Won revenue is up ${pct(curRev, prevRev).deltaLabel} on ${curWon} closed jobs from ${curLeads.toLocaleString()} leads — you're converting better, not just sourcing more. Revenue is concentrated in the Distressed Homeowner persona, and Email is your top lead source. Reply and cost-per-job metrics fill in once campaigns send and an ad platform syncs.`,
+      text: `Won revenue is up ${pct(curRev, prevRev).deltaLabel} on ${curWon} booked demos from ${curLeads.toLocaleString()} leads — you're converting better, not just sourcing more. Revenue is concentrated in the High-Intent Evaluator persona, and Email is your top lead source. Reply and cost-per-demo metrics fill in once campaigns send and an ad platform syncs.`,
       cites: [`leads ${curLeads.toLocaleString()}`, `won ${curWon}`, `rev ${money(curRev)}`],
-      rec: "Double down on Distressed Homeowner — your highest-revenue persona this period. Arc can draft a lookalike campaign against it, approval-gated.",
+      rec: "Double down on High-Intent Evaluator — your highest-revenue persona this period. Arc can draft a lookalike campaign against it, approval-gated.",
     },
     hasHistory: true,
   };
