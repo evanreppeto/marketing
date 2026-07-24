@@ -548,6 +548,11 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     access: "read_only",
     mcpUrl: null,
     toolNamespace: "lead-enrichment",
+    // Needs BOTH the vendor key AND the endpoint to do anything — the runtime
+    // provider is null without `config.endpoint` (see resolveEnrichmentProvider in
+    // src/lib/connectors/import.ts). Gate the config half so a key-only setup reads
+    // `not_configured` instead of a false "Connected" that silently no-ops.
+    requiredConfigKeys: ["endpoint"],
   },
 ];
 
