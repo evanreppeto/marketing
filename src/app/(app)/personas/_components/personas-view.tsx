@@ -35,6 +35,8 @@ export type PersonaVM = {
   radar: { engagement: number; fit: number; intent: number };
   drivers: { engagement: string; fit: string; intent: string };
   perf: { leads: number; jobs: number; revenue: string };
+  /** True when the CRM perf query FAILED — the zeros below are not real. */
+  perfUnavailable?: boolean;
 };
 
 const SEGMENTS: { key: string; label: string }[] = [
@@ -86,6 +88,7 @@ function buildOptimisticPersona(slug: string, v: NewPersonaInput): PersonaVM {
     radar: { engagement: 60, fit: 60, intent: 60 },
     drivers: { engagement: "", fit: "", intent: "" },
     perf: { leads: 0, jobs: 0, revenue: "$0" },
+    perfUnavailable: false,
   };
 }
 
@@ -457,7 +460,13 @@ function PersonaDetail({ p, onEdit, onArchive }: { p: PersonaVM; onEdit: () => v
           </p>
         </div>
         <div className="perfcard">
-          <h3 className="sh">Performance <span className="tg wired">wired · leads / outcomes</span></h3>
+          <h3 className="sh">Performance {p.perfUnavailable ? <span className="tg est">unavailable</span> : <span className="tg wired">wired · leads / outcomes</span>}</h3>
+          {/* A failed CRM read is not a persona with no conversions. */}
+          {p.perfUnavailable && (
+            <p style={{ margin: "0 2px 10px", fontSize: "11.5px", lineHeight: 1.55, color: "var(--warn-text)" }}>
+              Couldn&rsquo;t read leads / outcomes from your CRM — these figures aren&rsquo;t your data.
+            </p>
+          )}
           <div className="perfgrid">
             <div className="pc"><div className="pl">Leads (30d)</div><div className="pv">{p.perf.leads}</div><div className="pd">attributed</div></div>
             <div className="pc"><div className="pl">Booked jobs</div><div className="pv">{p.perf.jobs}</div><div className="pd">scheduled</div></div>
