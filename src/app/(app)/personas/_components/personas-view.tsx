@@ -44,24 +44,6 @@ const SEGMENTS: { key: string; label: string }[] = [
   { key: "retention", label: "Retention" },
 ];
 
-function Sparkline({ points, up, w = 84, h = 26 }: { points: number[]; up: boolean; w?: number; h?: number }) {
-  if (points.length < 2) return null;
-  const max = Math.max(...points);
-  const min = Math.min(...points);
-  const span = max - min || 1;
-  const d = points
-    .map((p, i) => {
-      const x = (i / (points.length - 1)) * w;
-      const y = h - ((p - min) / span) * (h - 5) - 2.5;
-      return `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none">
-      <path d={d} stroke={up ? "var(--ok)" : "var(--accent)"} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />
-    </svg>
-  );
-}
 
 const SEG_DOT: Record<string, string> = {
   acquisition: "#88b6d8",
@@ -112,7 +94,6 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
   const [segment, setSegment] = useState("all");
   const [q, setQ] = useState("");
   const [slug, setSlug] = useState(personas[0]?.slug ?? "");
-  const [alertOpen, setAlertOpen] = useState(true);
   // Personas created this session, shown until a real write revalidates.
   const [localPersonas, setLocalPersonas] = useState<PersonaVM[]>([]);
   const [newOpen, setNewOpen] = useState(false);
@@ -197,12 +178,17 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
     }
   };
 
+  // Header stats are counted from real data only. "Avg lead score" and "Need
+  // attention (below target score)" used to live here, both computed off
+  // persona.score — which is written as the constant 60 at seed/create and never
+  // updated by anything, so the average was always 60 and "below target" was
+  // always either every persona or none. Replaced with counts of what the operator
+  // actually filled in, plus real attributed leads.
   const headStats = useMemo(() => {
     const segs = new Set(allPersonas.map((p) => p.segment));
-    const scored = allPersonas.filter((p) => Number.isFinite(p.score));
-    const avg = scored.length ? Math.round(scored.reduce((s, p) => s + p.score, 0) / scored.length) : 0;
-    const atRiskList = [...allPersonas].filter((p) => p.score < 65).sort((a, b) => a.score - b.score);
-    return { segmentCount: segs.size, avgScore: avg, atRisk: atRiskList.length, lowestName: atRiskList[0]?.name ?? "" };
+    const withAngle = allPersonas.filter((p) => (p.angle ?? "").trim().length > 0).length;
+    const leads = allPersonas.reduce((sum, p) => sum + (p.perf?.leads ?? 0), 0);
+    return { segmentCount: segs.size, withAngle, leads };
   }, [allPersonas]);
 
   const segCounts = useMemo(() => {
@@ -272,22 +258,13 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
         <div className="pstats">
           <div className="pstat"><div className="sl">Personas</div><div className="sv">{allPersonas.length}</div><div className="sd">org-defined</div></div>
           <div className="pstat"><div className="sl">Segments</div><div className="sv">{headStats.segmentCount}</div><div className="sd">acq · eng · ret</div></div>
-          <div className="pstat"><div className="sl">Avg lead score</div><div className="sv">{headStats.avgScore}</div><div className="sd">across personas</div></div>
-          <div className="pstat"><div className="sl">Need attention</div><div className="sv" style={headStats.atRisk > 0 ? { color: "var(--warn-text)" } : undefined}>{headStats.atRisk}</div><div className="sd">below target score</div></div>
+          <div className="pstat"><div className="sl">With an angle</div><div className="sv">{headStats.withAngle}</div><div className="sd">ready for Arc to use</div></div>
+          <div className="pstat"><div className="sl">Attributed leads</div><div className="sv">{headStats.leads.toLocaleString()}</div><div className="sd">last 30 days</div></div>
         </div>
-        {alertOpen && headStats.atRisk > 0 && (
-          <div className="arcalert">
-            <span className="am">A</span>
-            <span className="at">
-              <b>{headStats.atRisk} persona{headStats.atRisk === 1 ? "" : "s"} scoring below target</b>
-              {headStats.lowestName ? <> — Arc can draft refreshed proof points and a new angle for {headStats.lowestName}. Approval-gated.</> : " — Arc can draft refreshed playbooks. Approval-gated."}
-            </span>
-            <span className="ab">
-              <button type="button" className="miniabtn" data-soon="Arc draft updates are coming soon">Draft updates</button>
-              <button type="button" className="miniabtn ghost" onClick={() => setAlertOpen(false)}>Dismiss</button>
-            </span>
-          </div>
-        )}
+        {/* The "N personas scoring below target — Arc can draft refreshed proof points"
+            banner was removed with the score itself. It fired off persona.score, a
+            constant 60 nothing ever updates, so it appeared for every workspace on
+            every persona forever — and its "Draft updates" button was a no-op. */}
       </div>
 
       <div className="segbar">
@@ -339,13 +316,13 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
                         <span className="pn">{p.name}</span>
                         <span className="pmeta">
                           <span className="stagep" style={{ color: p.stageColor, background: p.stageBg }}>{p.stage}</span>
-                          <span className="pshare">{p.audienceShare}% aud.</span>
+                          <span className="pshare">{p.segmentLabel}</span>
                         </span>
                       </span>
-                      <span className="pright">
-                        <span className="pscore" style={{ color: p.scoreColor }}>{p.score}</span>
-                        <span className="pbar"><i style={{ width: `${p.score}%`, background: p.scoreColor }} /></span>
-                      </span>
+                      {/* The score badge + bar and the "% aud." share were dropped: both
+                          read persona.score / persona.audience_share, which are written
+                          once as constants and never recomputed, so on a real workspace
+                          every row showed the same number. */}
                     </button>
                   ))}
                 </div>
@@ -377,8 +354,7 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
                     <tr>
                       <th>Persona</th>
                       <th>Stage</th>
-                      <th>Audience</th>
-                      <th>Lead score</th>
+                      <th>Angle</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -394,13 +370,10 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
                           </div>
                         </td>
                         <td><span className="stagep" style={{ color: p.stageColor, background: p.stageBg }}>{p.stage}</span></td>
-                        <td>{p.audienceShare}%</td>
-                        <td>
-                          <span className="scellbar">
-                            <span className="mb"><i style={{ width: `${p.score}%`, background: p.scoreColor }} /></span>
-                            <b style={{ color: p.scoreColor }}>{p.score}</b>
-                          </span>
-                        </td>
+                        {/* Audience share + lead score columns dropped — both were
+                            never-updated constants (see the header stats comment). The
+                            angle is real: it's what the operator wrote. */}
+                        <td style={{ color: p.angle ? "var(--text-2)" : "var(--muted)" }}>{p.angle || "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -438,42 +411,8 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
   );
 }
 
-// Signals radar (Engage / Fit / Intent triangle). Clearer than the source mockup:
-// a visible reference grid, bold near-white axis labels, and the actual 0–100
-// signal value called out in gold at each vertex so the shape reads as a number,
-// not just an abstract blob.
-function Radar({ sig }: { sig: { engagement: number; fit: number; intent: number } }) {
-  const cx = 85, cy = 76, R = 50;
-  const ax: [keyof typeof sig, number, string][] = [["engagement", -90, "Engage"], ["fit", 30, "Fit"], ["intent", 150, "Intent"]];
-  const pt = (ang: number, r: number): [number, number] => { const a = (ang * Math.PI) / 180; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; };
-  const rings = [0.4, 0.7, 1].map((f) => ax.map((a) => pt(a[1], R * f).map((n) => n.toFixed(1)).join(",")).join(" "));
-  const vpts = ax.map((a) => pt(a[1], (R * sig[a[0]]) / 100).map((n) => n.toFixed(1)).join(",")).join(" ");
-  return (
-    <svg viewBox="0 0 170 158" width="176" height="164" aria-hidden="true">
-      {rings.map((pts, i) => (
-        <polygon key={i} points={pts} fill="none" stroke="rgba(232,224,205,.15)" strokeWidth={i === rings.length - 1 ? 1.1 : 0.9} />
-      ))}
-      {ax.map((a) => { const p = pt(a[1], R); return <line key={a[0]} x1={cx} y1={cy} x2={p[0].toFixed(1)} y2={p[1].toFixed(1)} stroke="rgba(232,224,205,.16)" strokeWidth={0.9} />; })}
-      <polygon points={vpts} fill="rgba(200,162,74,.22)" stroke="#c8a24a" strokeWidth={2} strokeLinejoin="round" />
-      {ax.map((a) => { const p = pt(a[1], (R * sig[a[0]]) / 100); return <circle key={a[0]} cx={p[0].toFixed(1)} cy={p[1].toFixed(1)} r={3} fill="#c8a24a" stroke="var(--panel)" strokeWidth={1.2} />; })}
-      {ax.map((a) => {
-        const top = a[1] === -90;
-        const lp = pt(a[1], R + 15);
-        const ly = top ? lp[1] - 4 : lp[1] + 1;
-        const vy = top ? lp[1] + 9 : lp[1] + 14;
-        return (
-          <g key={a[0]}>
-            <text x={lp[0].toFixed(1)} y={ly.toFixed(1)} textAnchor="middle" fontSize="9.5" fontWeight={700} letterSpacing="0.05em" fill="#ece7db">{a[2].toUpperCase()}</text>
-            <text x={lp[0].toFixed(1)} y={vy.toFixed(1)} textAnchor="middle" fontSize="13" fontWeight={800} fill="#c8a24a">{Math.round(sig[a[0]])}</text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
 
 function PersonaDetail({ p, onEdit, onArchive }: { p: PersonaVM; onEdit: () => void; onArchive: () => void }) {
-  const up = p.scoreTrend.length >= 2 && p.scoreTrend[p.scoreTrend.length - 1] >= p.scoreTrend[0];
   return (
     <>
       <div className="dhead">
@@ -495,25 +434,27 @@ function PersonaDetail({ p, onEdit, onArchive }: { p: PersonaVM; onEdit: () => v
             <button type="button" className="miniabtn ghost" onClick={onArchive}>Archive</button>
           </div>
         </div>
-        <div className="dconf">
-          <div className="cl">Lead score</div>
-          <div className="cv" style={{ color: p.scoreColor }}>{p.score}<span style={{ fontSize: 14, color: "var(--muted)" }}>/100</span></div>
-          <div className="ct">
-            <span className="ctl">90-day</span>
-            <span className="sparkwrap"><Sparkline points={p.scoreTrend} up={up} /></span>
-          </div>
-        </div>
+        {/* The "Lead score N/100" tile and its "90-day" sparkline were removed.
+            persona.score is written as a constant (60) at seed and at create and is
+            never recomputed, and score_trend is literally [60, 60] — so the number was
+            the same for every persona in every workspace and the sparkline was a flat
+            line labelled as 90 days of history. Real per-persona performance
+            (leads / jobs / revenue) is in the Performance card below. */}
       </div>
 
       <div className="sec dduo">
+        {/* The Signals radar was tagged "wired · snapshots" but plotted
+            persona.signals — written as {engagement:60, fit:60, intent:60} and never
+            updated — so every persona rendered an identical triangle. Its driver lines
+            ("Room to lift opens & replies", "Partial ICP match", "Few recent buying
+            signals") were a fallback keyed off that same constant, so every workspace
+            got the same three invented diagnoses. Nothing computes these yet. */}
         <div className="radarcard">
-          <h3 className="sh" style={{ alignSelf: "flex-start", marginBottom: 4 }}>Signals <span className="tg wired">snapshots</span></h3>
-          <Radar sig={p.radar} />
-          <div className="rdrivers">
-            <div className="rdr"><b>Engagement</b>{p.drivers.engagement}</div>
-            <div className="rdr"><b>Fit</b>{p.drivers.fit}</div>
-            <div className="rdr"><b>Intent</b>{p.drivers.intent}</div>
-          </div>
+          <h3 className="sh" style={{ alignSelf: "flex-start", marginBottom: 4 }}>Signals</h3>
+          <p style={{ margin: "4px 2px 0", fontSize: "12px", lineHeight: 1.6, color: "var(--muted)" }}>
+            Engagement, fit and intent scoring isn&rsquo;t computed yet — Arc doesn&rsquo;t score personas from
+            your CRM activity today. Real attributed performance is in the Performance card.
+          </p>
         </div>
         <div className="perfcard">
           <h3 className="sh">Performance <span className="tg wired">wired · leads / outcomes</span></h3>
