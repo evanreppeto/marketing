@@ -9,7 +9,7 @@ import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config";
 import { platformCredentialFor, readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
 import { listWorkspaceConnectors, resolveConnectorCredentialRef } from "@/lib/connectors/read-model";
-import { checkConnectorCredential } from "@/lib/connectors/health";
+import { checkConnectorCredential, checkEnrichmentEndpoint } from "@/lib/connectors/health";
 import { checkHiggsfieldToken } from "@/lib/connectors/higgsfield-health";
 import { runCrmImport, runCsvImport, runMailchimpImport, CSV_IMPORT_CONNECTOR_KEY, MAILCHIMP_IMPORT_CONNECTOR_KEY } from "@/lib/connectors/import";
 import { checkHubspotConnection } from "@/lib/integrations/crm/hubspot";
@@ -42,6 +42,14 @@ import type { SettingsWriteResult } from "./actions";
  * browser. The runner later reads it through GET /api/v1/arc/connectors. Nothing
  * here goes outbound; a connected connector still only acts under approval.
  */
+/**
+ * API-key connectors whose provider health check needs only the key (no extra
+ * per-workspace config), so it can run at connect time. Higgsfield is validated by
+ * its own dedicated branch above; config-dependent connectors (Mailchimp, HubSpot,
+ * lead-enrichment, Slack) are validated by Test once their config is set.
+ */
+const CONNECT_TIME_VALIDATED = new Set(["gemini-research", "gemini-media", "news-search"]);
+
 export async function connectConnector(input: {
   connectorKey: string;
   credential: string;
@@ -70,6 +78,17 @@ export async function connectConnector(input: {
     const health = await checkHiggsfieldToken(accessToken);
     if (!health.ok) {
       return { ok: false, error: `Higgsfield rejected that credential (${health.error ?? "unknown error"}) — check the key and try again.` };
+    }
+  }
+
+  // Config-free API-key connectors: validate the key against the provider BEFORE
+  // storing, so a wrong key is rejected at connect time instead of silently reading
+  // "Connected" until someone hits Test. Connectors whose health needs extra config
+  // (Mailchimp audience id, enrichment endpoint) are validated by Test instead.
+  if (CONNECT_TIME_VALIDATED.has(connector.key)) {
+    const health = await checkConnectorCredential(connector.key, credential);
+    if (!health.ok) {
+      return { ok: false, error: `That credential was rejected (${health.error ?? "unknown error"}) — check it and try again.` };
     }
   }
 
@@ -253,6 +272,20 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
       await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: { ok: sl.ok, error: sl.ok ? undefined : sl.error } });
       revalidatePath("/settings");
       return sl.ok ? { ok: true, persisted: true, message: "Test alert posted to your Slack channel." } : { ok: false, error: `Test failed: ${sl.error}` };
+    }
+
+    // Lead enrichment needs both the vendor key and the configured endpoint to probe
+    // — the endpoint is where the key gets exercised, so a key-only test is meaningless.
+    if (connector.key === "lead-enrichment") {
+      const config = await getConnectorConfig(client, workspaceId, connector.key);
+      const endpoint = typeof config.endpoint === "string" ? config.endpoint.trim() : "";
+      if (!endpoint) return { ok: false, error: "Set the enrichment endpoint URL first, then test." };
+      const en = await checkEnrichmentEndpoint(endpoint, plaintext);
+      await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: en });
+      revalidatePath("/settings");
+      return en.ok
+        ? { ok: true, persisted: true, message: "Enrichment vendor reachable — the key authenticated." }
+        : { ok: false, error: `Test failed: ${en.error ?? "endpoint unreachable"}` };
     }
 
     // Mailchimp needs both the key and the configured audience id to probe.
