@@ -5,7 +5,7 @@ import { INDUSTRY_OPTIONS } from "@/lib/personas/industry-templates";
 import { createWorkspaceAction, joinWorkspaceAction } from "./actions";
 
 export const metadata = {
-  title: "Set up your workspace — Arc",
+  title: "Set up your workspace — Arc Studio",
 };
 
 const WORKSPACE_TYPES = [

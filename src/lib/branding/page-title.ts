@@ -4,7 +4,7 @@ export function buildAppTitle(input: {
   brand: string;
   workspaceDisplayName: string | null | undefined;
 }): { default: string; template: string } {
-  const brand = input.brand.trim() || "Arc";
+  const brand = input.brand.trim() || "Arc Studio";
   const workspace = input.workspaceDisplayName?.trim();
   return {
     default: workspace ? `${workspace} · ${brand}` : brand,

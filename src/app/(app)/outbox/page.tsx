@@ -11,7 +11,7 @@ import {
   type OutboxGroups,
 } from "./_components/outbox-board";
 
-export const metadata = { title: "Outbox — Arc" };
+export const metadata = { title: "Outbox — Arc Studio" };
 
 function normChannel(channel: string): OutboxChannel {
   const c = (channel || "").toLowerCase();

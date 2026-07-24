@@ -9,7 +9,7 @@ import { canonicalIndustryKey } from "@/lib/product-language";
 import { CampaignsBoard, type CampaignRow, type CampaignTone } from "./_components/campaigns-board";
 import { needsOperatorApproval } from "./_components/tone";
 
-export const metadata = { title: "Campaigns — Arc" };
+export const metadata = { title: "Campaigns — Arc Studio" };
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();

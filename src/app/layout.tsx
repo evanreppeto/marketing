@@ -32,7 +32,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Arc — Marketing operations, with your approval",
+  title: "Arc Studio — Marketing operations, with your approval",
   description:
     "Arc finds source-backed opportunities, drafts approval-gated campaigns, and prepares creative — and never sends without your sign-off.",
   // Browser-tab + bookmark/home-screen icon: the gold "A" mark on the brand's

@@ -17,7 +17,7 @@ import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { SettingsView } from "./_components/settings-view";
 import "./settings.css";
 
-export const metadata = { title: "Settings — Arc" };
+export const metadata = { title: "Settings — Arc Studio" };
 
 export default async function SettingsPage() {
   // Resolve the workspace first (React-cached) so its org scopes the settings read.

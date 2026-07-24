@@ -6,7 +6,7 @@ import { getAppSettings } from "@/lib/settings/store";
 
 import { JourneysView } from "./_components/journeys-view";
 
-export const metadata = { title: "Journeys — Arc" };
+export const metadata = { title: "Journeys — Arc Studio" };
 
 export default async function JourneysPage() {
   const [ctx, headerList] = await Promise.all([getCurrentWorkspaceContext().catch(() => null), headers()]);
