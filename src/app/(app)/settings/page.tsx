@@ -13,6 +13,7 @@ import { isLiveSendEnabled } from "@/lib/dispatch/live-send";
 import { getOrgPersonaOptions } from "@/lib/personas/read-model";
 import { getAppSettings } from "@/lib/settings/store";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
+import { getWaitlistView } from "@/lib/waitlist/read-model";
 
 import { SettingsView } from "./_components/settings-view";
 import "./settings.css";
@@ -34,6 +35,9 @@ export default async function SettingsPage() {
     getEmailConnection().catch(() => null),
     resolveAgentConnection().catch(() => null),
   ]);
+  // Platform waitlist — null unless the viewer is on ARC_PLATFORM_ADMIN_EMAILS.
+  // The gate runs server-side inside the read-model, so a non-admin never reads a row.
+  const waitlist = await getWaitlistView().catch(() => null);
   // The workspace's own personas, for the connector "Default persona" picker.
   const personaOptions = await getOrgPersonaOptions(ctx?.orgId ?? undefined).catch(() => []);
   const brandName = ctx?.orgName?.trim() || "Your workspace";
@@ -50,5 +54,5 @@ export default async function SettingsPage() {
   // Whether the deployment has a Google Cloud OAuth app configured — gates the
   // "Connect with Google" button on the reviews connector.
   const googleOAuthConfigured = isGoogleOAuthConfigured();
-  return <SettingsView brandName={brandName} email={email} avatarUrl={avatarUrl} team={team} usage={usage} connectorSpend={connectorSpend} billing={billing} settings={settings} connectors={connectors} workspaces={workspaces} emailConnection={emailConnection} liveSendEnabled={liveSendEnabled} agentConnection={agentConnection} personaOptions={personaOptions} googleOAuthConfigured={googleOAuthConfigured} />;
+  return <SettingsView brandName={brandName} email={email} avatarUrl={avatarUrl} team={team} usage={usage} connectorSpend={connectorSpend} billing={billing} settings={settings} connectors={connectors} workspaces={workspaces} emailConnection={emailConnection} liveSendEnabled={liveSendEnabled} agentConnection={agentConnection} personaOptions={personaOptions} googleOAuthConfigured={googleOAuthConfigured} waitlist={waitlist} />;
 }
