@@ -76,3 +76,11 @@ export function getAuthMode(): AuthMode {
 export function isInteractiveAuthEnabled() {
   return getAuthMode() !== "open";
 }
+
+// Pre-pricing gate: self-serve sign-up is closed in supabase mode (production)
+// until pricing ships — the landing waitlist is the front door instead. Invited
+// teammates still join via /accept-invite. Set ARC_SELF_SERVE_SIGNUP=1 to
+// reopen /sign-up without a code change.
+export function isSelfServeSignupOpen(): boolean {
+  return getAuthMode() !== "supabase" || process.env.ARC_SELF_SERVE_SIGNUP === "1";
+}

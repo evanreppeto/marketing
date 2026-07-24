@@ -1,0 +1,45 @@
+import { NextResponse } from "next/server";
+
+import {
+  isSupabaseAdminConfigured,
+  persistWaitlistSignup,
+} from "@/lib/waitlist/persistence";
+import { normalizeWaitlistEmail } from "@/lib/waitlist/validate";
+
+/**
+ * Public waitlist signup for the landing page (pre-pricing).
+ *
+ *   POST /api/waitlist  { "email": "you@company.com", "source"?: "landing" }
+ *
+ * Status codes follow the ingest conventions: 400 invalid, 201 created,
+ * 200 already on the list (idempotent), 202 accepted but Supabase not
+ * configured (local dev), 502 persistence error.
+ */
+export async function POST(request: Request) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Request body must be JSON." }, { status: 400 });
+  }
+  const payload = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
+
+  const parsed = normalizeWaitlistEmail(payload.email);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+  const source =
+    typeof payload.source === "string" && payload.source.trim().length > 0
+      ? payload.source.trim().slice(0, 64)
+      : "landing";
+
+  if (!isSupabaseAdminConfigured()) {
+    return NextResponse.json({ status: "not_configured" }, { status: 202 });
+  }
+
+  const result = await persistWaitlistSignup(parsed.email, source);
+  if (!result.ok) {
+    return NextResponse.json({ error: "Couldn't save your signup. Try again." }, { status: 502 });
+  }
+  return NextResponse.json({ status: result.status }, { status: result.status === "created" ? 201 : 200 });
+}
