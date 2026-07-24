@@ -8,7 +8,6 @@ import type { BrandKnowledgeSyncSummary } from "@/lib/brand-knowledge/sync-summa
 import { resyncBrandSources, updateBrandIdentity, uploadBrandDocuments, type BrandUploadResult } from "../actions";
 import { EditIdentityModal } from "./edit-identity-modal";
 
-const PREVIEW_IMG = "https://d8j0ntlcm91z4.cloudfront.net/user_3FaOq1cCR2Izxa2haYxVnIrhIBK/hf_20260625_205928_16464999-955a-4ad8-9f7e-44da9947830a_min.webp";
 const STUDIO = "/studio";
 const BRAIN = "/brain";
 
@@ -17,8 +16,6 @@ const BAN = <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M6
 const RESYNC = <svg viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6" /><path d="M20 10a8 8 0 00-14-3M4 14a8 8 0 0014 3" /></svg>;
 const DOC = <svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4" /></svg>;
 
-const ASPECTS = ["1 / 1", "4 / 5", "16 / 9", "9 / 16"];
-const ASPECT_LABELS = ["1:1", "4:5", "16:9", "9:16"];
 
 // Mirrors the server-side gate (acceptUpload): the picker filters, the action
 // re-validates. `.md`/`.csv` are extension-only because browsers rarely type
@@ -37,7 +34,6 @@ function isLight(hex: string): boolean {
 export function BrandView({ view }: { view: BrandProfileView }) {
   const { identity, palette, tone, voiceGuidance, preferredPhrases, bannedPhrases, proofPoints, services, guardrails, sources } = view;
   const [active, setActive] = useState(0);
-  const [aspect, setAspect] = useState(0);
   const [editOpen, setEditOpen] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -210,11 +206,11 @@ export function BrandView({ view }: { view: BrandProfileView }) {
                     <div><div className="pl ban">{BAN}Banned</div><div className="words">{bannedPhrases.map((w) => <span className="word ban" key={w}>{w}</span>)}</div></div>
                   </div>
                 )}
-                <div className="vpreview">
-                  <div className="vp-head"><span className="vp-spark"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10z" /></svg></span>How Arc will write <span className="tg est">preview</span><span className="vp-regen" data-soon="Regenerating the preview is coming soon">{RESYNC}Regenerate</span></div>
-                  <div className="vp-body">“Hail hit Naperville hard on June 24. We’ll inspect your roof for free, coordinate the whole insurance claim, and back the work with our workmanship warranty — licensed, insured, local crews.”</div>
-                  <div className="vp-meta"><i />Email opener · in your voice · {proofPoints.length} proof points · 0 banned phrases</div>
-                </div>
+                {/* The "How Arc will write" card was removed: it printed a fixed
+                    roofing email captioned "in your voice" — another company's copy,
+                    shown to every workspace directly under their real tone chips — and a
+                    literal "0 banned phrases" that stayed 0 no matter how many were set.
+                    Nothing generated it. Restore this only behind a real generation call. */}
               </div>
               {bannedPhrases.length > 0 && (
                 <div className="bsnote">Arc enforces banned phrases as a <b>guardrail</b> — drafts using them are flagged before they reach approval.</div>
@@ -244,24 +240,23 @@ export function BrandView({ view }: { view: BrandProfileView }) {
 
         {/* RIGHT RAIL */}
         <div className="brail">
-          {/* LIVE PREVIEW */}
-          <div className="preview">
-            <div className="pvhead"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth={1.9}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg><h3>Live brand preview</h3><span className="tg est" style={{ marginLeft: "auto" }}>preview</span></div>
-            <div className="pvframe" style={{ aspectRatio: ASPECTS[aspect] }}>
-              <img src={PREVIEW_IMG} alt="" />
-              <div className="pvgrad" />
-              <div className="pvcontent">
-                <div className="pvlogo"><i><svg viewBox="0 0 24 24"><path d="M5 8l5 4-5 4M11 16h8" /></svg></i>{identity.name}</div>
-                {tagline && <div className="pvh">{tagline}</div>}
-                {proofPoints.length > 0 && <div className="pvs">{proofPoints.slice(0, 3).join(" · ")}</div>}
-                <div className="pvcta">Book a free inspection →</div>
-              </div>
+          {/* The "Live brand preview" card was removed. Its caption claimed "This
+              composite is generated from your palette, fonts & an approved Library
+              photo", but the image was a single hardcoded CloudFront URL — one fixed
+              photo of a house, identical for every workspace — under a hardcoded
+              "Book a free inspection →" CTA. Only the name/tagline/proof overlay was
+              real. There is no brand-composite generator, so there was nothing
+              truthful to render; the aspect-ratio buttons only re-cropped the same
+              stock photo. Rebuild this against a real composite call, not a fixture. */}
+          <div className="bsec">
+            <div className="bsh"><h3>Creative preview</h3></div>
+            <div className="bsb">
+              <p style={{ margin: 0, fontSize: "12.5px", lineHeight: 1.65, color: "var(--muted)" }}>
+                Brand-composite previews aren&rsquo;t generated yet. Build a creative on your own approved
+                media in <a href={STUDIO} style={{ color: "var(--accent)" }}>Studio</a> — it uses this brand
+                kit for colors, type and copy.
+              </p>
             </div>
-            <div className="pvbar">
-              {ASPECT_LABELS.map((label, i) => <span key={label} className={`arat${i === aspect ? " on" : ""}`} onClick={() => setAspect(i)}>{label}</span>)}
-              <a className="gbtn sm" style={{ marginLeft: "auto" }} href={STUDIO}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}><path d="M4 5h16v14H4z" /><path d="M4 14l5-4 4 3 3-2 4 3" /></svg>Open in Studio</a>
-            </div>
-            <div className="pvcap">This composite is generated from your palette, fonts &amp; an approved Library photo — nothing is sent until you approve it.</div>
           </div>
 
           {/* BRAND SOURCES */}
