@@ -7,7 +7,7 @@
       "runtimeArgs": ["dev", "--port", "6001"],
       "port": 6001,
       "autoPort": false,
-      "env": { "ARC_DEMO_DATA": "1" }
+      "env": { "ARC_DEMO_DATA": "1", "DEFAULT_ORG_SLUG": "meridian" }
     },
     {
       "name": "arc-dev-alt",
@@ -15,7 +15,7 @@
       "runtimeArgs": ["dev", "--port", "6031"],
       "port": 6031,
       "autoPort": true,
-      "env": { "ARC_DEMO_DATA": "1" }
+      "env": { "ARC_DEMO_DATA": "1", "DEFAULT_ORG_SLUG": "meridian" }
     },
     {
       "name": "arc-open",
@@ -23,7 +23,7 @@
       "runtimeArgs": ["dev", "--port", "6041"],
       "port": 6041,
       "autoPort": true,
-      "env": { "ARC_DEMO_DATA": "1", "ARC_AUTH_MODE": "open" }
+      "env": { "ARC_DEMO_DATA": "1", "ARC_AUTH_MODE": "open", "DEFAULT_ORG_SLUG": "meridian" }
     }
   ]
 }

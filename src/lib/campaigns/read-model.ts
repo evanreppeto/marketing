@@ -893,7 +893,7 @@ function buildDemoCampaignWorkspaceDetail(campaign: DemoCampaign, agentName: str
     promptInputs: [
       { label: "Persona", value: campaign.persona },
       { label: "Theme", value: campaign.restorationFocus },
-      { label: "Service area", value: "North Shore — 60091 / 60093 / 60201" },
+      { label: "Segment", value: "Mid-market accounts — Team & Business plans" },
       { label: "Offer", value: campaign.offerSummary },
     ],
   };
@@ -950,7 +950,7 @@ function buildDemoCampaignWorkspaceDetail(campaign: DemoCampaign, agentName: str
     why: `${campaign.whyBuilt} Goal: reduce decision friction and make the next step clear.`,
     timeframe: `Updated ${campaign.updatedAt}. Awaiting human approval before anything goes out.`,
     where: campaign.audienceSummary,
-    successTracking: `Track CTA events, form/phone submissions, booked jobs, and attribution. Current evidence: ${sources.length} source record${sources.length === 1 ? "" : "s"}, ${assets.length} deliverable${assets.length === 1 ? "" : "s"}, ${approvals.length} approval record${approvals.length === 1 ? "" : "s"}.`,
+    successTracking: `Track CTA events, form/phone submissions, booked demos, and attribution. Current evidence: ${sources.length} source record${sources.length === 1 ? "" : "s"}, ${assets.length} deliverable${assets.length === 1 ? "" : "s"}, ${approvals.length} approval record${approvals.length === 1 ? "" : "s"}.`,
   };
 
   const markConversation: ArcMessage[] = [
@@ -2314,13 +2314,13 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
   return [
     {
       id: "preview-sms-storm-follow-up",
-      title: "SMS reminder for property managers",
+      title: "SMS reminder for team admins",
       assetType: "SMS",
       category: "virtual",
       channel: "SMS",
       status: "Draft",
-      body: "Hi Maya, quick storm follow-up: if any units are still showing moisture, Summit Restoration can document the issue and coordinate mitigation this week. Want me to hold a crew slot?",
-      preview: "Hi Maya, quick storm follow-up: if any units are still showing moisture, Summit Restoration can document the issue and coordinate mitigation this week.",
+      body: "Hi Maya, quick follow-up: if any teams are still stuck on setup, Meridian can walk them through it this week. Want me to hold a walkthrough slot?",
+      preview: "Hi Maya, quick follow-up: if any teams are still stuck on setup, Meridian can walk them through it this week.",
       complianceNotes: "Demo preview content for layout review only.",
       guardrailFlags: [],
       blockedPhrases: [],
@@ -2336,13 +2336,13 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
     },
     {
       id: "preview-media-storm-creative",
-      title: "Storm response social creative",
+      title: "Launch social creative",
       assetType: "Social Ad",
       category: "media",
       channel: "Social Ad",
       status: "Draft",
-      body: "Visual concept: maintenance tech documenting moisture readings in a multifamily hallway after heavy rain. Caption focuses on fast documentation for property managers.",
-      preview: "Social creative concept for post-storm property manager outreach.",
+      body: "Visual concept: a product manager reviewing a team dashboard on a laptop in a modern office. Caption focuses on fast onboarding for team admins.",
+      preview: "Social creative concept for team admin onboarding outreach.",
       complianceNotes: "Demo preview content for layout review only.",
       guardrailFlags: [],
       blockedPhrases: [],
@@ -2357,11 +2357,11 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
           id: "preview-media-storm-hallway",
           type: "image",
           origin: "attached",
-          title: "Storm response creative preview",
+          title: "Launch creative preview",
           url: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80",
           thumbnailUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80",
           mimeType: "image/jpeg",
-          description: "Demo preview image for a storm response social creative.",
+          description: "Demo preview image for a launch social creative.",
           source: "Preview data",
           virality: null,
         },
@@ -2371,13 +2371,13 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
     },
     {
       id: "preview-draft-landing-page",
-      title: "Emergency moisture documentation landing page",
+      title: "Team onboarding landing page",
       assetType: "Landing Page",
       category: "virtual",
       channel: "Website",
       status: "Draft",
-      body: "Headline: Document moisture fast after the storm.\n\nBody: Summit Restoration helps property managers capture photos, readings, and mitigation notes before small leaks become bigger claims.\n\nCTA: Request a same-week moisture walkthrough.",
-      preview: "Landing page draft for property managers who need documentation after storm calls.",
+      body: "Headline: Get your team onboarded fast.\n\nBody: Meridian helps team admins set up workspaces, invite members, and configure workflows before small blockers become bigger delays.\n\nCTA: Request a same-week onboarding walkthrough.",
+      preview: "Landing page draft for team admins who need to onboard after a launch.",
       complianceNotes: "Demo preview content for layout review only.",
       guardrailFlags: [],
       blockedPhrases: [],
@@ -2393,13 +2393,13 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
     },
     {
       id: "preview-other-call-script",
-      title: "Leasing office callback script",
+      title: "Team onboarding callback script",
       assetType: "Call Script",
       category: "other",
       channel: "CRM",
       status: "Pending approval",
-      body: "Open by referencing the storm calls from this week, ask whether any tenant reports are unresolved, then offer a short documentation visit before the weekend schedule fills.",
-      preview: "CRM/call script for offices that responded to recent storm outreach.",
+      body: "Open by referencing the launch this week, ask whether any teams are still stuck on setup, then offer a short onboarding walkthrough before the schedule fills.",
+      preview: "CRM/call script for teams that responded to recent launch outreach.",
       complianceNotes: "Demo preview content for layout review only.",
       guardrailFlags: [],
       blockedPhrases: [],
@@ -2606,7 +2606,7 @@ export function buildExecutiveOverview(input: {
 }): CampaignExecutiveOverview {
   const { campaign, assets, approvals, reasoning, sources, agentName = "Arc" } = input;
   const audience = sentenceFragment(campaign.audience_summary ?? `the ${humanize(campaign.persona)} segment`);
-  const offer = sentenceFragment(campaign.offer_summary ?? "the proposed Summit Restoration restoration offer");
+  const offer = sentenceFragment(campaign.offer_summary ?? "the proposed offer");
   const objective = sentenceFragment(campaign.objective ?? campaign.offer_summary ?? "No campaign objective has been captured yet");
   const payloads = [
     asObject(campaign.source_signal),
@@ -2621,7 +2621,7 @@ export function buildExecutiveOverview(input: {
     what:
       findPayloadAnswer(payloads, JOURNEY_OVERVIEW_KEYS) ??
       findPayloadAnswer(payloads, WHAT_KEYS) ??
-      `Move ${audience} toward a trusted Summit Restoration handoff with ${offer}. Objective: ${objective}.`,
+      `Move ${audience} toward a trusted next step with ${offer}. Objective: ${objective}.`,
     why: `${whySignal}. Goal: reduce decision friction and make the next step clear.`,
     timeframe:
       findPayloadAnswer(payloads, TIMEFRAME_KEYS) ??
