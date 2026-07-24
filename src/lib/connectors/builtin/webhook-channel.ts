@@ -1,22 +1,22 @@
+import { postWebhook } from "@/lib/integrations/webhook/post";
+
 import { registerChannel, type ChannelConnector, type ChannelDispatchInput, type ChannelDispatchResult } from "../registry";
 
 // ---------------------------------------------------------------------------
-// Stub `channel` connector proving the registry (BSR-363). A channel's dispatch()
-// is invoked ONLY by the approved-send path (src/lib/connectors/dispatch.ts),
-// which refuses to run without an approvalId. This stub does NOT actually POST —
-// it returns a dry-run result so nothing reaches the outside world until a real
-// implementation is wired behind the same human gate. There is no code path in
-// this repo that calls dispatch() automatically.
+// Real `channel` connector for outbound webhooks. dispatch() performs an actual
+// approval-gated POST of the approved payload to the workspace's configured
+// endpoint. It is invoked ONLY behind the human gate — it refuses without an
+// approvalId (defence-in-depth on top of any caller's own check), so nothing
+// reaches the outside world unapproved. There is no automatic caller.
 // ---------------------------------------------------------------------------
 
-function readEndpoint(config: Record<string, unknown>): string | null {
+export function readEndpoint(config: Record<string, unknown>): string | null {
   const url = config.endpoint ?? config.url;
   return typeof url === "string" && url.trim().length > 0 ? url.trim() : null;
 }
 
 export async function dispatchWebhook(input: ChannelDispatchInput): Promise<ChannelDispatchResult> {
-  // Defence in depth: even though dispatch.ts already gates on approvalId, the
-  // channel itself refuses an unapproved send.
+  // Defence in depth: the channel itself refuses an unapproved send.
   if (!input.approvalId || !input.approvalId.trim()) {
     return { ok: false, error: "Refusing to dispatch: no approval on record." };
   }
@@ -24,9 +24,18 @@ export async function dispatchWebhook(input: ChannelDispatchInput): Promise<Chan
   if (!endpoint) {
     return { ok: false, error: "No endpoint configured for the webhook channel." };
   }
-  // Stub: report what WOULD be sent without sending it. Swap this for a real,
-  // still-approval-gated fetch() when the outbound webhook is productionised.
-  return { ok: true, providerRef: `dry-run:${endpoint}` };
+  const result = await postWebhook(endpoint, {
+    type: "arc.approved_send",
+    approvalId: input.approvalId,
+    medium: input.payload.medium ?? "webhook",
+    subject: input.payload.subject,
+    body: input.payload.body,
+    to: input.payload.to,
+    meta: input.payload.meta,
+  });
+  return result.ok
+    ? { ok: true, providerRef: `webhook:${endpoint}` }
+    : { ok: false, error: result.error };
 }
 
 export const webhookChannelConnector: ChannelConnector = {

@@ -19,6 +19,8 @@ import { checkMetaAdLibrary } from "@/lib/integrations/ads/meta-ad-library";
 import { parseAdWatchConfig } from "@/lib/connectors/builtin/competitor-ads";
 import { resolveGoogleAccessToken } from "@/lib/connectors/google-oauth";
 import { buildOpportunityDigest, postSlackWebhook } from "@/lib/integrations/slack/notify";
+import { postWebhook } from "@/lib/integrations/webhook/post";
+import { readEndpoint as readWebhookEndpoint } from "@/lib/connectors/builtin/webhook-channel";
 import { listOpenOpportunities } from "@/lib/opportunities/read-model";
 import { checkNwsConnection } from "@/lib/integrations/weather/nws-source";
 import {
@@ -193,6 +195,25 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
         persisted: true,
         message: `NWS reachable — ${result.count ?? 0} active alert(s) for ${areaLabel}${forecastNote}.`,
       };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : "Could not run the test." };
+    }
+  }
+
+  // No-credential outbound channel: post a test payload to the configured endpoint.
+  // Like weather-signals, this runs before the credential lookup (there is no key).
+  if (connector.key === "webhook-dispatch") {
+    try {
+      const client = getSupabaseAdminClient();
+      const config = await getConnectorConfig(client, workspaceId, connector.key);
+      const endpoint = readWebhookEndpoint(config);
+      if (!endpoint) return { ok: false, error: "Set the webhook endpoint URL first, then test." };
+      const wh = await postWebhook(endpoint, { type: "arc.test", message: "Arc is connected. Approved sends will POST here after your confirmation." });
+      await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: wh.ok ? { ok: true } : { ok: false, error: wh.error } });
+      revalidatePath("/settings");
+      return wh.ok
+        ? { ok: true, persisted: true, message: `Endpoint reachable — test payload delivered (HTTP ${wh.status}).` }
+        : { ok: false, error: `Test failed: ${wh.error}` };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : "Could not run the test." };
     }
