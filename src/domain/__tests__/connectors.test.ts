@@ -142,9 +142,13 @@ describe("computeConnectorStatus", () => {
 describe("availability — a connector with no integration must be unreachable, not just undocumented", () => {
   // permit-data USED to invent "Paid permit records flagged fresh filings in {X}" at
   // confidence 65 from nothing but a municipality name, and meter a paid lookup for
-  // each one. reviews/competitor-ads never invented anything, but claimed to "watch"
-  // Google/Yelp and Meta with no client behind either.
-  const PLANNED = ["reviews-signals", "competitor-ads", "permit-data"];
+  // each one. It stays fenced: there is still no permit vendor behind it.
+  //
+  // reviews-signals and competitor-ads GRADUATED off this list — both now have real
+  // clients (src/lib/integrations/reviews/gbp.ts, .../ads/meta-ad-library.ts). They
+  // still need a credential + config to report `connected`, but those are real gates
+  // now, not an availability fence.
+  const PLANNED = ["permit-data"];
 
   it.each(PLANNED)("%s is marked planned", (key) => {
     expect(connectorIsAvailable(findConnector(key)!)).toBe(false);

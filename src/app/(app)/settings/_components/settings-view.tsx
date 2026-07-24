@@ -261,8 +261,8 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
   "competitor-ads": {
     c: "#c47f7f",
     l: "Ad",
-    credLabel: "Ad library API access token",
-    credHint: "Meta Ad Library / Google Ads Transparency access, stored in your Vault. Read-only competitive intel from official APIs — it proposes defensive opportunities and never contacts anyone.",
+    credLabel: "Meta Ad Library access token",
+    credHint: "A Meta access token with Ad Library API access, stored in your Vault. Read-only competitive intel from Meta's official API — it proposes defensive opportunities and never contacts anyone. (Google has no official ads-transparency API, so this is Meta-only.)",
   },
   "webhook-dispatch": {
     c: "#9aa0ac",
@@ -439,6 +439,31 @@ const CONFIG_FIELDS: Record<string, ConfigField[]> = {
       hint: "Approved messages POST here — only from the human-approved send path.",
     },
   ],
+  "reviews-signals": [
+    {
+      key: "gbpLocation",
+      kind: "text",
+      label: "Business location",
+      placeholder: "accounts/123456789/locations/987654321",
+      hint: "The Google Business Profile location resource name whose reviews Arc reads. Find it in the Business Profile API (accounts.locations.list) — reviews are fetched per location.",
+    },
+  ],
+  "competitor-ads": [
+    {
+      key: "competitors",
+      kind: "csv",
+      label: "Competitors to watch",
+      placeholder: "Competitor One, Competitor Two",
+      hint: "Advertiser or brand names to search the Meta Ad Library for. Each becomes a search term; matching advertisers become competitor-signal opportunities.",
+    },
+    {
+      key: "countries",
+      kind: "csv",
+      label: "Countries",
+      placeholder: "US, CA",
+      hint: "ISO country codes the ads reached — Meta requires at least one. Note: outside the EU the Ad Library API only exposes political & social-issue ads.",
+    },
+  ],
   "hubspot-import": [
     {
       key: "defaultPersona",
@@ -528,7 +553,7 @@ const DENSITY_LABEL: Record<AppSettings["appearanceDensity"], string> = { comfor
 const MOTION_LABEL: Record<AppSettings["appearanceMotion"], string> = { standard: "Standard", reduced: "Reduced" };
 const PROFILE_LABEL: Record<AppSettings["workspaceProfile"], string> = { individual: "Individual", company: "Company", agency: "Agency" };
 
-export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, billing = null, settings, connectors, workspaces, emailConnection = null, liveSendEnabled = true, agentConnection = null, personaOptions = [] }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; billing?: SettingsBillingView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null; liveSendEnabled?: boolean; agentConnection?: EffectiveAgentConnection | null; personaOptions?: readonly PersonaOption[] }) {
+export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, billing = null, settings, connectors, workspaces, emailConnection = null, liveSendEnabled = true, agentConnection = null, personaOptions = [], googleOAuthConfigured = false }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; billing?: SettingsBillingView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null; liveSendEnabled?: boolean; agentConnection?: EffectiveAgentConnection | null; personaOptions?: readonly PersonaOption[]; googleOAuthConfigured?: boolean }) {
   const [cur, setCur] = useState("overview");
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
@@ -945,7 +970,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
         </div>
       </div>
       {selectedConnector && (
-        <ConnectorModal view={selectedConnector} configured={connectors.configured} onClose={closeConnector} />
+        <ConnectorModal view={selectedConnector} configured={connectors.configured} googleOAuthConfigured={googleOAuthConfigured} onClose={closeConnector} />
       )}
       {resendModalOpen && emailConnection && <ResendModal view={emailConnection} liveSendEnabled={liveSendEnabled} onClose={closeConnector} />}
       {modelSel && <ModelModal model={modelSel} onClose={() => setModelSel(null)} />}
@@ -1545,7 +1570,7 @@ function ConnectorCard({ view, onOpen }: { view: ConnectorView; onOpen: () => vo
 // connect / rotate / disconnect (or an enable switch for no-credential ones), any
 // per-workspace config, and a plain-language "About". Opened from a card click and
 // deep-linkable (?s=connections&c=<key>). Nothing here is developer-facing.
-function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; configured: boolean; onClose: () => void }) {
+function ConnectorModal({ view, configured, googleOAuthConfigured = false, onClose }: { view: ConnectorView; configured: boolean; googleOAuthConfigured?: boolean; onClose: () => void }) {
   const meta = CONNECTOR_META[view.key] ?? { c: "#9aa0ac", l: view.label.slice(0, 2), credLabel: "API key", credHint: "" };
   const reg = findConnector(view.key);
   const pill = CONNECTOR_STATUS_PILL[view.status];
@@ -1564,24 +1589,27 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
   const configFields = CONFIG_FIELDS[view.key] ?? [];
 
   const [credential, setCredential] = useState("");
-  // Seed status from the OAuth round-trip marker (?hf=connected | <error-code>)
-  // Higgsfield redirects back with — computed at init so no setState-in-effect.
+  // OAuth round-trip marker: Higgsfield redirects back with ?hf=, Google Business
+  // reviews with ?gb=. Seeded at init so there's no setState-in-effect.
+  const oauthMarker = view.key === "higgsfield" ? "hf" : view.key === "reviews-signals" ? "gb" : null;
   const [status, setStatus] = useState<SaveStatus>(() => {
-    if (typeof window === "undefined" || view.key !== "higgsfield") return null;
-    const hf = new URLSearchParams(window.location.search).get("hf");
-    if (!hf) return null;
-    return hf === "connected" ? { tone: "ok", text: "Higgsfield connected." } : { tone: "err", text: `Couldn’t connect Higgsfield (${hf.replace(/_/g, " ")}).` };
+    if (typeof window === "undefined" || !oauthMarker) return null;
+    const marker = new URLSearchParams(window.location.search).get(oauthMarker);
+    if (!marker) return null;
+    return marker === "connected"
+      ? { tone: "ok", text: `${view.label} connected.` }
+      : { tone: "err", text: `Couldn’t connect ${view.label} (${marker.replace(/_/g, " ")}).` };
   });
   const [pending, setPending] = useState(false);
 
-  // Strip the ?hf marker after mount so a refresh doesn't re-show it (no setState).
+  // Strip the marker after mount so a refresh doesn't re-show it (no setState).
   useEffect(() => {
-    if (view.key !== "higgsfield") return;
+    if (!oauthMarker) return;
     const params = new URLSearchParams(window.location.search);
-    if (!params.has("hf")) return;
-    params.delete("hf");
+    if (!params.has(oauthMarker)) return;
+    params.delete(oauthMarker);
     window.history.replaceState(null, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
-  }, [view.key]);
+  }, [oauthMarker]);
 
   async function connect() {
     if (!credential.trim()) { setStatus({ tone: "err", text: "Paste a credential." }); return; }
@@ -1689,6 +1717,23 @@ function ConnectorModal({ view, configured, onClose }: { view: ConnectorView; co
             <div className="cxm-label" style={{ marginTop: 16 }}>Option 2 — Personal account (OAuth)</div>
             <p className="cxm-hint">Sign in to your Higgsfield Ultra account. Arc gets its own key for this workspace and refreshes it automatically — no token to copy.</p>
             <button className="btn sm" disabled={pending || !configured} onClick={() => { window.location.href = "/api/connectors/higgsfield/authorize"; }}>Connect with Higgsfield</button>
+          </div>
+        ) : view.key === "reviews-signals" ? (
+          <div className="cxm-sec">
+            <div className="cxm-label">Google Business Profile</div>
+            <p className="cxm-hint">
+              Sign in to Google and grant read access to your Business Profile. Arc reads recent reviews for the
+              location you set below and proposes service-recovery / referral opportunities — it never replies, and
+              nothing goes out without your approval.
+            </p>
+            {googleOAuthConfigured ? (
+              <button className="btn gold" disabled={pending || !configured} onClick={() => { window.location.href = "/api/connectors/google-reviews/authorize"; }}>Connect with Google</button>
+            ) : (
+              <p className="cxm-hint" style={{ opacity: 0.85 }}>
+                Google sign-in isn&apos;t available on this deployment yet — it needs a Google Cloud OAuth app
+                (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET) with Business Profile API access.
+              </p>
+            )}
           </div>
         ) : (
           <div className="cxm-sec">
