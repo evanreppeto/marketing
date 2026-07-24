@@ -384,6 +384,9 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     access: "gated_write",
     mcpUrl: null,
     toolNamespace: "webhook-dispatch",
+    // Without an endpoint there is nowhere to post — gate it so the connector reads
+    // `not_configured` instead of a false "Connected" that could never deliver.
+    requiredConfigKeys: ["endpoint"],
   },
   {
     key: "slack-alerts",
