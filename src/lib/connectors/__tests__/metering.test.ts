@@ -177,3 +177,44 @@ describe("meterConnectorCall — central guard", () => {
     expect(inserts[0].row).toMatchObject({ units: 1, cost_estimate_cents: 8 });
   });
 });
+
+describe("dual-mode costTier override (platform credits on a byo_key entry)", () => {
+  // gemini-media's static tier is byo_key; a platform-credit call passes the
+  // RESOLVED tier so it is governed and recorded like any metered connector.
+  it("meters and records a platform-credit call on a byo_key entry", async () => {
+    const { client, inserts } = makeClient({ capCents: 5000, spentRows: [] });
+    const outcome = await meterConnectorCall(
+      client,
+      { orgId: "org-1", workspaceId: "ws-1", connectorKey: "gemini-media", estimatedUnits: 1, costTier: "metered" },
+      () => "generated",
+    );
+    expect(outcome).toMatchObject({ ok: true, metered: true, result: "generated" });
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]!.row).toMatchObject({ connector_key: "gemini-media", units: 1, cost_estimate_cents: 6 });
+  });
+
+  it("refuses a platform-credit call that would breach the cap — run() never fires", async () => {
+    const { client, inserts } = makeClient({ capCents: 10, spentRows: [{ cost_estimate_cents: 8 }] });
+    const run = vi.fn(() => "generated");
+    const outcome = await meterConnectorCall(
+      client,
+      { orgId: "org-1", workspaceId: "ws-1", connectorKey: "gemini-media", estimatedUnits: 1, costTier: "metered" },
+      run,
+    );
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.refusal.message).toContain("spend cap");
+    expect(run).not.toHaveBeenCalled();
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("still bypasses entirely for the same entry on the workspace's own key", async () => {
+    const { client, inserts } = makeClient({ capCents: 10, spentRows: [{ cost_estimate_cents: 8 }] });
+    const outcome = await meterConnectorCall(
+      client,
+      { orgId: "org-1", workspaceId: "ws-1", connectorKey: "gemini-media", estimatedUnits: 1, costTier: "byo_key" },
+      () => "generated",
+    );
+    expect(outcome).toMatchObject({ ok: true, metered: false, result: "generated", costCents: 0 });
+    expect(inserts).toHaveLength(0);
+  });
+});

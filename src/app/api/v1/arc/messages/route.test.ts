@@ -38,6 +38,9 @@ vi.mock("@/lib/arc-chat/inbox", () => ({
   reclaimStaleChatTasks: vi.fn(async () => []),
   settleChatTask: vi.fn(async () => undefined),
 }));
+vi.mock("@/lib/arc-chat/conversation-title.server", () => ({
+  refreshArcConversationTitleFromResult: vi.fn(async () => true),
+}));
 vi.mock("@/lib/arc-chat/persistence", () => ({
   completeArcMessage: vi.fn(async () => undefined),
   failArcMessage: vi.fn(async () => undefined),
@@ -51,6 +54,7 @@ vi.mock("@/lib/arc-chat/status-log", () => ({ logArcChatStatus: vi.fn() }));
 vi.mock("@/lib/settings/agent-name", () => ({ getAgentName: vi.fn(async () => "Arc") }));
 
 import { checkAgentBearer } from "@/lib/auth/api-token";
+import { refreshArcConversationTitleFromResult } from "@/lib/arc-chat/conversation-title.server";
 import { claimChatTask, listQueuedChatTasks, reclaimStaleChatTasks, settleChatTask } from "@/lib/arc-chat/inbox";
 import { completeArcMessage, findPendingMessageByTask } from "@/lib/arc-chat/persistence";
 
@@ -133,6 +137,10 @@ describe("POST /api/v1/arc/messages", () => {
     expect(res.status).toBe(201);
     expect(findPendingMessageByTask).toHaveBeenCalledWith("task-1", undefined, TOKEN_SCOPE);
     expect(completeArcMessage).toHaveBeenCalledWith(expect.objectContaining({ messageId: "msg-1", body: "Done." }));
+    expect(refreshArcConversationTitleFromResult).toHaveBeenCalledWith({
+      conversationId: "conv-1",
+      response: "Done.",
+    });
     expect(settleChatTask).toHaveBeenCalledWith("task-1", "completed", undefined, TOKEN_SCOPE);
   });
 });

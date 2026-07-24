@@ -41,4 +41,12 @@ export type WorkPanelTab = "work" | "created" | "audience";
 export type ArcWaiting = { approvals: number; opportunities: number; items?: ArcWaitingOpp[] };
 
 /** A conversation row in the thread drawer. */
-export type ThreadItem = { id: string; title: string; when: string; pinned?: boolean; running?: boolean; campaignId?: string | null };
+export type ThreadItem = {
+  id: string;
+  title: string;
+  preview?: string | null;
+  when: string;
+  pinned?: boolean;
+  running?: boolean;
+  campaignId?: string | null;
+};

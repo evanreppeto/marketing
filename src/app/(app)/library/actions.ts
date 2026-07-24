@@ -194,7 +194,10 @@ export async function importLibraryAssetFromUrl(input: {
       contentType: fetched.contentType,
       kind,
       byteSize: fetched.bytes.byteLength,
-      source: "url_import",
+      // "url" is the schema's vocabulary — media_assets_source_check on prod
+      // allows (uploaded|ai_generated|composite|stock|external|google_drive|url),
+      // and the read-model's badge already maps source "url" -> "URL".
+      source: "url",
       provenance: { origin: "url_import", sourceUrl: url },
       riskFlags: scan.riskFlags,
       tags: scan.tags,

@@ -115,6 +115,17 @@ export type ConnectorRegistryEntry = {
    * connector reports `unavailable`, can't be enabled, and never runs.
    */
   availability?: ConnectorAvailability;
+  /**
+   * PLATFORM-CREDITS mode (the bundled default of the dual credential model):
+   * names the deployment env var holding the platform's own key for this
+   * provider. When present AND set in the environment, the connector works out
+   * of the box with no stored workspace credential — resolved by
+   * `resolveConnectorCredential` in src/lib/connectors/credential-resolution.ts
+   * as: workspace's own Vault key first (byo), else the platform key (metered
+   * against the workspace's plan), else an honest "not configured". Absent =
+   * BYO-only (e.g. a personal-account OAuth the platform cannot share).
+   */
+  platformEnvVar?: string;
   /** Convenience mirror of credentialSchema.kind (widely read by UI/read-model). */
   authKind: ConnectorAuthKind;
   access: ConnectorAccess;
@@ -135,8 +146,9 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     key: "gemini-research",
     kind: "mcp_tool",
     label: "Gemini Web Research",
-    description: "Grounded web search with citations, using this workspace's own Gemini API key.",
+    description: "Grounded web search with citations — included on platform credits, or bring this workspace's own Gemini API key.",
     costTier: "byo_key",
+    platformEnvVar: "GEMINI_API_KEY",
     verticals: [],
     capability: { summary: "Grounded web research with citations.", toolNamespaces: ["gemini"] },
     credentialSchema: {
@@ -150,20 +162,42 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     toolNamespace: "gemini",
   },
   {
+    key: "gemini-media",
+    kind: "mcp_tool",
+    label: "Media Generation",
+    description:
+      "AI image & video generation for Studio and Arc — included on platform credits (metered, spend-capped), or bring this workspace's own Gemini API key. Output always lands as approval-gated draft assets, provenance-tagged and risk-flagged.",
+    costTier: "byo_key",
+    platformEnvVar: "GEMINI_API_KEY",
+    verticals: [],
+    capability: { summary: "Generate campaign imagery and short video as approval-gated drafts.", toolNamespaces: ["media"] },
+    credentialSchema: {
+      kind: "api_key",
+      label: "Gemini API key",
+      hint: "From Google AI Studio (billing enabled for image output). Stored encrypted in your Vault — never shown again, never sent to the browser.",
+    },
+    authKind: "api_key",
+    access: "gated_write",
+    mcpUrl: null,
+    toolNamespace: "media",
+  },
+  {
     key: "higgsfield",
     kind: "mcp_tool",
     label: "Higgsfield",
     description:
       "Cinematic image & video generation, UGC/viral ad variants, and virality prediction on this " +
       "workspace's own Higgsfield credits. Loaded into the runner as a remote MCP; output lands as " +
-      "approval-gated draft assets.",
+      "approval-gated draft assets. Connect with a personal account (OAuth) or a Cloud API key.",
     costTier: "byo_key",
     verticals: [],
     capability: { summary: "Cinematic image & video generation, draft assets only.", toolNamespaces: ["higgsfield"] },
     credentialSchema: {
       kind: "oauth",
-      label: "Higgsfield API token",
-      hint: "Connect with Higgsfield (OAuth), or paste a token bundle. Used only for approval-gated draft assets.",
+      label: "Higgsfield credential",
+      hint:
+        "Connect with Higgsfield (personal-account OAuth), or paste a Cloud API key from cloud.higgsfield.ai — " +
+        "the supported path for the hosted runner (no signed-in session to expire). Used only for approval-gated draft assets.",
     },
     authKind: "oauth",
     access: "gated_write",
@@ -540,6 +574,31 @@ export function bypassesMetering(costTier: ConnectorCostTier): boolean {
   return costTier === "free" || costTier === "byo_key";
 }
 
+/** Where a connector call's credential actually came from. */
+export type ConnectorCredentialSource = "byo" | "platform" | "none";
+
+/** True when the entry declares a platform key the deployment MAY provide. */
+export function supportsPlatformCredits(entry: Pick<ConnectorRegistryEntry, "platformEnvVar">): boolean {
+  return Boolean(entry.platformEnvVar);
+}
+
+/**
+ * The cost tier a call actually runs under, given where its credential came
+ * from. This is what metering must consume: a workspace key means the
+ * workspace pays its provider directly (bypasses metering); the platform key
+ * means WE pay, so the call is metered and spend-capped regardless of the
+ * entry's static tier. No credential falls back to the static tier (free
+ * connectors run; credentialed ones will refuse upstream).
+ */
+export function effectiveCostTier(
+  entry: Pick<ConnectorRegistryEntry, "costTier">,
+  source: ConnectorCredentialSource,
+): ConnectorCostTier {
+  if (source === "byo") return "byo_key";
+  if (source === "platform") return entry.costTier === "free" ? "free" : "metered";
+  return entry.costTier;
+}
+
 /** True when the connector's required per-workspace config is actually filled in. */
 export function connectorConfigSatisfied(
   entry: Pick<ConnectorRegistryEntry, "requiredConfigKeys">,
@@ -575,13 +634,17 @@ export function computeConnectorStatus(input: {
   configPresent?: boolean;
   /** Defaults "live" — an omitted value can't change an existing connector's status. */
   availability?: ConnectorAvailability;
+  /** True when the deployment supplies a platform key for this connector — the
+   *  credential requirement is satisfied without a stored workspace credential
+   *  (platform-credits mode). Defaults false so BYO-only connectors are unaffected. */
+  platformCredentialAvailable?: boolean;
 }): ConnectorStatus {
   // Beats every other gate: there is nothing to configure your way out of. A stale
   // enabled=true row can't resurrect it either, which is the point — this is what
   // makes "not built" unreachable instead of merely discouraged.
   if (input.availability === "planned") return "unavailable";
   const requiresCredential = input.requiresCredential ?? true;
-  if (requiresCredential && !input.credentialPresent) return "not_configured";
+  if (requiresCredential && !input.credentialPresent && !input.platformCredentialAvailable) return "not_configured";
   if (input.configPresent === false) return "not_configured";
   if (!input.enabled) return "disabled";
   if (input.lastTestOk === false) return "error";

@@ -317,3 +317,18 @@
 .arc-campaign .revdiff-line.is-added .revdiff-gutter { color: var(--ok); }
 .arc-campaign .revdiff-line.is-removed { color: var(--red-text); background: var(--red-soft); box-shadow: inset 2px 0 0 var(--red); }
 .arc-campaign .revdiff-line.is-removed .revdiff-gutter { color: var(--red); }
+
+/* -- External send (BYO channel) modal -------------------------------------- */
+.arc-campaign-modal .extsend, .extsend { display: flex; flex-direction: column; gap: 14px; }
+.extsend .exsec { border-top: 1px solid var(--line); padding-top: 12px; }
+.extsend .exsec:first-child { border-top: 0; padding-top: 0; }
+.extsend .exlabel { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+.extsend .exlabel span { min-width: 0; }
+.extsend .exactions { display: inline-flex; gap: 6px; text-transform: none; letter-spacing: 0; }
+.extsend .exvalue { font-size: 12.5px; color: var(--text); }
+.extsend .exbody { width: 100%; resize: vertical; border: 1px solid var(--line-2); border-radius: 8px; background: var(--inset); color: var(--text-2); font-family: var(--mono); font-size: 10.5px; line-height: 1.5; padding: 8px 10px; }
+.extsend .exhint { font-size: 11.5px; color: var(--muted); margin: 0; line-height: 1.5; }
+.extsend .exerr { font-size: 11.5px; color: var(--warn-text, #d9a05b); margin: 0; }
+.extsend .exdone { color: var(--ok-text); }
+.extsend .exmarkrow { display: flex; gap: 8px; margin-top: 8px; }
+.extsend .exinput { flex: 1; border: 1px solid var(--line-2); border-radius: 8px; background: var(--inset); color: var(--text); font-size: 12px; padding: 8px 10px; }

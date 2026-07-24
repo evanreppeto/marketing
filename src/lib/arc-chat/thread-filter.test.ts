@@ -7,7 +7,7 @@ const groups: ArcThreadGroupVM[] = [
   {
     group: "Today",
     items: [
-      { id: "storm", title: "Storm-damage homeowners", when: "9:38 AM", active: true, pinned: true, running: false },
+      { id: "storm", title: "Storm-damage homeowners", preview: "Drafted a homeowner follow-up sequence", when: "9:38 AM", active: true, pinned: true, running: false },
       { id: "past", title: "Past-customer outreach", when: "8:12 AM", active: false, pinned: false, running: false },
     ],
   },
@@ -32,6 +32,10 @@ describe("filterThreadGroups", () => {
   it("matches group and time metadata", () => {
     expect(filterThreadGroups(groups, "8:12")[0]?.items.map((item) => item.id)).toEqual(["past"]);
     expect(filterThreadGroups(groups, "yesterday")[0]?.items.map((item) => item.id)).toEqual(["noaa"]);
+  });
+
+  it("matches semantic conversation previews", () => {
+    expect(filterThreadGroups(groups, "follow-up sequence")[0]?.items.map((item) => item.id)).toEqual(["storm"]);
   });
 
   it("returns the original grouping for an empty query", () => {

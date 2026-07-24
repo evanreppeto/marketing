@@ -1,6 +1,6 @@
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { listCampaignNames } from "@/lib/campaigns/read-model";
-import { isMediaGenEnabled } from "@/lib/media";
+import { resolveMediaGeneration } from "@/lib/media/enablement";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
 import type { MediaAssetView } from "@/lib/media-library/types";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -47,7 +47,8 @@ export default async function StudioPage() {
   // Campaign picker options (a generated draft must attach to a campaign for the
   // approval gate) and the media-generation master flag, threaded into StudioView.
   const campaigns = ctx?.orgId && isSupabaseAdminConfigured() ? await listCampaignNames(ctx.orgId).catch(() => []) : [];
-  const mediaEnabled = isMediaGenEnabled();
+  // Per-workspace: the gemini-media connector (legacy env flag still honored).
+  const mediaEnabled = (await resolveMediaGeneration(ctx?.workspaceId ?? null)).enabled;
 
   return (
     <StudioView

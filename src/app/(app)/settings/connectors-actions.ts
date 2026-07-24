@@ -2,14 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 
-import { connectorIsAvailable, findConnector, isWeatherServiceAreaConfigured, parseWeatherServiceArea } from "@/domain";
+import { connectorIsAvailable, findConnector, isWeatherServiceAreaConfigured, parseConnectorCredential, parseWeatherServiceArea } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config";
-import { readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
+import { platformCredentialFor, readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
 import { listWorkspaceConnectors, resolveConnectorCredentialRef } from "@/lib/connectors/read-model";
 import { checkConnectorCredential } from "@/lib/connectors/health";
+import { checkHiggsfieldToken } from "@/lib/connectors/higgsfield-health";
 import { runCrmImport, runCsvImport, runMailchimpImport, CSV_IMPORT_CONNECTOR_KEY, MAILCHIMP_IMPORT_CONNECTOR_KEY } from "@/lib/connectors/import";
 import { checkHubspotConnection } from "@/lib/integrations/crm/hubspot";
 import { checkMailchimpConnection } from "@/lib/integrations/crm/mailchimp";
@@ -56,6 +57,18 @@ export async function connectConnector(input: {
   const ctx = await getCurrentWorkspaceContext();
   if (!ctx.workspaceId) return { ok: false, error: "No active workspace to connect into." };
 
+  // Higgsfield: validate BEFORE storing, whichever credential form was pasted
+  // (a Cloud API key or an OAuth token bundle). Their MCP is the authority —
+  // storing a rejected key would read "Connected" until someone hit Test.
+  if (connector.key === "higgsfield") {
+    const parsed = parseConnectorCredential(credential);
+    const accessToken = parsed.kind === "oauth_refresh" ? parsed.accessToken : parsed.token;
+    const health = await checkHiggsfieldToken(accessToken);
+    if (!health.ok) {
+      return { ok: false, error: `Higgsfield rejected that credential (${health.error ?? "unknown error"}) — check the key and try again.` };
+    }
+  }
+
   try {
     const client = getSupabaseAdminClient();
     const credentialRef = await writeConnectorCredential(client, {
@@ -70,6 +83,11 @@ export async function connectConnector(input: {
       credentialRef,
     });
     await setConnectorEnabledRow(client, { workspaceId: ctx.workspaceId, connectorKey: connector.key, enabled: true });
+    // The connect probe IS a successful test — record it so the card shows a
+    // fresh healthy state instead of "never tested".
+    if (connector.key === "higgsfield") {
+      await recordConnectorTest(client, { workspaceId: ctx.workspaceId, connectorKey: connector.key, result: { ok: true } });
+    }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not connect." };
   }
@@ -166,9 +184,13 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
       .eq("connector_key", connector.key)
       .maybeSingle<{ credential_ref: string | null }>();
     const ref = data?.credential_ref ?? null;
-    if (!ref) return { ok: false, error: "No credential to test — connect the connector first." };
+    // Dual credential model: the workspace's own key wins; otherwise a
+    // platform-credits connector tests against the platform key — "Test" must
+    // work out of the box for exactly the connectors that claim to.
+    const platformKey = ref ? null : platformCredentialFor(connector);
+    if (!ref && !platformKey) return { ok: false, error: "No credential to test — connect the connector first." };
 
-    const plaintext = await readConnectorCredential(client, ref);
+    const plaintext = ref ? await readConnectorCredential(client, ref) : platformKey;
     if (!plaintext) return { ok: false, error: "Stored credential could not be read." };
 
     // CRM import: a real HubSpot probe that also reports how many contacts an

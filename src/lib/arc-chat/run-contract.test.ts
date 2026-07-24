@@ -40,4 +40,15 @@ describe("buildArcRunContract", () => {
     expect(buildArcRunContract({ mode: "act", actionCount: 1 }).workspaceEffect)
       .toBe("Created 1 reviewable workspace output");
   });
+
+  it("keeps structured result cards separate from recorded workspace changes", () => {
+    expect(buildArcRunContract({
+      mode: "act",
+      actionCount: 2,
+      workspaceChangeCount: 0,
+    })).toMatchObject({
+      workspaceEffect: "No workspace changes recorded",
+      outputSummary: "2 reviewable outputs",
+    });
+  });
 });

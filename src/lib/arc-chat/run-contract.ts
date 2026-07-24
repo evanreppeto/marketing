@@ -31,22 +31,24 @@ export function buildArcRunContract(input: {
   route?: ArcRoute;
   contextScopes?: string[];
   actionCount?: number;
+  workspaceChangeCount?: number;
   toolCount?: number;
   agentTaskId?: string | null;
 }): ArcRunContract {
   const mode = input.mode ?? "act";
   const scopes = uniqueScopes(input.contextScopes ?? []);
   const actionCount = Math.max(0, input.actionCount ?? 0);
+  const workspaceChangeCount = Math.max(0, input.workspaceChangeCount ?? actionCount);
   const toolCount = Math.max(0, input.toolCount ?? 0);
 
   const modeLabel = mode === "ask" ? "Read only" : mode === "draft" ? "Draft only" : "Workspace action";
   const workspaceEffect = mode === "ask"
     ? "No workspace changes"
-    : actionCount === 0
+    : workspaceChangeCount === 0
       ? "No workspace changes recorded"
       : mode === "draft"
-        ? `Created ${actionCount} reviewable draft${actionCount === 1 ? "" : "s"}`
-        : `Created ${actionCount} reviewable workspace output${actionCount === 1 ? "" : "s"}`;
+        ? `Created ${workspaceChangeCount} reviewable draft${workspaceChangeCount === 1 ? "" : "s"}`
+        : `Created ${workspaceChangeCount} reviewable workspace output${workspaceChangeCount === 1 ? "" : "s"}`;
   const approval = mode === "ask"
     ? "Not needed for read-only work"
     : "Required before any outbound action";

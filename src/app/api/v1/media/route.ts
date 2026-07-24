@@ -140,7 +140,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       contentType,
       kind,
       byteSize: bytes.byteLength,
-      source: "api_import",
+      // "external" is the schema-allowed value for pushes from outside tools
+      // (media_assets_source_check); the API's own identity lives in provenance.
+      source: "external",
       provenance: {
         origin: "api_import",
         ...(payload.sourceUrl ? { fetchedFrom: payload.sourceUrl } : {}),

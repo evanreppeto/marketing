@@ -27,6 +27,16 @@ const storeGeneratedMedia = vi.hoisted(() =>
 vi.mock("@/lib/media", () => ({
   isMediaGenEnabled: () => process.env.ARC_MEDIA_ENABLED === "1",
   getMediaProvider: () => ({ startVideo, pollVideo }),
+  getMediaProviderWithKey: () => ({ startVideo, pollVideo }),
+}));
+vi.mock("@/lib/media/enablement", () => ({
+  MEDIA_CONNECTOR_KEY: "gemini-media",
+  // byo bypasses metering so route tests exercise the route, not the ledger.
+  resolveMediaGeneration: vi.fn(async () =>
+    process.env.ARC_MEDIA_ENABLED === "1"
+      ? { enabled: true, credential: "test-key", source: "byo", costTier: "byo_key" }
+      : { enabled: false, reason: "Media generation is off for this workspace." },
+  ),
 }));
 vi.mock("@/lib/billing/entitlements", () => ({
   checkUsageAllowed: async () => ({

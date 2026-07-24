@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { arcGuard } from "@/app/api/v1/arc/_lib/http";
+import { refreshArcConversationTitleFromResult } from "@/lib/arc-chat/conversation-title.server";
 import { claimChatTask, listQueuedChatTasks, reclaimStaleChatTasks, settleChatTask } from "@/lib/arc-chat/inbox";
 import {
   completeArcMessage,
@@ -135,6 +136,10 @@ export async function POST(request: Request) {
         // Only set mentions ("Sources Arc used") when the reply provides them.
         ...(body.mentions !== undefined ? { mentions: parseMentions(body.mentions) } : {}),
       });
+      await refreshArcConversationTitleFromResult({
+        conversationId: pending.conversationId,
+        response: replyBody.trim(),
+      }).catch(() => undefined);
       logArcChatStatus("complete", { agentTaskId, conversationId: pending.conversationId });
     }
     await touchConversation(pending.conversationId);
