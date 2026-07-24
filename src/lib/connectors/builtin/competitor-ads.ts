@@ -7,8 +7,7 @@ import {
 
 import { metaAdLibrarySource } from "@/lib/integrations/ads/meta-ad-library";
 
-import { readConnectorCredential } from "../credentials";
-import { resolveConnectorCredentialRef } from "../read-model";
+import { resolveConnectorCredential } from "../credential-resolution";
 import { registerSignalSource, type SignalDetectContext, type SignalSourceConnector } from "../registry";
 
 export const COMPETITOR_ADS_CONNECTOR_KEY = "competitor-ads";
@@ -100,10 +99,15 @@ async function resolveAdSource(ctx: SignalDetectContext): Promise<CompetitorAdSo
     return configAdSource(ctx.config);
   }
   try {
-    const ref = await resolveConnectorCredentialRef(ctx.client, ctx.workspaceId, COMPETITOR_ADS_CONNECTOR_KEY);
-    const token = await readConnectorCredential(ctx.client, ref);
-    if (!token) return configAdSource(ctx.config);
-    return metaAdLibrarySource(token, { searchTerms: watch.terms, countries: watch.countries, adType: watch.adType });
+    // Dual credential model: the workspace's own Meta token wins; otherwise the
+    // platform token (META_AD_LIBRARY_TOKEN) serves it, so a customer can switch this
+    // on without sourcing their own token. Neither → fall back to the config seam.
+    const resolved = await resolveConnectorCredential(
+      { connectorKey: COMPETITOR_ADS_CONNECTOR_KEY, workspaceId: ctx.workspaceId },
+      ctx.client,
+    );
+    if (!resolved.credential) return configAdSource(ctx.config);
+    return metaAdLibrarySource(resolved.credential, { searchTerms: watch.terms, countries: watch.countries, adType: watch.adType });
   } catch {
     return configAdSource(ctx.config);
   }

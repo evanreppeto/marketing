@@ -53,3 +53,31 @@ describe("resolveConnectorCredential", () => {
     expect(result).toMatchObject({ source: "none", reason: "Unknown connector: nope" });
   });
 });
+
+// competitor-ads is the multi-tenant shape: one deployment token serves every
+// workspace (so a customer never has to source their own Meta token), and because
+// the Ad Library API bills nothing per call it must stay FREE on the platform path
+// rather than flipping to `metered` and charging for a free API.
+describe("resolveConnectorCredential — competitor-ads platform token", () => {
+  const ADS = { connectorKey: "competitor-ads", workspaceId: "ws-1" };
+
+  it("serves every workspace from the platform token, and does NOT meter it", async () => {
+    vi.stubEnv("META_AD_LIBRARY_TOKEN", "platform-meta-token");
+    const result = await resolveConnectorCredential(ADS, clientWith({ ref: null }));
+    expect(result).toEqual({ source: "platform", credential: "platform-meta-token", costTier: "free" });
+  });
+
+  it("still lets a workspace override with its own token (own rate-limit budget)", async () => {
+    vi.stubEnv("META_AD_LIBRARY_TOKEN", "platform-meta-token");
+    const result = await resolveConnectorCredential(ADS, clientWith({ ref: "ref-1", secret: "workspace-meta-token" }));
+    expect(result).toMatchObject({ source: "byo", credential: "workspace-meta-token" });
+  });
+
+  it("refuses honestly when neither a workspace nor a platform token exists", async () => {
+    vi.stubEnv("META_AD_LIBRARY_TOKEN", "");
+    const result = await resolveConnectorCredential(ADS, clientWith({ ref: null }));
+    expect(result.source).toBe("none");
+    expect(result.credential).toBeNull();
+    expect(result.reason).toContain("META_AD_LIBRARY_TOKEN");
+  });
+});
