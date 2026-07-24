@@ -150,9 +150,7 @@ function HeroProductShot() {
 
 function Hero() {
   const reduced = useReducedMotion();
-  const heroIntroRef = useRef<HTMLVideoElement>(null);
   const heroLoopRef = useRef<HTMLVideoElement>(null);
-  const [heroPhase, setHeroPhase] = useState<"intro" | "loop">("intro");
   const { scrollY } = useScroll();
   const artY = useTransform(scrollY, [0, 720], [0, 130]);
   const fadeOut = useTransform(scrollY, [0, 600], [1, 0.45]);
@@ -168,12 +166,13 @@ function Hero() {
 
   return (
     <section id="top" className="relative overflow-hidden">
-      {/* Higgsfield-generated molten-gold ribbon in two acts, parallaxed
-          behind the headline: the intro film plays once (the ribbon flows in
-          from the top right), then hands off to a loop whose start/end frames
-          match the intro's final frame (Kling start_image = end_image), so
-          the motion never stops and never hard-resets. Reduced motion gets
-          the poster still. */}
+      {/* Higgsfield-generated molten-gold ribbon, parallaxed behind the
+          headline. A single perfectly seamless loop (Kling start_image =
+          end_image — first and last frames are the same pose, verified
+          ~0.9/255 mean pixel diff), so there is no intro/loop handoff to
+          see: it simply undulates forever. The poster is the loop's own
+          frame 0, so first paint matches and there's no jump when playback
+          begins. Reduced motion keeps the poster still. */}
       <motion.div
         className="pointer-events-none absolute inset-0"
         style={reduced ? undefined : { y: artY, opacity: fadeOut }}
@@ -185,46 +184,18 @@ function Hero() {
           className="h-full w-full object-cover"
         />
         {!reduced && (
-          <>
-            {/* The handoff overlaps rather than cuts: ~1s before the intro
-                ends, the loop starts playing underneath and the intro fades
-                out over that same second. Both show near-identical ribbon
-                poses at the boundary, so the exchange reads as one motion. */}
-            <motion.video
-              ref={heroLoopRef}
-              src="/brand/landing/hero-wave-loop.mp4"
-              muted
-              loop
-              playsInline
-              preload="auto"
-              className="absolute inset-0 h-full w-full object-cover"
-              onViewportEnter={() => {
-                if (heroPhase === "loop") void heroLoopRef.current?.play().catch(() => {});
-              }}
-              onViewportLeave={() => {
-                heroLoopRef.current?.pause();
-                heroIntroRef.current?.pause();
-              }}
-            />
-            <video
-              ref={heroIntroRef}
-              src="/brand/landing/hero-wave-intro.mp4"
-              muted
-              playsInline
-              autoPlay
-              preload="auto"
-              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1100ms] ease-in-out ${
-                heroPhase === "intro" ? "opacity-100" : "opacity-0"
-              }`}
-              onTimeUpdate={(e) => {
-                const v = e.currentTarget;
-                if (heroPhase === "intro" && v.duration && v.currentTime > v.duration - 1.1) {
-                  void heroLoopRef.current?.play().catch(() => {});
-                  setHeroPhase("loop");
-                }
-              }}
-            />
-          </>
+          <motion.video
+            ref={heroLoopRef}
+            src="/brand/landing/hero-wave-loop.mp4"
+            muted
+            loop
+            playsInline
+            autoPlay
+            preload="auto"
+            className="absolute inset-0 h-full w-full object-cover"
+            onViewportEnter={() => void heroLoopRef.current?.play().catch(() => {})}
+            onViewportLeave={() => heroLoopRef.current?.pause()}
+          />
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--canvas)]/90 via-[var(--canvas)]/30 to-[var(--canvas)]" />
       </motion.div>
